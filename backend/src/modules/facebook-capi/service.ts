@@ -23,7 +23,7 @@ class FacebookCapiModuleService {
       this.deps.logger?.warn("Facebook CAPI is disabled or missing credentials", {
         module: "facebook-capi",
       })
-      return
+      return null
     }
 
     const event = mapToFacebookEvent(type, payload)
@@ -34,7 +34,7 @@ class FacebookCapiModuleService {
         event_id: event.event_id,
         type,
       })
-      return
+      return null
     }
 
     try {
@@ -55,6 +55,8 @@ class FacebookCapiModuleService {
           response: responsePayload,
         })
       }
+
+      return responsePayload
     } catch (error) {
       this.deps.logger?.error("Failed to send Facebook CAPI event", {
         module: "facebook-capi",

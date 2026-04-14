@@ -24,6 +24,22 @@ const MARKETING_CONSENT_KEYS = [
   "consent_marketing",
 ]
 
+const parseConsentValue = (value: string | null | undefined) => {
+  if (!value) {
+    return null
+  }
+
+  if (value === "true") {
+    return true
+  }
+
+  if (value === "false") {
+    return false
+  }
+
+  return null
+}
+
 const readCookie = (name: string) => {
   if (typeof document === "undefined") return ""
 
@@ -48,19 +64,23 @@ export const getMarketingConsent = () => {
     return true
   }
 
+  if (window.__MARKETING_CONSENT__ === false) {
+    return false
+  }
+
   for (const key of MARKETING_CONSENT_KEYS) {
-    const localStorageValue = window.localStorage.getItem(key)
-    if (localStorageValue === "true") {
-      return true
+    const localStorageConsent = parseConsentValue(window.localStorage.getItem(key))
+    if (localStorageConsent !== null) {
+      return localStorageConsent
     }
 
-    const cookieValue = readCookie(key)
-    if (cookieValue === "true") {
-      return true
+    const cookieConsent = parseConsentValue(readCookie(key))
+    if (cookieConsent !== null) {
+      return cookieConsent
     }
   }
 
-  return false
+  return true
 }
 
 export const getMetaBrowserIds = () => ({

@@ -64,7 +64,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
-  await facebookCapiService.track(eventType, {
+  if (process.env.NODE_ENV !== "production") {
+    console.debug("[meta/server] purchase tracking function invoked", {
+      event_name: payload.event_name,
+      event_id: payload.event_id,
+      source: "storefront",
+    })
+  }
+
+  const responseBody = await facebookCapiService.track(eventType, {
     ...payload,
     event_id: payload.event_id,
     _fbp: payload._fbp,
@@ -78,6 +86,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       event_source_url: payload.event_source_url,
     },
   })
+
+  if (process.env.NODE_ENV !== "production") {
+    console.debug("[meta/server] meta response body", {
+      event_name: payload.event_name,
+      event_id: payload.event_id,
+      response: responseBody,
+    })
+  }
 
   return res.status(200).json({ ok: true })
 }
