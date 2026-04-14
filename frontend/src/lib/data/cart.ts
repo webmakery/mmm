@@ -15,6 +15,7 @@ import {
 } from "./cookies"
 import { getRegion } from "./regions"
 import { getLocale } from "@lib/data/locale-actions"
+import { cartRequiresShipping } from "@lib/util/cart-requires-shipping"
 import { BuilderConfiguration } from "types/global"
 
 /**
@@ -473,6 +474,7 @@ export async function submitPromotionForm(
 
 // TODO: Pass a POJO instead of a form entity here
 export async function setAddresses(currentState: unknown, formData: FormData) {
+  let nextStep = "delivery"
   try {
     if (!formData) {
       throw new Error("No form data found when setting addresses")
@@ -515,12 +517,18 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
         phone: formData.get("billing_address.phone"),
       }
     await updateCart(data)
+
+    const updatedCart = await retrieveCart()
+
+    if (!cartRequiresShipping(updatedCart)) {
+      nextStep = "payment"
+    }
   } catch (e: any) {
     return e.message
   }
 
   redirect(
-    `/${formData.get("shipping_address.country_code")}/checkout?step=delivery`
+    `/${formData.get("shipping_address.country_code")}/checkout?step=${nextStep}`
   )
 }
 

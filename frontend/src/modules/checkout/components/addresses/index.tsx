@@ -17,9 +17,11 @@ import { SubmitButton } from "../submit-button"
 const Addresses = ({
   cart,
   customer,
+  requiresShipping,
 }: {
   cart: HttpTypes.StoreCart | null
   customer: HttpTypes.StoreCustomer | null
+  requiresShipping: boolean
 }) => {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -84,7 +86,7 @@ const Addresses = ({
               </div>
             )}
             <SubmitButton className="mt-6" data-testid="submit-address-button">
-              Continue to delivery
+              {requiresShipping ? "Continue to delivery" : "Continue to payment"}
             </SubmitButton>
             <ErrorMessage error={message} data-testid="address-error-message" />
           </div>
