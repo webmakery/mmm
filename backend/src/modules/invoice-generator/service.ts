@@ -5,6 +5,7 @@ import {
 } from "@medusajs/framework/types"
 import { MedusaService } from "@medusajs/framework/utils"
 import path from "node:path"
+import { createRequire } from "node:module"
 import { pathToFileURL } from "node:url"
 import { InvoiceConfig } from "./models/invoice-config"
 import { Invoice } from "./models/invoice"
@@ -72,8 +73,14 @@ const getPdfPrinterConstructor = (resolved: any) => {
 }
 
 const resolvePdfPrinter = async () => {
-  const localRequire = typeof require === "function" ? require : null
-  const dynamicImportCandidates = ["pdfmake", "pdfmake/src/printer", "pdfmake/src/printer.js"]
+  const localRequire = createRequire(import.meta.url)
+  const dynamicImportCandidates = [
+    "pdfmake",
+    "pdfmake/src/printer.js",
+    "pdfmake/src/printer",
+    "pdfmake/js/printer.js",
+    "pdfmake/js/printer",
+  ]
   const resolutionErrors: string[] = []
 
   for (const candidate of dynamicImportCandidates) {
@@ -89,63 +96,65 @@ const resolvePdfPrinter = async () => {
     }
   }
 
-  if (localRequire) {
-    const requireCandidates = [
-      { label: "require(pdfmake/src/printer)", fn: () => localRequire("pdfmake/src/printer") },
-      { label: "require(pdfmake/src/printer.js)", fn: () => localRequire("pdfmake/src/printer.js") },
-      { label: "require(pdfmake)", fn: () => localRequire("pdfmake") },
+  const requireCandidates = [
+    { label: "require(pdfmake)", fn: () => localRequire("pdfmake") },
+    { label: "require(pdfmake/src/printer.js)", fn: () => localRequire("pdfmake/src/printer.js") },
+    { label: "require(pdfmake/src/printer)", fn: () => localRequire("pdfmake/src/printer") },
+    { label: "require(pdfmake/js/printer.js)", fn: () => localRequire("pdfmake/js/printer.js") },
+    { label: "require(pdfmake/js/printer)", fn: () => localRequire("pdfmake/js/printer") },
+  ]
+
+  for (const candidate of requireCandidates) {
+    try {
+      const resolved = candidate.fn()
+      const PdfPrinter = getPdfPrinterConstructor(resolved)
+
+      if (PdfPrinter) {
+        return PdfPrinter
+      }
+    } catch (error: any) {
+      resolutionErrors.push(`${candidate.label}: ${error?.message || String(error)}`)
+    }
+  }
+
+  try {
+    const pdfmakeEntrypointPath = localRequire.resolve("pdfmake")
+    const pdfmakeRoot = path.dirname(pdfmakeEntrypointPath)
+    const printerFilePaths = [
+      path.join(pdfmakeRoot, "printer.js"),
+      path.join(pdfmakeRoot, "printer"),
+      path.join(pdfmakeRoot, "src/printer.js"),
+      path.join(pdfmakeRoot, "src/printer"),
     ]
 
-    for (const candidate of requireCandidates) {
+    for (const printerFilePath of printerFilePaths) {
       try {
-        const resolved = candidate.fn()
+        const resolved = localRequire(printerFilePath)
         const PdfPrinter = getPdfPrinterConstructor(resolved)
 
         if (PdfPrinter) {
           return PdfPrinter
         }
       } catch (error: any) {
-        resolutionErrors.push(`${candidate.label}: ${error?.message || String(error)}`)
+        resolutionErrors.push(`require(${printerFilePath}): ${error?.message || String(error)}`)
       }
     }
 
-    try {
-      const pdfmakePackagePath = localRequire.resolve("pdfmake/package.json")
-      const pdfmakeRoot = path.dirname(pdfmakePackagePath)
-      const printerFilePaths = [
-        path.join(pdfmakeRoot, "src/printer.js"),
-        path.join(pdfmakeRoot, "src/printer"),
-      ]
+    for (const printerFilePath of printerFilePaths) {
+      try {
+        const moduleUrl = pathToFileURL(printerFilePath).href
+        const resolved = await import(moduleUrl)
+        const PdfPrinter = getPdfPrinterConstructor(resolved)
 
-      for (const printerFilePath of printerFilePaths) {
-        try {
-          const resolved = localRequire(printerFilePath)
-          const PdfPrinter = getPdfPrinterConstructor(resolved)
-
-          if (PdfPrinter) {
-            return PdfPrinter
-          }
-        } catch (error: any) {
-          resolutionErrors.push(`require(${printerFilePath}): ${error?.message || String(error)}`)
+        if (PdfPrinter) {
+          return PdfPrinter
         }
+      } catch (error: any) {
+        resolutionErrors.push(`import(${printerFilePath}): ${error?.message || String(error)}`)
       }
-
-      for (const printerFilePath of printerFilePaths) {
-        try {
-          const moduleUrl = pathToFileURL(printerFilePath).href
-          const resolved = await import(moduleUrl)
-          const PdfPrinter = getPdfPrinterConstructor(resolved)
-
-          if (PdfPrinter) {
-            return PdfPrinter
-          }
-        } catch (error: any) {
-          resolutionErrors.push(`import(${printerFilePath}): ${error?.message || String(error)}`)
-        }
-      }
-    } catch (error: any) {
-      resolutionErrors.push(`resolve(pdfmake/package.json): ${error?.message || String(error)}`)
     }
+  } catch (error: any) {
+    resolutionErrors.push(`resolve(pdfmake): ${error?.message || String(error)}`)
   }
 
   throw new Error(
