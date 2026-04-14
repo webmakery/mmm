@@ -18,6 +18,24 @@ module.exports = defineConfig({
   },
   modules: [
     {
+      resolve: "@medusajs/medusa/payment",
+      options: {
+        providers: [
+          {
+            resolve: "./src/modules/paypal",
+            id: "paypal",
+            options: {
+              client_id: process.env.PAYPAL_CLIENT_ID!,
+              client_secret: process.env.PAYPAL_CLIENT_SECRET!,
+              environment: process.env.PAYPAL_ENVIRONMENT || "sandbox",
+              autoCapture: process.env.PAYPAL_AUTO_CAPTURE === "true",
+              webhook_id: process.env.PAYPAL_WEBHOOK_ID,
+            },
+          },
+        ],
+      },
+    },
+    {
       resolve: "./src/modules/facebook-capi",
       options: metaConfig,
     },
