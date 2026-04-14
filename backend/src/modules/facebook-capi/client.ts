@@ -32,10 +32,11 @@ export class FacebookCapiClient {
   }
 
   async sendEvent(event: FacebookEventPayload): Promise<unknown> {
-    const url = `https://graph.facebook.com/${this.apiVersion}/${this.pixelId}/events?access_token=${this.accessToken}`
+    const url = `https://graph.facebook.com/${this.apiVersion}/${this.pixelId}/events`
 
     const body: Record<string, unknown> = {
       data: [event],
+      access_token: this.accessToken,
     }
 
     if (this.testEventCode) {

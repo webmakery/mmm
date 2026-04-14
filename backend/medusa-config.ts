@@ -1,6 +1,9 @@
 import { loadEnv, defineConfig } from '@medusajs/framework/utils'
+import { getMetaConfigFromEnv } from './src/modules/facebook-capi/config'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
+
+const metaConfig = getMetaConfigFromEnv(process.env)
 
 module.exports = defineConfig({
   projectConfig: {
@@ -16,22 +19,7 @@ module.exports = defineConfig({
   modules: [
     {
       resolve: "./src/modules/facebook-capi",
-      options: {
-        enabled: process.env.FACEBOOK_CAPI_ENABLED === "true",
-        pixelId: process.env.FACEBOOK_CAPI_PIXEL_ID,
-        accessToken: process.env.FACEBOOK_CAPI_ACCESS_TOKEN,
-        testEventCode:
-          process.env.META_TEST_EVENT_CODE ||
-          process.env.FACEBOOK_CAPI_TEST_EVENT_CODE ||
-          (process.env.NODE_ENV !== "production" ? "TEST35035" : undefined),
-        apiVersion: process.env.FACEBOOK_CAPI_API_VERSION,
-        timeoutMs: process.env.FACEBOOK_CAPI_TIMEOUT_MS
-          ? Number(process.env.FACEBOOK_CAPI_TIMEOUT_MS)
-          : undefined,
-        maxRetries: process.env.FACEBOOK_CAPI_MAX_RETRIES
-          ? Number(process.env.FACEBOOK_CAPI_MAX_RETRIES)
-          : undefined,
-      },
+      options: metaConfig,
     },
     {
       resolve: "./src/modules/product-builder",
