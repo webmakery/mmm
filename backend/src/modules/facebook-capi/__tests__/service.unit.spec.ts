@@ -73,7 +73,7 @@ describe("facebook capi service", () => {
     })
 
     expect(logger.info).toHaveBeenCalledWith(
-      "Facebook CAPI email matching status",
+      expect.stringContaining("Facebook CAPI email matching status"),
       expect.objectContaining({
         module: "facebook-capi",
         email_exists: true,
@@ -81,8 +81,10 @@ describe("facebook capi service", () => {
       })
     )
     const emailStatusCall = logger.info.mock.calls.find(
-      (args) => args[0] === "Facebook CAPI email matching status"
+      (args) => String(args[0]).startsWith("Facebook CAPI email matching status")
     )
+    expect(emailStatusCall?.[0]).toContain("event_name")
+    expect(emailStatusCall?.[0]).toContain("email_hashed: true")
     expect(emailStatusCall?.[1]).not.toHaveProperty("email")
   })
 
@@ -109,7 +111,7 @@ describe("facebook capi service", () => {
     })
 
     expect(logger.info).toHaveBeenCalledWith(
-      "Facebook CAPI outbound user_data summary",
+      expect.stringContaining("Facebook CAPI outbound user_data summary"),
       expect.objectContaining({
         event_name: "Purchase",
         email_exists: true,
@@ -119,9 +121,11 @@ describe("facebook capi service", () => {
     )
 
     const outboundSummaryCall = logger.info.mock.calls.find(
-      (args) => args[0] === "Facebook CAPI outbound user_data summary"
+      (args) => String(args[0]).startsWith("Facebook CAPI outbound user_data summary")
     )
 
+    expect(outboundSummaryCall?.[0]).toContain("event_name: 'Purchase'")
+    expect(outboundSummaryCall?.[0]).toContain("em_included: true")
     expect(outboundSummaryCall?.[1]).toEqual(
       expect.objectContaining({
         event_name: "Purchase",
