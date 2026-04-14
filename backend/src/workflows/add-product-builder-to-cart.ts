@@ -44,7 +44,7 @@ export const addProductBuilderToCartWorkflow = createWorkflow(
 
     const { data: cartBeforeMainProduct } = useQueryGraphStep({
       entity: "cart",
-      fields: ["id", "items.id"],
+      fields: ["id", "items.id", "items.quantity"],
       filters: {
         id: input.cart_id,
       },
@@ -110,10 +110,20 @@ export const addProductBuilderToCartWorkflow = createWorkflow(
       const existingLineItemIds = new Set(
         (data.cartBeforeMainProduct[0]?.items || []).map((item: any) => item.id)
       )
+      const existingLineItemQuantities = new Map(
+        (data.cartBeforeMainProduct[0]?.items || []).map((item: any) => [
+          item.id,
+          item.quantity || 0,
+        ])
+      )
 
       // Find the main product line item created by this workflow execution
       const mainLineItem = data.cartWithMainProduct[0].items.find((item: any) =>
-        item.metadata?.is_builder_main_product === true && !existingLineItemIds.has(item.id)
+        item.metadata?.is_builder_main_product === true &&
+        (
+          !existingLineItemIds.has(item.id) ||
+          (item.quantity || 0) > (existingLineItemQuantities.get(item.id) || 0)
+        )
       )
 
       if (!mainLineItem) {
