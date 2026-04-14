@@ -527,9 +527,11 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
     return e.message
   }
 
-  redirect(
-    `/${formData.get("shipping_address.country_code")}/checkout?step=${nextStep}`
-  )
+  const countryCode =
+    (formData.get("shipping_address.country_code") as string) ||
+    (formData.get("billing_address.country_code") as string)
+
+  redirect(`/${countryCode}/checkout?step=${nextStep}`)
 }
 
 /**
