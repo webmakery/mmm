@@ -123,6 +123,8 @@ type MetaAddToCartTrackingPayload = {
   fbp?: string
   fbc?: string
   currency?: string
+  total?: number
+  raw_total?: number
   value?: number
   content_type?: string
   content_ids?: string[]
@@ -204,7 +206,9 @@ export async function trackMetaEventToBackend(payload: MetaAddToCartTrackingPayl
       fbp: payload.fbp,
       fbc: payload.fbc,
       currency_code: payload.currency,
-      total: payload.value,
+      total: payload.total,
+      raw_total: payload.raw_total ?? payload.total,
+      value: payload.value,
       content_type: payload.content_type,
       content_ids: payload.content_ids,
       contents: payload.contents,

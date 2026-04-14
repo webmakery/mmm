@@ -42,8 +42,9 @@ class FacebookCapiModuleService {
 
       this.deps.logger?.info("Facebook CAPI purchase value conversion", {
         module: "facebook-capi",
-        original_medusa_total: originalTotal,
-        converted_meta_value: event.custom_data?.value,
+        raw_medusa_total: originalTotal,
+        forwarded_value: payload.value,
+        backend_final_meta_value: event.custom_data?.value,
         event_id: event.event_id,
       })
     }

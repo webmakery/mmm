@@ -15,6 +15,7 @@ type MetaTrackStorePayload = {
   external_id?: string
   currency_code?: string
   total?: number
+  raw_total?: number
   value?: number
   content_type?: string
   content_ids?: string[]
@@ -72,6 +73,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
+  if (payload.event_name === "Purchase" && process.env.NODE_ENV !== "production") {
+    console.debug("[meta/purchase] backend received forwarded value", {
+      event_id: payload.event_id,
+      forwarded_value: payload.value,
+      raw_medusa_total: payload.raw_total ?? payload.total,
+    })
+  }
+
   const responseBody = await facebookCapiService.track(eventType, {
     ...payload,
     event_id: payload.event_id,
@@ -79,6 +88,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     _fbc: payload._fbc,
     currency_code: payload.currency_code,
     total: payload.total,
+    raw_total: payload.raw_total ?? payload.total,
     value: payload.value,
     items: payload.items ?? payload.contents,
     context: {
