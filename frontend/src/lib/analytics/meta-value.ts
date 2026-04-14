@@ -16,14 +16,25 @@ export const normalizeMedusaMinorUnitToDecimal = (value: unknown) => {
 export const resolveMetaValue = ({
   forwardedValue,
   medusaMinorUnitValue,
+  medusaValueIsMinorUnit = false,
 }: {
   forwardedValue?: unknown
   medusaMinorUnitValue?: unknown
+  medusaValueIsMinorUnit?: boolean
 }) => {
   const normalizedForwardedValue = toFiniteNumber(forwardedValue)
   if (typeof normalizedForwardedValue === "number") {
     return normalizedForwardedValue
   }
 
-  return normalizeMedusaMinorUnitToDecimal(medusaMinorUnitValue)
+  const normalizedMedusaValue = toFiniteNumber(medusaMinorUnitValue)
+  if (typeof normalizedMedusaValue !== "number") {
+    return undefined
+  }
+
+  if (medusaValueIsMinorUnit) {
+    return normalizeMedusaMinorUnitToDecimal(normalizedMedusaValue)
+  }
+
+  return normalizedMedusaValue
 }

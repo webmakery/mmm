@@ -20,12 +20,19 @@ export default function MetaPurchaseTracker({ order }: MetaPurchaseTrackerProps)
 
     const currency = order.currency_code?.toUpperCase()
     const medusaTotal = typeof order.total === "number" ? order.total : undefined
-    const value = resolveMetaValue({ medusaMinorUnitValue: medusaTotal })
+    // Store order totals are already decimal currency values (e.g. 10.00 EUR).
+    const value = resolveMetaValue({
+      medusaMinorUnitValue: medusaTotal,
+      medusaValueIsMinorUnit: false,
+    })
     const contents =
       order.items?.map((item) => ({
         id: String(item.variant_id || item.product_id || item.id || "unknown"),
         quantity: item.quantity,
-        item_price: resolveMetaValue({ medusaMinorUnitValue: item.unit_price }),
+        item_price: resolveMetaValue({
+          medusaMinorUnitValue: item.unit_price,
+          medusaValueIsMinorUnit: false,
+        }),
       })) ?? []
 
     const eventPayload = {
