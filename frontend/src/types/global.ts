@@ -54,21 +54,17 @@ export type ProductWithBuilder = HttpTypes.StoreProduct & {
   product_builder?: ProductBuilder | null
 }
 
-export type CustomFieldValue = Record<string, string>
+export type BuilderCustomFieldValue = {
+  field_id: string
+  value: string | number
+}
 
-export type ComplementarySelection = Record<string, string | undefined>
-
-export type AddonSelection = {
-  product_id: string
+export type BuilderVariantSelection = {
   variant_id: string
-  title: string
-  thumbnail?: string | null
-  price: number
-  quantity: number
 }
 
 export type BuilderConfiguration = {
-  customFields: CustomFieldValue
-  complementaryProducts: ComplementarySelection
-  addons: AddonSelection[]
+  custom_fields: BuilderCustomFieldValue[]
+  complementary_products: BuilderVariantSelection[]
+  addons: BuilderVariantSelection[]
 }

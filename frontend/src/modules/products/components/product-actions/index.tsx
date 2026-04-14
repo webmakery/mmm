@@ -7,20 +7,20 @@ import {
   addToCart,
   trackMetaAddToCart,
 } from "@lib/data/cart"
+import { hasProductBuilder } from "@lib/util/product"
 import { useIntersection } from "@lib/hooks/use-in-view"
 import { HttpTypes } from "@medusajs/types"
-import { Button } from "@medusajs/ui"
+import { Button, toast } from "@medusajs/ui"
 import Divider from "@modules/common/components/divider"
 import OptionSelect from "@modules/products/components/product-actions/option-select"
 import { isEqual } from "lodash"
 import { useParams, usePathname, useSearchParams } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
+import { BuilderConfiguration, ProductWithBuilder } from "types/global"
+import ProductBuilderConfig from "../product-builder-config"
 import ProductPrice from "../product-price"
 import MobileActions from "./mobile-actions"
-import { useRouter } from "next/navigation"
-import ProductBuilderConfig from "../product-builder-config"
-import { hasProductBuilder } from "@lib/util/product"
-import { BuilderConfiguration, ProductWithBuilder } from "types/global"
 
 type ProductActionsProps = {
   product: ProductWithBuilder
@@ -47,13 +47,15 @@ export default function ProductActions({
 
   const [options, setOptions] = useState<Record<string, string | undefined>>({})
   const [isAdding, setIsAdding] = useState(false)
-  const [builderConfig, setBuilderConfig] = useState<BuilderConfiguration>({
-    customFields: {},
-    complementaryProducts: {},
-    addons: [],
-  })
+  const [builderConfig, setBuilderConfig] = useState<BuilderConfiguration | null>(null)
   const [isBuilderConfigValid, setIsBuilderConfigValid] = useState(true)
   const countryCode = useParams().countryCode as string
+
+  useEffect(() => {
+    if (!hasProductBuilder(product)) {
+      setIsBuilderConfigValid(true)
+    }
+  }, [product])
 
   // If there is only 1 variant, preselect the options
   useEffect(() => {
@@ -143,67 +145,67 @@ export default function ProductActions({
 
     setIsAdding(true)
 
-    const quantity = 1
-    const price = selectedVariant.calculated_price?.calculated_amount
-    // Store API `calculated_amount` is already a decimal currency value (e.g. 10.00 EUR).
-    const normalizedItemPrice = resolveMetaValue({
-      medusaMinorUnitValue: price,
-      medusaValueIsMinorUnit: false,
-    })
-    const normalizedValue =
-      typeof normalizedItemPrice === "number" ? normalizedItemPrice * quantity : undefined
-
-    const eventPayload = {
-      content_ids: [selectedVariant.id],
-      contents: [
-        {
-          id: selectedVariant.id,
-          quantity,
-          item_price: normalizedItemPrice,
-        },
-      ],
-      content_type: "product",
-      currency: selectedVariant.calculated_price?.currency_code?.toUpperCase(),
-      value: normalizedValue,
-      num_items: quantity,
-    }
-
-    if (hasBuilder) {
-      await addBuilderProductToCart({
-        productId: product.id,
-        variantId: selectedVariant.id,
-        quantity,
-        countryCode,
-        builderConfig,
+    try {
+      const quantity = 1
+      const price = selectedVariant.calculated_price?.calculated_amount
+      // Store API `calculated_amount` is already a decimal currency value (e.g. 10.00 EUR).
+      const normalizedItemPrice = resolveMetaValue({
+        medusaMinorUnitValue: price,
+        medusaValueIsMinorUnit: false,
       })
-    } else {
-      await addToCart({
-        variantId: selectedVariant.id,
-        quantity,
-        countryCode,
-      })
+      const normalizedValue =
+        typeof normalizedItemPrice === "number" ? normalizedItemPrice * quantity : undefined
+
+      const eventPayload = {
+        content_ids: [selectedVariant.id],
+        contents: [
+          {
+            id: selectedVariant.id,
+            quantity,
+            item_price: normalizedItemPrice,
+          },
+        ],
+        content_type: "product",
+        currency: selectedVariant.calculated_price?.currency_code?.toUpperCase(),
+        value: normalizedValue,
+        num_items: quantity,
+      }
+
+      if (hasProductBuilder(product) && builderConfig) {
+        await addBuilderProductToCart({
+          productId: product.id!,
+          variantId: selectedVariant.id,
+          quantity: 1,
+          countryCode,
+          builderConfiguration: builderConfig,
+        })
+      } else {
+        await addToCart({ variantId: selectedVariant.id, quantity: 1, countryCode })
+      }
+
+      const trackedEvent = trackMetaEvent("AddToCart", eventPayload)
+
+      if (trackedEvent) {
+        const browserIds = getMetaBrowserIds()
+
+        await trackMetaAddToCart({
+          event_id: trackedEvent.eventId,
+          event_source_url: typeof window !== "undefined" ? window.location.href : undefined,
+          _fbp: browserIds.fbp,
+          _fbc: browserIds.fbc,
+          ...browserIds,
+          ...eventPayload,
+        }).catch((error) => {
+          if (process.env.NODE_ENV !== "production") {
+            console.error("[meta/server-forward] failed", error)
+          }
+        })
+      }
+    } catch (error) {
+      toast.error(`Failed to add product to cart: ${error}`)
+    } finally {
+      setIsAdding(false)
     }
-
-    const trackedEvent = trackMetaEvent("AddToCart", eventPayload)
-
-    if (trackedEvent) {
-      const browserIds = getMetaBrowserIds()
-
-      await trackMetaAddToCart({
-        event_id: trackedEvent.eventId,
-        event_source_url: typeof window !== "undefined" ? window.location.href : undefined,
-        _fbp: browserIds.fbp,
-        _fbc: browserIds.fbc,
-        ...browserIds,
-        ...eventPayload,
-      }).catch((error) => {
-        if (process.env.NODE_ENV !== "production") {
-          console.error("[meta/server-forward] failed", error)
-        }
-      })
-    }
-
-    setIsAdding(false)
   }
 
   return (
@@ -243,7 +245,7 @@ export default function ProductActions({
         <ProductPrice
           product={product}
           variant={selectedVariant}
-          builderConfig={builderConfig}
+          builderConfig={builderConfig || undefined}
         />
 
         <Button
@@ -254,7 +256,7 @@ export default function ProductActions({
             !!disabled ||
             isAdding ||
             !isValidVariant ||
-            (hasBuilder && !isBuilderConfigValid)
+            (hasProductBuilder(product) && !isBuilderConfigValid)
           }
           variant="primary"
           className="w-full h-10"
@@ -263,7 +265,7 @@ export default function ProductActions({
         >
           {!selectedVariant && !options
             ? "Select variant"
-            : hasBuilder && !isBuilderConfigValid
+            : hasProductBuilder(product) && !isBuilderConfigValid
             ? "Complete required fields"
             : !inStock || !isValidVariant
             ? "Out of stock"

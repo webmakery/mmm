@@ -185,13 +185,13 @@ export async function addBuilderProductToCart({
   variantId,
   quantity,
   countryCode,
-  builderConfig,
+  builderConfiguration,
 }: {
   productId: string
   variantId: string
   quantity: number
   countryCode: string
-  builderConfig: BuilderConfiguration
+  builderConfiguration: BuilderConfiguration
 }) {
   if (!variantId) {
     throw new Error("Missing variant ID when adding builder product to cart")
@@ -215,12 +215,16 @@ export async function addBuilderProductToCart({
         product_id: productId,
         variant_id: variantId,
         quantity,
-        custom_field_values: builderConfig.customFields,
-        complementary_product_variants: Object.values(
-          builderConfig.complementaryProducts || {}
-        ).filter(Boolean),
-        addon_variants: (builderConfig.addons || []).map(
-          (addon) => addon.variant_id
+        custom_field_values: builderConfiguration.custom_fields.reduce(
+          (acc, field) => {
+            acc[field.field_id] = field.value
+            return acc
+          },
+          {} as Record<string, any>
+        ),
+        addon_variants: builderConfiguration.addons.map((addon) => addon.variant_id),
+        complementary_product_variants: builderConfiguration.complementary_products.map(
+          (comp) => comp.variant_id
         ),
       },
       cache: "no-store",
