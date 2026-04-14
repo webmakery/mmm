@@ -1,14 +1,49 @@
 import { clx } from "@medusajs/ui"
 
 import { getProductPrice } from "@lib/util/get-product-price"
+import { convertToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
+import { BuilderConfiguration, ProductWithBuilder } from "types/global"
+
+const getBuilderTotal = (
+  product: ProductWithBuilder,
+  builderConfig?: BuilderConfiguration
+) => {
+  if (!builderConfig || !product.product_builder) {
+    return 0
+  }
+
+  const selectedVariantIds = [
+    ...Object.values(builderConfig.complementaryProducts || {}),
+    ...Object.values(builderConfig.addons || {}),
+  ].filter(Boolean) as string[]
+
+  if (!selectedVariantIds.length) {
+    return 0
+  }
+
+  const relatedProducts = [
+    ...(product.product_builder.complementary_products || []).map((item) => item.product),
+    ...(product.product_builder.addons || []).map((item) => item.product),
+  ].filter(Boolean) as ProductWithBuilder[]
+
+  return relatedProducts.reduce((sum, relatedProduct) => {
+    const selectedVariant = relatedProduct.variants?.find((variant) =>
+      selectedVariantIds.includes(variant.id)
+    )
+
+    return sum + (selectedVariant?.calculated_price?.calculated_amount || 0)
+  }, 0)
+}
 
 export default function ProductPrice({
   product,
   variant,
+  builderConfig,
 }: {
-  product: HttpTypes.StoreProduct
+  product: ProductWithBuilder
   variant?: HttpTypes.StoreProductVariant
+  builderConfig?: BuilderConfiguration
 }) {
   const { cheapestPrice, variantPrice } = getProductPrice({
     product,
@@ -21,6 +56,9 @@ export default function ProductPrice({
     return <div className="block w-32 h-9 bg-gray-100 animate-pulse" />
   }
 
+  const builderTotal = getBuilderTotal(product, builderConfig)
+  const totalPrice = selectedPrice.calculated_price_number + builderTotal
+
   return (
     <div className="flex flex-col text-ui-fg-base">
       <span
@@ -29,11 +67,11 @@ export default function ProductPrice({
         })}
       >
         {!variant && "From "}
-        <span
-          data-testid="product-price"
-          data-value={selectedPrice.calculated_price_number}
-        >
-          {selectedPrice.calculated_price}
+        <span data-testid="product-price" data-value={totalPrice}>
+          {convertToLocale({
+            amount: totalPrice,
+            currency_code: selectedPrice.currency_code,
+          })}
         </span>
       </span>
       {selectedPrice.price_type === "sale" && (

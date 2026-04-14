@@ -1,4 +1,4 @@
-import { StorePrice } from "@medusajs/types"
+import { HttpTypes, StorePrice } from "@medusajs/types"
 
 export type FeaturedProduct = {
   id: string
@@ -21,4 +21,47 @@ export type StoreFreeShippingPrice = StorePrice & {
   target_reached: boolean
   target_remaining: number
   remaining_percentage: number
+}
+
+export type ProductBuilderCustomField = {
+  id: string
+  name: string
+  type: string
+  is_required: boolean
+  description?: string | null
+}
+
+export type ProductBuilderComplementaryProduct = {
+  id: string
+  product_id: string
+  product?: HttpTypes.StoreProduct
+}
+
+export type ProductBuilderAddon = {
+  id: string
+  product_id: string
+  product?: HttpTypes.StoreProduct
+}
+
+export type ProductBuilder = {
+  id: string
+  custom_fields?: ProductBuilderCustomField[]
+  complementary_products?: ProductBuilderComplementaryProduct[]
+  addons?: ProductBuilderAddon[]
+}
+
+export type ProductWithBuilder = HttpTypes.StoreProduct & {
+  product_builder?: ProductBuilder | null
+}
+
+export type CustomFieldValue = Record<string, string>
+
+export type ComplementarySelection = Record<string, string | undefined>
+
+export type AddonSelection = Record<string, string | undefined>
+
+export type BuilderConfiguration = {
+  customFields: CustomFieldValue
+  complementaryProducts: ComplementarySelection
+  addons: AddonSelection
 }
