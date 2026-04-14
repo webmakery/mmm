@@ -44,6 +44,9 @@ const Payment = ({
     if (isStripeLike(method)) {
       await initiatePaymentSession(cart, {
         provider_id: method,
+        data: {
+          setup_future_usage: "off_session",
+        },
       })
     }
   }
@@ -82,6 +85,9 @@ const Payment = ({
       if (!checkActiveSession) {
         await initiatePaymentSession(cart, {
           provider_id: selectedPaymentMethod,
+          data: {
+            setup_future_usage: "off_session",
+          },
         })
       }
 
@@ -150,12 +156,16 @@ const Payment = ({
                         setCardBrand={setCardBrand}
                         setError={setError}
                         setCardComplete={setCardComplete}
+                        paymentSession={activeSession}
+                        cart={cart}
                       />
                     ) : (
                       <PaymentContainer
                         paymentInfoMap={paymentInfoMap}
                         paymentProviderId={paymentMethod.id}
                         selectedPaymentOptionId={selectedPaymentMethod}
+                        paymentSession={activeSession}
+                        cart={cart}
                       />
                     )}
                   </div>

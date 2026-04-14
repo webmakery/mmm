@@ -1,4 +1,5 @@
 import {
+  authenticate,
   defineMiddlewares,
   validateAndTransformBody,
   validateAndTransformQuery,
@@ -63,6 +64,12 @@ export default defineMiddlewares({
       matcher: "/admin/invoice-config",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostInvoiceConfgSchema)],
+    },
+
+    {
+      matcher: "/store/payment-methods/:account_holder_id",
+      methods: ["GET"],
+      middlewares: [authenticate("customer", ["bearer", "session"])],
     },
   ],
 })
