@@ -27,7 +27,11 @@ const Addresses = ({
   const router = useRouter()
   const pathname = usePathname()
 
-  const isOpen = searchParams.get("step") === "address"
+  const addressForSummary =
+    cart?.shipping_address || (!requiresShipping ? cart?.billing_address : null)
+
+  const isOpen =
+    searchParams.get("step") === "address" || !addressForSummary
 
   const { state: sameAsBilling, toggle: toggleSameAsBilling } = useToggleState(
     cart?.shipping_address && cart?.billing_address
@@ -40,8 +44,6 @@ const Addresses = ({
   }
 
   const [message, formAction] = useActionState(setAddresses, null)
-  const addressForSummary =
-    cart?.shipping_address || (!requiresShipping ? cart?.billing_address : null)
 
   return (
     <div className="bg-white">
@@ -51,9 +53,9 @@ const Addresses = ({
           className="flex flex-row text-3xl-regular gap-x-2 items-baseline"
         >
           {requiresShipping ? "Shipping Address" : "Billing Address"}
-          {!isOpen && <CheckCircleSolid />}
+          {!isOpen && addressForSummary && <CheckCircleSolid />}
         </Heading>
-        {!isOpen && cart?.shipping_address && (
+        {!isOpen && addressForSummary && (
           <Text>
             <button
               onClick={handleEdit}
