@@ -4,7 +4,6 @@ import {
   OrderLineItemDTO,
 } from "@medusajs/framework/types"
 import { MedusaService } from "@medusajs/framework/utils"
-import PdfmakeModule from "pdfmake"
 import { InvoiceConfig } from "./models/invoice-config"
 import { Invoice } from "./models/invoice"
 
@@ -17,6 +16,7 @@ const fonts = {
   },
 }
 
+const PdfmakeModule = require("pdfmake")
 const PdfPrinter =
   (PdfmakeModule as any)?.default || (PdfmakeModule as any)?.PdfPrinter || PdfmakeModule
 
