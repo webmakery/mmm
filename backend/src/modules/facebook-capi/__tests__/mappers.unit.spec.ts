@@ -54,4 +54,46 @@ describe("facebook capi mappers", () => {
     expect(event.event_id).toBe("evt_abc")
     expect(event.event_name).toBe("AddToCart")
   })
+
+  it("extracts and hashes email from cart payload", () => {
+    const event = mapToFacebookEvent("add_to_cart", {
+      id: "cart_123",
+      event_id: "evt_cart",
+      cart: {
+        email: "  CartUser@Email.com ",
+      },
+    })
+
+    expect(event.user_data.em?.[0]).toBe(
+      crypto.createHash("sha256").update("cartuser@email.com").digest("hex")
+    )
+  })
+
+  it("extracts and hashes email from order payload", () => {
+    const event = mapToFacebookEvent("purchase", {
+      id: "order_123",
+      event_id: "evt_order",
+      order: {
+        email: "  OrderUser@Email.com ",
+      },
+    })
+
+    expect(event.user_data.em?.[0]).toBe(
+      crypto.createHash("sha256").update("orderuser@email.com").digest("hex")
+    )
+  })
+
+  it("extracts and hashes email from checkout payload", () => {
+    const event = mapToFacebookEvent("initiate_checkout", {
+      id: "checkout_123",
+      event_id: "evt_checkout",
+      checkout: {
+        email: "  CheckoutUser@Email.com ",
+      },
+    })
+
+    expect(event.user_data.em?.[0]).toBe(
+      crypto.createHash("sha256").update("checkoutuser@email.com").digest("hex")
+    )
+  })
 })

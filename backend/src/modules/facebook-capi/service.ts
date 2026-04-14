@@ -28,6 +28,28 @@ class FacebookCapiModuleService {
 
     const event = mapToFacebookEvent(type, payload)
 
+    if (process.env.NODE_ENV !== "production") {
+      this.deps.logger?.info("Facebook CAPI email matching status", {
+        module: "facebook-capi",
+        event_name: event.event_name,
+        event_id: event.event_id,
+        email_exists: Boolean(
+          payload.email ||
+            payload.customer?.email ||
+            (payload.cart as Record<string, unknown> | undefined)?.email ||
+            (payload.order as Record<string, unknown> | undefined)?.email ||
+            (payload.checkout as Record<string, unknown> | undefined)?.email ||
+            (payload.payload as Record<string, unknown> | undefined)?.email ||
+            (
+              (payload.payload as Record<string, unknown> | undefined)?.checkout as
+                | Record<string, unknown>
+                | undefined
+            )?.email
+        ),
+        email_hashed: Boolean(event.user_data.em?.length),
+      })
+    }
+
     if (
       type === "purchase" &&
       (process.env.NODE_ENV !== "production" ||
