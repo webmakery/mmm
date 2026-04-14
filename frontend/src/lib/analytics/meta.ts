@@ -14,6 +14,8 @@ export type MetaEventName =
   | "AddPaymentInfo"
   | "Purchase"
 
+const META_KEY_EVENTS: MetaEventName[] = ["AddToCart", "Purchase"]
+
 type MetaTrackResult = {
   eventId: string
 }
@@ -110,6 +112,18 @@ export const trackMetaEvent = (
   }
 
   if (!window.fbq || !window._metaPixelLoaded) {
+    return null
+  }
+
+  if (
+    process.env.NEXT_PUBLIC_META_KEY_EVENTS_ONLY === "true" &&
+    !META_KEY_EVENTS.includes(name)
+  ) {
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[meta/browser] skipped (key-events-only)", {
+        event_name: name,
+      })
+    }
     return null
   }
 

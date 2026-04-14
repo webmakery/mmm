@@ -9,8 +9,8 @@ describe("facebook capi mappers", () => {
       currency_code: "usd",
       email: "Customer@Email.com",
       customer_id: "cus_123",
-      total: 150,
-      items: [{ variant_id: "variant_1", quantity: 2, unit_price: 75 }],
+      total: 3000,
+      items: [{ variant_id: "variant_1", quantity: 2, unit_price: 1500 }],
       context: { ip: "203.0.113.10", user_agent: "jest" },
     }
 
@@ -25,9 +25,23 @@ describe("facebook capi mappers", () => {
       crypto.createHash("sha256").update("cus_123").digest("hex")
     )
     expect(event.custom_data?.currency).toBe("USD")
-    expect(event.custom_data?.value).toBe(150)
+    expect(event.custom_data?.value).toBe(30)
     expect(event.custom_data?.num_items).toBe(2)
     expect(event.custom_data?.order_id).toBe("order_123")
+  })
+
+  it("keeps explicit value payloads unchanged", () => {
+    const event = mapToFacebookEvent("purchase", {
+      id: "order_987",
+      event_id: "evt_987",
+      currency_code: "usd",
+      value: 30,
+      total: 3000,
+      items: [{ variant_id: "variant_1", quantity: 1, item_price: 30 }],
+    })
+
+    expect(event.custom_data?.value).toBe(30)
+    expect(event.custom_data?.contents?.[0]?.item_price).toBe(30)
   })
 
   it("uses explicit event_id when provided", () => {

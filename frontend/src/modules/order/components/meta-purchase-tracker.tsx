@@ -18,7 +18,8 @@ export default function MetaPurchaseTracker({ order }: MetaPurchaseTrackerProps)
     }
 
     const currency = order.currency_code?.toUpperCase()
-    const value = typeof order.total === "number" ? order.total / 100 : undefined
+    const medusaTotal = typeof order.total === "number" ? order.total : undefined
+    const value = typeof medusaTotal === "number" ? medusaTotal / 100 : undefined
     const contents =
       order.items?.map((item) => ({
         id: String(item.variant_id || item.product_id || item.id || "unknown"),
@@ -34,6 +35,16 @@ export default function MetaPurchaseTracker({ order }: MetaPurchaseTrackerProps)
       content_ids: contents.map((item) => item.id),
       contents,
       num_items: contents.reduce((sum, item) => sum + (item.quantity || 1), 0),
+    }
+
+    if (
+      process.env.NODE_ENV !== "production" ||
+      process.env.NEXT_PUBLIC_META_DEBUG === "true"
+    ) {
+      console.debug("[meta/purchase] currency conversion", {
+        medusa_total: medusaTotal,
+        meta_value: value,
+      })
     }
 
     const eventId = createMetaEventId()
@@ -55,6 +66,7 @@ export default function MetaPurchaseTracker({ order }: MetaPurchaseTrackerProps)
       fbp: browserIds.fbp,
       fbc: browserIds.fbc,
       currency,
+      total: medusaTotal,
       value,
       content_type: "product",
       content_ids: eventPayload.content_ids,

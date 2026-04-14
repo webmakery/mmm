@@ -1,6 +1,6 @@
 "use client"
 
-import { createMetaEventId, getMarketingConsent } from "@lib/analytics/meta"
+import { getMarketingConsent } from "@lib/analytics/meta"
 import { useEffect, useMemo, useState } from "react"
 
 declare global {
@@ -12,6 +12,7 @@ declare global {
 }
 
 const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID
+const META_PAGE_VIEW_KEY = "__meta_pageview_fired__"
 
 const loadMetaPixel = (pixelId: string) => {
   if (typeof window === "undefined") {
@@ -43,8 +44,14 @@ const loadMetaPixel = (pixelId: string) => {
     f.fbq = n
   })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js")
 
+  window.fbq?.("set", "autoConfig", false, pixelId)
   window.fbq?.("init", pixelId)
-  window.fbq?.("track", "PageView")
+
+  if (!window.sessionStorage.getItem(META_PAGE_VIEW_KEY)) {
+    window.fbq?.("track", "PageView")
+    window.sessionStorage.setItem(META_PAGE_VIEW_KEY, "true")
+  }
+
   window._metaPixelLoaded = true
 
   if (process.env.NODE_ENV !== "production") {
@@ -92,30 +99,5 @@ export default function MetaPixelProvider() {
     loadMetaPixel(META_PIXEL_ID)
   }, [canLoadPixel])
 
-  const fireDevPurchaseEvent = () => {
-    if (typeof window === "undefined" || !window.fbq || !window._metaPixelLoaded) {
-      return
-    }
-
-    const eventID = createMetaEventId()
-    window.fbq("track", "Purchase", { currency: "USD", value: 1.0 }, { eventID })
-
-    if (process.env.NODE_ENV !== "production") {
-      console.debug("[meta/browser] fired", {
-        event_name: "Purchase",
-        event_id: eventID,
-      })
-    }
-  }
-
-  return process.env.NODE_ENV !== "production" ? (
-    <button
-      type="button"
-      onClick={fireDevPurchaseEvent}
-      className="fixed bottom-3 right-3 z-[9999] rounded bg-black px-3 py-2 text-xs text-white opacity-80 hover:opacity-100"
-      data-testid="meta-dev-purchase-button"
-    >
-      Dev: Fire Meta Purchase
-    </button>
-  ) : null
+  return null
 }
