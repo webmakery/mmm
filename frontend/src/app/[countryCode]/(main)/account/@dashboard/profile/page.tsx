@@ -9,8 +9,6 @@ import ProfilePassword from "@modules/account/components/profile-password"
 import { notFound } from "next/navigation"
 import { listRegions } from "@lib/data/regions"
 import { retrieveCustomer } from "@lib/data/customer"
-import { Container } from "@medusajs/ui"
-import Divider from "@modules/common/components/divider"
 
 export const metadata: Metadata = {
   title: "Profile",
@@ -27,25 +25,30 @@ export default async function Profile() {
 
   return (
     <div className="w-full" data-testid="profile-page-wrapper">
-      <div className="mb-6 flex flex-col gap-y-2">
+      <div className="mb-8 flex flex-col gap-y-4">
         <h1 className="text-2xl-semi">Profile</h1>
-        <p className="text-base-regular text-ui-fg-subtle">
+        <p className="text-base-regular">
           View and update your profile information, including your name, email,
           and phone number. You can also update your billing address, or change
           your password.
         </p>
       </div>
-      <Container className="flex flex-col gap-y-6 w-full p-5">
+      <div className="flex flex-col gap-y-8 w-full">
         <ProfileName customer={customer} />
-        <Divider className="bg-ui-border-base" />
+        <Divider />
         <ProfileEmail customer={customer} />
-        <Divider className="bg-ui-border-base" />
+        <Divider />
         <ProfilePhone customer={customer} />
-        <Divider className="bg-ui-border-base" />
+        <Divider />
         {/* <ProfilePassword customer={customer} />
         <Divider /> */}
         <ProfileBillingAddress customer={customer} regions={regions} />
-      </Container>
+      </div>
     </div>
   )
 }
+
+const Divider = () => {
+  return <div className="w-full h-px bg-gray-200" />
+}
+;``
