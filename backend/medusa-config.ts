@@ -32,6 +32,14 @@ module.exports = defineConfig({
               webhook_id: process.env.PAYPAL_WEBHOOK_ID,
             },
           },
+          {
+            resolve: "@medusajs/medusa/payment-stripe",
+            id: "stripe",
+            options: {
+              apiKey: process.env.STRIPE_API_KEY,
+              webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+            },
+          },
         ],
       },
     },
