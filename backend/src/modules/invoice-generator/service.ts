@@ -16,36 +16,73 @@ const fonts = {
   },
 }
 
-const resolvePdfPrinter = () => {
+const getPdfPrinterConstructor = (resolved: any) => {
   const candidates = [
-    () => require("pdfmake/src/printer"),
-    () => require("pdfmake").PdfPrinter,
-    () => require("pdfmake").default?.PdfPrinter,
-    () => require("pdfmake"),
-    () => require("pdfmake").default,
+    resolved,
+    resolved?.default,
+    resolved?.PdfPrinter,
+    resolved?.default?.PdfPrinter,
   ]
 
   for (const candidate of candidates) {
-    try {
-      const resolved = candidate()
-      if (typeof resolved === "function") {
-        return resolved
-      }
-    } catch {
-      continue
+    if (typeof candidate === "function") {
+      return candidate
     }
   }
 
   return null
 }
 
-const PdfPrinter = resolvePdfPrinter()
+const resolvePdfPrinter = async () => {
+  const dynamicImportCandidates = ["pdfmake", "pdfmake/src/printer", "pdfmake/src/printer.js"]
 
-if (!PdfPrinter) {
+  for (const candidate of dynamicImportCandidates) {
+    try {
+      const resolved = await import(candidate)
+      const PdfPrinter = getPdfPrinterConstructor(resolved)
+
+      if (PdfPrinter) {
+        return PdfPrinter
+      }
+    } catch {
+      continue
+    }
+  }
+
+  if (typeof require === "function") {
+    const requireCandidates = [
+      () => require("pdfmake/src/printer"),
+      () => require("pdfmake/src/printer.js"),
+      () => require("pdfmake"),
+    ]
+
+    for (const candidate of requireCandidates) {
+      try {
+        const resolved = candidate()
+        const PdfPrinter = getPdfPrinterConstructor(resolved)
+
+        if (PdfPrinter) {
+          return PdfPrinter
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
   throw new Error("Unable to resolve PdfPrinter constructor from pdfmake")
 }
 
-const printer = new PdfPrinter(fonts)
+let printer: { createPdfKitDocument: (docDefinition: any) => any } | null = null
+
+const getPrinter = async () => {
+  if (!printer) {
+    const PdfPrinter = await resolvePdfPrinter()
+    printer = new PdfPrinter(fonts)
+  }
+
+  return printer
+}
 
 type GeneratePdfParams = {
   order: OrderDTO
@@ -74,16 +111,19 @@ class InvoiceGeneratorService extends MedusaService({
 
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = []
+      void getPrinter()
+        .then((resolvedPrinter) => {
+          const pdfDoc = resolvedPrinter.createPdfKitDocument(pdfContent as any)
 
-      const pdfDoc = printer.createPdfKitDocument(pdfContent as any)
+          pdfDoc.on("data", (chunk) => chunks.push(chunk))
+          pdfDoc.on("end", () => {
+            resolve(Buffer.concat(chunks))
+          })
+          pdfDoc.on("error", (err) => reject(err))
 
-      pdfDoc.on("data", (chunk) => chunks.push(chunk))
-      pdfDoc.on("end", () => {
-        resolve(Buffer.concat(chunks))
-      })
-      pdfDoc.on("error", (err) => reject(err))
-
-      pdfDoc.end()
+          pdfDoc.end()
+        })
+        .catch((err) => reject(err))
     })
   }
 
