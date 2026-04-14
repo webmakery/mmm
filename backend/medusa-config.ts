@@ -56,5 +56,8 @@ module.exports = defineConfig({
     {
       resolve: "./src/modules/invoice-generator",
     },
+    {
+      resolve: "./src/modules/product-review",
+    },
   ],
 })
