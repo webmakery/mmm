@@ -17,16 +17,52 @@ const fonts = {
 }
 
 const getPdfPrinterConstructor = (resolved: any) => {
+  const isPdfPrinterConstructor = (candidate: any) =>
+    typeof candidate === "function" &&
+    typeof candidate.prototype?.createPdfKitDocument === "function"
+
   const candidates = [
     resolved,
     resolved?.default,
+    resolved?.Printer,
+    resolved?.default?.Printer,
     resolved?.PdfPrinter,
     resolved?.default?.PdfPrinter,
+    resolved?.default?.default,
+    resolved?.default?.default?.Printer,
+    resolved?.default?.default?.PdfPrinter,
   ]
 
   for (const candidate of candidates) {
-    if (typeof candidate === "function") {
+    if (isPdfPrinterConstructor(candidate)) {
       return candidate
+    }
+  }
+
+  const queue = [resolved]
+  const visited = new Set<any>()
+
+  while (queue.length) {
+    const current = queue.shift()
+
+    if (!current || (typeof current !== "object" && typeof current !== "function")) {
+      continue
+    }
+
+    if (visited.has(current)) {
+      continue
+    }
+
+    visited.add(current)
+
+    if (isPdfPrinterConstructor(current)) {
+      return current
+    }
+
+    for (const value of Object.values(current)) {
+      if (typeof value === "object" || typeof value === "function") {
+        queue.push(value)
+      }
     }
   }
 
@@ -75,10 +111,14 @@ const resolvePdfPrinter = async () => {
 
 let printer: { createPdfKitDocument: (docDefinition: any) => any } | null = null
 
-const getPrinter = async () => {
+const getPrinter = async (): Promise<{ createPdfKitDocument: (docDefinition: any) => any }> => {
   if (!printer) {
     const PdfPrinter = await resolvePdfPrinter()
     printer = new PdfPrinter(fonts)
+  }
+
+  if (!printer) {
+    throw new Error("Unable to initialize PdfPrinter")
   }
 
   return printer
