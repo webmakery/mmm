@@ -114,6 +114,23 @@ export async function updateCart(data: HttpTypes.StoreUpdateCart) {
     .catch(medusaError)
 }
 
+type MetaAddToCartTrackingPayload = {
+  event_id: string
+  event_source_url?: string
+  fbp?: string
+  fbc?: string
+  currency?: string
+  value?: number
+  content_type?: string
+  content_ids?: string[]
+  contents?: Array<{
+    id: string
+    quantity?: number
+    item_price?: number
+  }>
+  num_items?: number
+}
+
 export async function addToCart({
   variantId,
   quantity,
@@ -155,6 +172,39 @@ export async function addToCart({
       revalidateTag(fulfillmentCacheTag)
     })
     .catch(medusaError)
+}
+
+export async function trackMetaAddToCart(payload: MetaAddToCartTrackingPayload) {
+  if (!payload.event_id) {
+    return
+  }
+
+  const headers = {
+    ...(await getAuthHeaders()),
+  }
+
+  await sdk.client.fetch("/store/meta/track", {
+    method: "POST",
+    body: {
+      event_name: "AddToCart",
+      event_id: payload.event_id,
+      event_source_url: payload.event_source_url,
+      fbp: payload.fbp,
+      fbc: payload.fbc,
+      currency_code: payload.currency,
+      total: payload.value,
+      content_type: payload.content_type,
+      content_ids: payload.content_ids,
+      contents: payload.contents,
+      num_items: payload.num_items,
+      items: payload.contents,
+      context: {
+        event_source_url: payload.event_source_url,
+      },
+    },
+    headers,
+    cache: "no-store",
+  })
 }
 
 export async function updateLineItem({

@@ -31,7 +31,7 @@ export class FacebookCapiClient {
     )
   }
 
-  async sendEvent(event: FacebookEventPayload): Promise<void> {
+  async sendEvent(event: FacebookEventPayload): Promise<unknown> {
     const url = `https://graph.facebook.com/${this.apiVersion}/${this.pixelId}/events?access_token=${this.accessToken}`
 
     const body: Record<string, unknown> = {
@@ -57,7 +57,11 @@ export class FacebookCapiClient {
         })
 
         if (response.ok) {
-          return
+          try {
+            return await response.json()
+          } catch {
+            return null
+          }
         }
 
         if (!RETRYABLE_STATUS.has(response.status) || attempt === this.maxRetries) {

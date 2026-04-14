@@ -14,6 +14,8 @@ export type FacebookUserData = {
   external_id?: string[]
   client_ip_address?: string
   client_user_agent?: string
+  fbp?: string
+  fbc?: string
 }
 
 export type FacebookCustomData = {
@@ -26,6 +28,7 @@ export type FacebookCustomData = {
     item_price?: number
   }>
   num_items?: number
+  content_type?: string
   order_id?: string
 }
 
@@ -60,6 +63,11 @@ export type BaseDomainEvent = {
   }
   email?: string
   phone?: string
+  fbp?: string
+  _fbp?: string
+  fbc?: string
+  _fbc?: string
+  external_id?: string
   context?: {
     ip?: string
     user_agent?: string

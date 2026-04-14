@@ -15,6 +15,7 @@ FACEBOOK_CAPI_ENABLED=true
 FACEBOOK_CAPI_PIXEL_ID=123456789012345
 FACEBOOK_CAPI_ACCESS_TOKEN=EAAB...
 FACEBOOK_CAPI_TEST_EVENT_CODE=TEST12345 # optional
+META_TEST_EVENT_CODE=TEST12345 # optional alias
 FACEBOOK_CAPI_API_VERSION=v20.0 # optional, default v20.0
 FACEBOOK_CAPI_TIMEOUT_MS=5000 # optional
 FACEBOOK_CAPI_MAX_RETRIES=2 # optional
@@ -50,3 +51,8 @@ modules: [
 - The module hashes user identifiers before sending (`email`, `phone`, `external_id`).
 - It includes `event_id` for deduplication on Facebook's side.
 - It prevents duplicate sends within a process lifetime via in-memory `event_id` tracking.
+
+
+## Storefront forwarding endpoint
+
+Use `POST /store/meta/track` to forward browser-matched events (same `event_name` + `event_id`) from the storefront to this module.

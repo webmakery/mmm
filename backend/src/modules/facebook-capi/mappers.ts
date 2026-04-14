@@ -31,7 +31,7 @@ const hashIfPresent = (input?: string) => {
 const resolveCustomerData = (event: BaseDomainEvent) => {
   const email = event.email || event.customer?.email
   const phone = event.phone || event.customer?.phone
-  const externalId = event.customer_id || event.customer?.id
+  const externalId = event.external_id || event.customer_id || event.customer?.id
 
   return {
     em: hashIfPresent(email) ? [hashIfPresent(email)!] : undefined,
@@ -39,6 +39,8 @@ const resolveCustomerData = (event: BaseDomainEvent) => {
     external_id: hashIfPresent(externalId) ? [hashIfPresent(externalId)!] : undefined,
     client_ip_address: event.context?.ip,
     client_user_agent: event.context?.user_agent,
+    fbp: event.fbp || event._fbp,
+    fbc: event.fbc || event._fbc,
   }
 }
 
@@ -74,7 +76,7 @@ export const mapToFacebookEvent = (
   const contents = items.map((item) => ({
     id: String(item.variant_id || item.product_id || item.id || "unknown"),
     quantity: asNumber(item.quantity),
-    item_price: asNumber(item.unit_price),
+    item_price: asNumber(item.unit_price ?? item.item_price),
   }))
 
   const totalValue =
@@ -96,9 +98,15 @@ export const mapToFacebookEvent = (
     custom_data: {
       currency: normalizeCurrency((event.currency_code as string) || (event.currency as string)),
       value: totalValue,
-      content_ids: contents.map((c) => c.id),
+      content_ids:
+        contents.map((c) => c.id).filter(Boolean).length > 0
+          ? contents.map((c) => c.id)
+          : ((event.content_ids as string[] | undefined) || undefined),
       contents,
-      num_items: contents.reduce((sum, item) => sum + (item.quantity || 1), 0),
+      num_items:
+        asNumber(event.num_items) ||
+        contents.reduce((sum, item) => sum + (item.quantity || 1), 0),
+      content_type: (event.content_type as string) || "product",
       order_id: type === "purchase" ? String(event.id || "") : undefined,
     },
   }

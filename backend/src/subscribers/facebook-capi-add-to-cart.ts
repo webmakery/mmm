@@ -1,26 +1,20 @@
 import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework"
-import { FACEBOOK_CAPI_MODULE } from "../modules/facebook-capi"
-import FacebookCapiModuleService from "../modules/facebook-capi/service"
 
-const shouldSendAddToCart = (eventName: string, data: Record<string, unknown>) => {
-  if (eventName === "cart.line_item_added") {
-    return true
-  }
-
-  const action = String(data.action || data.type || "")
-  return ["line_item_added", "add_to_cart"].includes(action)
+const hasFrontendEventId = (data: Record<string, unknown>) => {
+  const eventId = data.event_id
+  return typeof eventId === "string" && eventId.length > 0
 }
 
 export default async function facebookCapiAddToCartHandler({
   event,
-  container,
 }: SubscriberArgs<Record<string, unknown>>) {
-  if (!shouldSendAddToCart(event.name, event.data)) {
-    return
+  if (process.env.NODE_ENV !== "production" && !hasFrontendEventId(event.data)) {
+    // The storefront sends AddToCart via /store/meta/track with a shared browser/server event_id.
+    // This subscriber intentionally ignores native cart events without that id to avoid duplicate sends.
+    console.debug("[meta/server] skipping cart event without frontend event_id", {
+      event_name: event.name,
+    })
   }
-
-  const facebookCapiService: FacebookCapiModuleService = container.resolve(FACEBOOK_CAPI_MODULE)
-  await facebookCapiService.track("add_to_cart", event.data)
 }
 
 export const config: SubscriberConfig = {

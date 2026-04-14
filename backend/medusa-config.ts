@@ -20,7 +20,9 @@ module.exports = defineConfig({
         enabled: process.env.FACEBOOK_CAPI_ENABLED === "true",
         pixelId: process.env.FACEBOOK_CAPI_PIXEL_ID,
         accessToken: process.env.FACEBOOK_CAPI_ACCESS_TOKEN,
-        testEventCode: process.env.FACEBOOK_CAPI_TEST_EVENT_CODE,
+        testEventCode:
+          process.env.META_TEST_EVENT_CODE ||
+          process.env.FACEBOOK_CAPI_TEST_EVENT_CODE,
         apiVersion: process.env.FACEBOOK_CAPI_API_VERSION,
         timeoutMs: process.env.FACEBOOK_CAPI_TIMEOUT_MS
           ? Number(process.env.FACEBOOK_CAPI_TIMEOUT_MS)
