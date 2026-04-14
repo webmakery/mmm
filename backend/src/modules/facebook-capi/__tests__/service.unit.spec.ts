@@ -55,4 +55,34 @@ describe("facebook capi service", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
+
+  it("logs email matching status without raw email", async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "ok" })
+    // @ts-expect-error test mock
+    global.fetch = fetchMock
+
+    const service = new FacebookCapiModuleService(
+      { logger },
+      { enabled: true, pixelId: "pixel", accessToken: "token", maxRetries: 0 }
+    )
+
+    await service.track("initiate_checkout", {
+      id: "cart_1",
+      event_id: "evt_1",
+      checkout: { email: " Customer@Email.com " },
+    })
+
+    expect(logger.info).toHaveBeenCalledWith(
+      "Facebook CAPI email matching status",
+      expect.objectContaining({
+        module: "facebook-capi",
+        email_exists: true,
+        email_hashed: true,
+      })
+    )
+    const emailStatusCall = logger.info.mock.calls.find(
+      (args) => args[0] === "Facebook CAPI email matching status"
+    )
+    expect(emailStatusCall?.[1]).not.toHaveProperty("email")
+  })
 })

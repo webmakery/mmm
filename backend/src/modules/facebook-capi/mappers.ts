@@ -28,15 +28,47 @@ const hashIfPresent = (input?: string) => {
     .digest("hex")
 }
 
+const extractEmail = (event: BaseDomainEvent & Record<string, unknown>) => {
+  const cart = event.cart as Record<string, unknown> | undefined
+  const order = event.order as Record<string, unknown> | undefined
+  const checkout = event.checkout as Record<string, unknown> | undefined
+
+  const checkoutPayloadEmail =
+    (event.payload as Record<string, unknown> | undefined)?.email ||
+    ((event.payload as Record<string, unknown> | undefined)?.checkout as
+      | Record<string, unknown>
+      | undefined)?.email
+
+  const emailCandidates = [
+    event.email,
+    event.customer?.email,
+    cart?.email,
+    (cart?.customer as Record<string, unknown> | undefined)?.email,
+    order?.email,
+    (order?.customer as Record<string, unknown> | undefined)?.email,
+    checkout?.email,
+    (checkout?.customer as Record<string, unknown> | undefined)?.email,
+    checkoutPayloadEmail,
+  ]
+
+  return emailCandidates.find(
+    (candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0
+  )
+}
+
 const resolveCustomerData = (event: BaseDomainEvent) => {
-  const email = event.email || event.customer?.email
+  const email = extractEmail(event as BaseDomainEvent & Record<string, unknown>)
   const phone = event.phone || event.customer?.phone
   const externalId = event.external_id || event.customer_id || event.customer?.id
 
+  const hashedEmail = hashIfPresent(email)
+  const hashedPhone = hashIfPresent(phone)
+  const hashedExternalId = hashIfPresent(externalId)
+
   return {
-    em: hashIfPresent(email) ? [hashIfPresent(email)!] : undefined,
-    ph: hashIfPresent(phone) ? [hashIfPresent(phone)!] : undefined,
-    external_id: hashIfPresent(externalId) ? [hashIfPresent(externalId)!] : undefined,
+    em: hashedEmail ? [hashedEmail] : undefined,
+    ph: hashedPhone ? [hashedPhone] : undefined,
+    external_id: hashedExternalId ? [hashedExternalId] : undefined,
     client_ip_address: event.context?.ip,
     client_user_agent: event.context?.user_agent,
     fbp: event.fbp || event._fbp,
