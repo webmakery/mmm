@@ -18,9 +18,6 @@ module.exports = defineConfig({
   },
   modules: [
     {
-      resolve: "./src/modules/marketplace",
-    },
-    {
       resolve: "./src/modules/subscription",
     },
     {
