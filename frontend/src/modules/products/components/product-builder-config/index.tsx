@@ -27,7 +27,7 @@ export default function ProductBuilderConfig({
   const [customFields, setCustomFields] = useState<CustomFieldValue>({})
   const [complementaryProducts, setComplementaryProducts] =
     useState<ComplementarySelection>({})
-  const [addons, setAddons] = useState<AddonSelection>({})
+  const [addons, setAddons] = useState<AddonSelection[]>([])
   const [isLoadingPrices, setIsLoadingPrices] = useState(false)
   const [productPrices, setProductPrices] = useState<Record<string, ProductWithBuilder>>({})
 
@@ -112,11 +112,41 @@ export default function ProductBuilderConfig({
     }))
   }
 
-  const toggleAddon = (itemId: string, variantId: string) => {
-    setAddons((prev) => ({
-      ...prev,
-      [itemId]: prev[itemId] === variantId ? undefined : variantId,
-    }))
+  const toggleAddon = (
+    itemProductId: string,
+    productTitle: string,
+    productThumbnail: string | null | undefined,
+    variantId: string,
+    variantTitle: string | null | undefined,
+    variantPrice: number | null | undefined
+  ) => {
+    setAddons((prev) => {
+      const existingAddon = prev.find(
+        (addon) => addon.product_id === itemProductId
+      )
+
+      if (existingAddon?.variant_id === variantId) {
+        return prev.filter((addon) => addon.product_id !== itemProductId)
+      }
+
+      const title = variantTitle
+        ? `${productTitle} (${variantTitle})`
+        : productTitle
+
+      const nextAddon: AddonSelection = {
+        product_id: itemProductId,
+        variant_id: variantId,
+        title,
+        thumbnail: productThumbnail,
+        price: variantPrice || 0,
+        quantity: 1,
+      }
+
+      return [
+        ...prev.filter((addon) => addon.product_id !== itemProductId),
+        nextAddon,
+      ]
+    })
   }
 
   if (!builder) {
@@ -193,8 +223,23 @@ export default function ProductBuilderConfig({
                   <VariantSelector
                     key={variant.id}
                     variant={variant}
-                    isSelected={addons[item.id] === variant.id}
-                    onToggle={(variantId) => toggleAddon(item.id, variantId)}
+                    isSelected={
+                      addons.find(
+                        (addon) =>
+                          addon.product_id === item.product_id &&
+                          addon.variant_id === variant.id
+                      ) !== undefined
+                    }
+                    onToggle={(variantId) =>
+                      toggleAddon(
+                        item.product_id,
+                        pricedProduct.title,
+                        pricedProduct.thumbnail,
+                        variantId,
+                        variant.title,
+                        variant.calculated_price?.calculated_amount
+                      )
+                    }
                     disabled={isLoadingPrices}
                   />
                 ))}
