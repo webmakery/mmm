@@ -1,6 +1,7 @@
 import { FacebookCapiClient } from "./client"
 import { mapToFacebookEvent } from "./mappers"
 import { BaseDomainEvent, DomainEventType, FacebookCapiModuleOptions } from "./types"
+import { inspect } from "node:util"
 
 type ServiceDeps = {
   logger?: {
@@ -34,6 +35,9 @@ const hasEmailSource = (payload: BaseDomainEvent & Record<string, unknown>) =>
       )?.email
   )
 
+const formatSummaryMessage = (label: string, summary: Record<string, unknown>) =>
+  `${label} ${inspect(summary, { depth: null, compact: true, breakLength: Infinity })}`
+
 class FacebookCapiModuleService {
   private client: FacebookCapiClient
   private readonly sentEventIds = new Set<string>()
@@ -54,13 +58,17 @@ class FacebookCapiModuleService {
     const event = mapToFacebookEvent(type, payload)
 
     if (process.env.NODE_ENV !== "production") {
-      this.deps.logger?.info("Facebook CAPI email matching status", {
+      const emailSummary = {
         module: "facebook-capi",
         event_name: event.event_name,
         event_id: event.event_id,
         email_exists: emailExists,
         email_hashed: Boolean(event.user_data.em?.length),
-      })
+      }
+      this.deps.logger?.info(
+        formatSummaryMessage("Facebook CAPI email matching status", emailSummary),
+        emailSummary
+      )
     }
 
     if (
@@ -95,13 +103,17 @@ class FacebookCapiModuleService {
 
     try {
       if (process.env.NODE_ENV !== "production") {
-        this.deps.logger?.info("Facebook CAPI outbound user_data summary", {
+        const outboundSummary = {
           event_name: event.event_name,
           user_data_keys: Object.keys(event.user_data),
           email_exists: emailExists,
           email_hashed: Boolean(event.user_data.em?.length),
           em_included: Object.prototype.hasOwnProperty.call(event.user_data, "em"),
-        })
+        }
+        this.deps.logger?.info(
+          formatSummaryMessage("Facebook CAPI outbound user_data summary", outboundSummary),
+          outboundSummary
+        )
       }
 
       const responsePayload = await this.client.sendEvent(event)
