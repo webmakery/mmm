@@ -49,6 +49,15 @@ const asNumber = (value: unknown) => {
   return Number.isFinite(num) ? num : undefined
 }
 
+const convertMedusaAmountFromSmallestUnit = (value: unknown) => {
+  const amount = asNumber(value)
+  if (typeof amount !== "number") {
+    return undefined
+  }
+
+  return Number((amount / 100).toFixed(2))
+}
+
 const resolveEventId = (
   type: DomainEventType,
   event: BaseDomainEvent,
@@ -77,13 +86,19 @@ export const mapToFacebookEvent = (
   const contents = items.map((item) => ({
     id: String(item.variant_id || item.product_id || item.id || "unknown"),
     quantity: asNumber(item.quantity),
-    item_price: asNumber(item.unit_price ?? item.item_price),
+    item_price:
+      asNumber(item.item_price) ??
+      convertMedusaAmountFromSmallestUnit(item.unit_price),
   }))
 
+  const convertedMedusaTotal =
+    convertMedusaAmountFromSmallestUnit(event.total) ??
+    convertMedusaAmountFromSmallestUnit(event.subtotal) ??
+    convertMedusaAmountFromSmallestUnit(event.raw_total)
+
   const totalValue =
-    asNumber(event.total) ??
-    asNumber(event.subtotal) ??
-    asNumber(event.raw_total) ??
+    asNumber(event.value) ??
+    convertedMedusaTotal ??
     contents.reduce((sum, content) => {
       const line = (content.item_price || 0) * (content.quantity || 1)
       return sum + line

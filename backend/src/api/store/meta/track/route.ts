@@ -78,7 +78,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     _fbp: payload._fbp,
     _fbc: payload._fbc,
     currency_code: payload.currency_code,
-    total: payload.total ?? payload.value,
+    total: payload.total,
+    value: payload.value,
     items: payload.items ?? payload.contents,
     context: {
       ip: req.ip,

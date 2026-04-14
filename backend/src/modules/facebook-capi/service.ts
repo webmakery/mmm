@@ -28,6 +28,26 @@ class FacebookCapiModuleService {
 
     const event = mapToFacebookEvent(type, payload)
 
+    if (
+      type === "purchase" &&
+      (process.env.NODE_ENV !== "production" ||
+        process.env.META_DEBUG === "true")
+    ) {
+      const originalTotal =
+        typeof payload.total === "number"
+          ? payload.total
+          : typeof payload.subtotal === "number"
+            ? payload.subtotal
+            : payload.raw_total
+
+      this.deps.logger?.info("Facebook CAPI purchase value conversion", {
+        module: "facebook-capi",
+        original_medusa_total: originalTotal,
+        converted_meta_value: event.custom_data?.value,
+        event_id: event.event_id,
+      })
+    }
+
     if (this.sentEventIds.has(event.event_id)) {
       this.deps.logger?.info("Skipping duplicate Facebook CAPI event", {
         module: "facebook-capi",
