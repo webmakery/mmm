@@ -85,4 +85,54 @@ describe("facebook capi service", () => {
     )
     expect(emailStatusCall?.[1]).not.toHaveProperty("email")
   })
+
+  it("logs outbound Purchase user_data summary with em included", async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "ok" })
+    // @ts-expect-error test mock
+    global.fetch = fetchMock
+
+    const service = new FacebookCapiModuleService(
+      { logger },
+      { enabled: true, pixelId: "pixel", accessToken: "token", maxRetries: 0 }
+    )
+
+    await service.track("purchase", {
+      id: "order_1",
+      event_id: "evt_purchase_1",
+      created_at: "2026-01-01T00:00:00.000Z",
+      currency_code: "usd",
+      order: {
+        customer: {
+          email: "buyer@example.com",
+        },
+      },
+    })
+
+    expect(logger.info).toHaveBeenCalledWith(
+      "Facebook CAPI outbound user_data summary",
+      expect.objectContaining({
+        event_name: "Purchase",
+        email_exists: true,
+        email_hashed: true,
+        em_included: true,
+      })
+    )
+
+    const outboundSummaryCall = logger.info.mock.calls.find(
+      (args) => args[0] === "Facebook CAPI outbound user_data summary"
+    )
+
+    expect(outboundSummaryCall?.[1]).toEqual(
+      expect.objectContaining({
+        event_name: "Purchase",
+        email_exists: true,
+        email_hashed: true,
+        em_included: true,
+      })
+    )
+
+    expect(outboundSummaryCall?.[1]).toHaveProperty("user_data_keys")
+    expect(outboundSummaryCall?.[1]).not.toHaveProperty("email")
+    expect(outboundSummaryCall?.[1]).not.toHaveProperty("em")
+  })
 })

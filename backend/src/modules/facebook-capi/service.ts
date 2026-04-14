@@ -10,6 +10,30 @@ type ServiceDeps = {
   }
 }
 
+const hasEmailSource = (payload: BaseDomainEvent & Record<string, unknown>) =>
+  Boolean(
+    payload.email ||
+      payload.customer?.email ||
+      (payload.cart as Record<string, unknown> | undefined)?.email ||
+      ((payload.cart as Record<string, unknown> | undefined)?.customer as
+        | Record<string, unknown>
+        | undefined)?.email ||
+      (payload.order as Record<string, unknown> | undefined)?.email ||
+      ((payload.order as Record<string, unknown> | undefined)?.customer as
+        | Record<string, unknown>
+        | undefined)?.email ||
+      (payload.checkout as Record<string, unknown> | undefined)?.email ||
+      ((payload.checkout as Record<string, unknown> | undefined)?.customer as
+        | Record<string, unknown>
+        | undefined)?.email ||
+      (payload.payload as Record<string, unknown> | undefined)?.email ||
+      (
+        (payload.payload as Record<string, unknown> | undefined)?.checkout as
+          | Record<string, unknown>
+          | undefined
+      )?.email
+  )
+
 class FacebookCapiModuleService {
   private client: FacebookCapiClient
   private readonly sentEventIds = new Set<string>()
@@ -26,6 +50,7 @@ class FacebookCapiModuleService {
       return null
     }
 
+    const emailExists = hasEmailSource(payload)
     const event = mapToFacebookEvent(type, payload)
 
     if (process.env.NODE_ENV !== "production") {
@@ -33,19 +58,7 @@ class FacebookCapiModuleService {
         module: "facebook-capi",
         event_name: event.event_name,
         event_id: event.event_id,
-        email_exists: Boolean(
-          payload.email ||
-            payload.customer?.email ||
-            (payload.cart as Record<string, unknown> | undefined)?.email ||
-            (payload.order as Record<string, unknown> | undefined)?.email ||
-            (payload.checkout as Record<string, unknown> | undefined)?.email ||
-            (payload.payload as Record<string, unknown> | undefined)?.email ||
-            (
-              (payload.payload as Record<string, unknown> | undefined)?.checkout as
-                | Record<string, unknown>
-                | undefined
-            )?.email
-        ),
+        email_exists: emailExists,
         email_hashed: Boolean(event.user_data.em?.length),
       })
     }
@@ -81,6 +94,16 @@ class FacebookCapiModuleService {
     }
 
     try {
+      if (process.env.NODE_ENV !== "production") {
+        this.deps.logger?.info("Facebook CAPI outbound user_data summary", {
+          event_name: event.event_name,
+          user_data_keys: Object.keys(event.user_data),
+          email_exists: emailExists,
+          email_hashed: Boolean(event.user_data.em?.length),
+          em_included: Object.prototype.hasOwnProperty.call(event.user_data, "em"),
+        })
+      }
+
       const responsePayload = await this.client.sendEvent(event)
       this.sentEventIds.add(event.event_id)
 
