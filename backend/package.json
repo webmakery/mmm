@@ -26,6 +26,7 @@
     "@medusajs/cli": "2.13.6",
     "@medusajs/framework": "2.13.6",
     "@medusajs/medusa": "2.13.6",
+    "@paypal/paypal-server-sdk": "^2.1.0",
     "pdfmake": "^0.2.20"
   },
   "devDependencies": {
