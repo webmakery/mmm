@@ -1,6 +1,7 @@
 "use client"
 
-import { addToCart } from "@lib/data/cart"
+import { getMetaBrowserIds, trackMetaEvent } from "@lib/analytics/meta"
+import { addToCart, trackMetaAddToCart } from "@lib/data/cart"
 import { useIntersection } from "@lib/hooks/use-in-view"
 import { HttpTypes } from "@medusajs/types"
 import { Button } from "@medusajs/ui"
@@ -126,11 +127,46 @@ export default function ProductActions({
 
     setIsAdding(true)
 
+    const quantity = 1
+    const price = selectedVariant.calculated_price?.calculated_amount
+
+    const eventPayload = {
+      content_ids: [selectedVariant.id],
+      contents: [
+        {
+          id: selectedVariant.id,
+          quantity,
+          item_price: typeof price === "number" ? price : undefined,
+        },
+      ],
+      content_type: "product",
+      currency: selectedVariant.calculated_price?.currency_code?.toUpperCase(),
+      value: typeof price === "number" ? price * quantity : undefined,
+      num_items: quantity,
+    }
+
     await addToCart({
       variantId: selectedVariant.id,
-      quantity: 1,
+      quantity,
       countryCode,
     })
+
+    const trackedEvent = trackMetaEvent("AddToCart", eventPayload)
+
+    if (trackedEvent) {
+      const browserIds = getMetaBrowserIds()
+
+      await trackMetaAddToCart({
+        event_id: trackedEvent.eventId,
+        event_source_url: typeof window !== "undefined" ? window.location.href : undefined,
+        ...browserIds,
+        ...eventPayload,
+      }).catch((error) => {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[meta/server-forward] failed", error)
+        }
+      })
+    }
 
     setIsAdding(false)
   }

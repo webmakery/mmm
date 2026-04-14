@@ -38,7 +38,7 @@ class FacebookCapiModuleService {
     }
 
     try {
-      await this.client.sendEvent(event)
+      const responsePayload = await this.client.sendEvent(event)
       this.sentEventIds.add(event.event_id)
 
       this.deps.logger?.info("Sent Facebook CAPI event", {
@@ -46,6 +46,15 @@ class FacebookCapiModuleService {
         event_name: event.event_name,
         event_id: event.event_id,
       })
+
+      if (process.env.NODE_ENV !== "production") {
+        this.deps.logger?.info("Facebook CAPI response", {
+          module: "facebook-capi",
+          event_name: event.event_name,
+          event_id: event.event_id,
+          response: responsePayload,
+        })
+      }
     } catch (error) {
       this.deps.logger?.error("Failed to send Facebook CAPI event", {
         module: "facebook-capi",
