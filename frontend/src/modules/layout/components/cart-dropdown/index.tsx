@@ -144,7 +144,6 @@ const CartDropdown = ({
                                 </h3>
                                 <LineItemOptions
                                   variant={item.variant}
-                                  metadata={item.metadata}
                                   data-testid="cart-item-variant"
                                   data-value={item.variant}
                                 />
