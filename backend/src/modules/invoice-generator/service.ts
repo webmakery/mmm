@@ -4,6 +4,8 @@ import {
   OrderLineItemDTO,
 } from "@medusajs/framework/types"
 import { MedusaService } from "@medusajs/framework/utils"
+import path from "node:path"
+import { pathToFileURL } from "node:url"
 import { InvoiceConfig } from "./models/invoice-config"
 import { Invoice } from "./models/invoice"
 
@@ -103,6 +105,44 @@ const resolvePdfPrinter = async () => {
       } catch {
         continue
       }
+    }
+
+    try {
+      const pdfmakePackagePath = require.resolve("pdfmake/package.json")
+      const pdfmakeRoot = path.dirname(pdfmakePackagePath)
+      const printerFilePaths = [
+        path.join(pdfmakeRoot, "src/printer.js"),
+        path.join(pdfmakeRoot, "src/printer"),
+      ]
+
+      for (const printerFilePath of printerFilePaths) {
+        try {
+          const resolved = require(printerFilePath)
+          const PdfPrinter = getPdfPrinterConstructor(resolved)
+
+          if (PdfPrinter) {
+            return PdfPrinter
+          }
+        } catch {
+          continue
+        }
+      }
+
+      for (const printerFilePath of printerFilePaths) {
+        try {
+          const moduleUrl = pathToFileURL(printerFilePath).href
+          const resolved = await import(moduleUrl)
+          const PdfPrinter = getPdfPrinterConstructor(resolved)
+
+          if (PdfPrinter) {
+            return PdfPrinter
+          }
+        } catch {
+          continue
+        }
+      }
+    } catch {
+      // no-op: we continue to the error below with a consistent message
     }
   }
 
