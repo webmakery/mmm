@@ -17,11 +17,14 @@ const fonts = {
 }
 
 const PdfmakeModule = require("pdfmake")
+const PdfmakePrinterModule = require("pdfmake/src/printer")
 const PdfPrinter = [
   PdfmakeModule,
+  PdfmakePrinterModule,
   (PdfmakeModule as any)?.default,
   (PdfmakeModule as any)?.PdfPrinter,
   (PdfmakeModule as any)?.default?.PdfPrinter,
+  (PdfmakePrinterModule as any)?.default,
 ].find((candidate) => typeof candidate === "function")
 
 if (!PdfPrinter) {
