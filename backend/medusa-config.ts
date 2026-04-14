@@ -33,5 +33,8 @@ module.exports = defineConfig({
           : undefined,
       },
     },
+    {
+      resolve: "./src/modules/product-builder",
+    },
   ],
 })
