@@ -215,7 +215,7 @@ export async function addBuilderProductToCart({
         product_id: productId,
         variant_id: variantId,
         quantity,
-        custom_field_values: builderConfiguration.custom_fields.reduce(
+        custom_field_values: (builderConfiguration.custom_fields ?? []).reduce(
           (acc, field) => {
             acc[field.field_id] = field.value
             return acc
@@ -236,7 +236,9 @@ export async function addBuilderProductToCart({
       const fulfillmentCacheTag = await getCacheTag("fulfillment")
       revalidateTag(fulfillmentCacheTag)
     })
-    .catch(medusaError)
+    .catch((err) => {
+      throw new Error(err?.message || "Failed to add product to cart")
+    })
 }
 
 export async function trackMetaAddToCart(payload: MetaAddToCartTrackingPayload) {

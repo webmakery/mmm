@@ -146,6 +146,12 @@ export default function ProductActions({
     setIsAdding(true)
 
     try {
+      if (hasProductBuilder(product) && !builderConfig) {
+        toast.error("Please complete all required fields before adding to cart.")
+        setIsAdding(false)
+        return
+      }
+
       const quantity = 1
       const price = selectedVariant.calculated_price?.calculated_amount
       // Store API `calculated_amount` is already a decimal currency value (e.g. 10.00 EUR).
@@ -171,13 +177,13 @@ export default function ProductActions({
         num_items: quantity,
       }
 
-      if (hasProductBuilder(product) && builderConfig) {
+      if (hasProductBuilder(product)) {
         await addBuilderProductToCart({
           productId: product.id!,
           variantId: selectedVariant.id,
           quantity: 1,
           countryCode,
-          builderConfiguration: builderConfig,
+          builderConfiguration: builderConfig!,
         })
       } else {
         await addToCart({ variantId: selectedVariant.id, quantity: 1, countryCode })

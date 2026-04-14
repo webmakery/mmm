@@ -103,17 +103,15 @@ export default function ProductBuilderConfig({
     })
   }, [addons, complementaryProducts, customFields, onConfigurationChange])
 
-  const handleCustomFieldChange = (fieldId: string, value: string) => {
+  const handleCustomFieldChange = (fieldId: string, value: string | number) => {
     setCustomFields((prev) => {
-      const existingIndex = prev.findIndex((field) => field.field_id === fieldId)
-
-      if (existingIndex === -1) {
-        return [...prev, { field_id: fieldId, value }]
+      const existing = prev.find((field) => field.field_id === fieldId)
+      if (existing) {
+        return prev.map((field) =>
+          field.field_id === fieldId ? { ...field, value } : field
+        )
       }
-
-      const next = [...prev]
-      next[existingIndex] = { ...next[existingIndex], value }
-      return next
+      return [...prev, { field_id: fieldId, value }]
     })
   }
 
@@ -139,7 +137,7 @@ export default function ProductBuilderConfig({
     <div className="flex flex-col gap-y-4" data-testid="product-builder-config">
       {(builder.custom_fields?.length || 0) > 0 && (
         <div className="flex flex-col gap-y-4">
-          {builder.custom_fields.map((field) => (
+          {(builder.custom_fields ?? []).map((field) => (
             <div key={field.id}>
               <Input
                 name={field.id}
@@ -149,7 +147,14 @@ export default function ProductBuilderConfig({
                   customFields.find((customField) => customField.field_id === field.id)?.value ||
                     ""
                 )}
-                onChange={(event) => handleCustomFieldChange(field.id, event.target.value)}
+                onChange={(event) =>
+                  handleCustomFieldChange(
+                    field.id,
+                    field.type === "number"
+                      ? parseFloat(event.target.value) || 0
+                      : event.target.value
+                  )
+                }
               />
             </div>
           ))}
