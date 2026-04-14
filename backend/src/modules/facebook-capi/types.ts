@@ -44,6 +44,7 @@ export type FacebookEventPayload = {
 
 export type FacebookCapiRequest = {
   data: FacebookEventPayload[]
+  access_token: string
   test_event_code?: string
 }
 
