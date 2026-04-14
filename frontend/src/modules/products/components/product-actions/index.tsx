@@ -130,7 +130,11 @@ export default function ProductActions({
 
     const quantity = 1
     const price = selectedVariant.calculated_price?.calculated_amount
-    const normalizedItemPrice = resolveMetaValue({ medusaMinorUnitValue: price })
+    // Store API `calculated_amount` is already a decimal currency value (e.g. 10.00 EUR).
+    const normalizedItemPrice = resolveMetaValue({
+      medusaMinorUnitValue: price,
+      medusaValueIsMinorUnit: false,
+    })
     const normalizedValue =
       typeof normalizedItemPrice === "number" ? normalizedItemPrice * quantity : undefined
 
