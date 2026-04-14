@@ -1,6 +1,7 @@
 "use client"
 
 import { XMark } from "@medusajs/icons"
+import { Button } from "@medusajs/ui"
 import { HttpTypes } from "@medusajs/types"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Help from "@modules/order/components/help"
@@ -9,6 +10,7 @@ import OrderDetails from "@modules/order/components/order-details"
 import OrderSummary from "@modules/order/components/order-summary"
 import ShippingDetails from "@modules/order/components/shipping-details"
 import React from "react"
+import { hasReturnableItems } from "@lib/util/returns"
 
 type OrderDetailsTemplateProps = {
   order: HttpTypes.StoreOrder
@@ -17,17 +19,29 @@ type OrderDetailsTemplateProps = {
 const OrderDetailsTemplate: React.FC<OrderDetailsTemplateProps> = ({
   order,
 }) => {
+  const hasReturnableItemsInOrder = hasReturnableItems(order)
+
   return (
     <div className="flex flex-col justify-center gap-y-4">
       <div className="flex gap-2 justify-between items-center">
         <h1 className="text-2xl-semi">Order details</h1>
-        <LocalizedClientLink
-          href="/account/orders"
-          className="flex gap-2 items-center text-ui-fg-subtle hover:text-ui-fg-base"
-          data-testid="back-to-overview-button"
-        >
-          <XMark /> Back to overview
-        </LocalizedClientLink>
+        <div className="flex gap-2 items-center">
+          {hasReturnableItemsInOrder && (
+            <LocalizedClientLink href={`/account/orders/return/${order.id}`}>
+              {/* @ts-ignore */}
+              <Button variant="secondary" size="small">
+                Request Return
+              </Button>
+            </LocalizedClientLink>
+          )}
+          <LocalizedClientLink
+            href="/account/orders"
+            className="flex gap-2 items-center text-ui-fg-subtle hover:text-ui-fg-base"
+            data-testid="back-to-overview-button"
+          >
+            <XMark /> Back to overview
+          </LocalizedClientLink>
+        </div>
       </div>
       <div
         className="flex flex-col gap-4 h-full bg-white w-full"
