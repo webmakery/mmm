@@ -195,32 +195,42 @@ export async function trackMetaEventToBackend(payload: MetaAddToCartTrackingPayl
     ...(await getAuthHeaders()),
   }
 
-  await sdk.client.fetch("/store/meta/track", {
-    method: "POST",
-    body: {
-      event_name: payload.event_name || "AddToCart",
-      event_id: payload.event_id,
-      event_source_url: payload.event_source_url,
-      _fbp: payload._fbp,
-      _fbc: payload._fbc,
-      fbp: payload.fbp,
-      fbc: payload.fbc,
-      currency_code: payload.currency,
-      total: payload.total,
-      raw_total: payload.raw_total ?? payload.total,
-      value: payload.value,
-      content_type: payload.content_type,
-      content_ids: payload.content_ids,
-      contents: payload.contents,
-      num_items: payload.num_items,
-      items: payload.contents,
-      context: {
+  const eventName = payload.event_name || "AddToCart"
+
+  try {
+    await sdk.client.fetch("/store/meta/track", {
+      method: "POST",
+      body: {
+        event_name: eventName,
+        event_id: payload.event_id,
         event_source_url: payload.event_source_url,
+        _fbp: payload._fbp,
+        _fbc: payload._fbc,
+        fbp: payload.fbp,
+        fbc: payload.fbc,
+        currency_code: payload.currency,
+        total: payload.total,
+        raw_total: payload.raw_total ?? payload.total,
+        value: payload.value,
+        content_type: payload.content_type,
+        content_ids: payload.content_ids,
+        contents: payload.contents,
+        num_items: payload.num_items,
+        items: payload.contents,
+        context: {
+          event_source_url: payload.event_source_url,
+        },
       },
-    },
-    headers,
-    cache: "no-store",
-  })
+      headers,
+      cache: "no-store",
+    })
+  } catch (error) {
+    console.error("[meta/server-forward] failed", {
+      event_name: eventName,
+      event_id: payload.event_id,
+      error: error instanceof Error ? error.message : "Unknown error",
+    })
+  }
 }
 
 export async function updateLineItem({

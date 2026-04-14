@@ -81,30 +81,41 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
-  const responseBody = await facebookCapiService.track(eventType, {
-    ...payload,
-    event_id: payload.event_id,
-    _fbp: payload._fbp,
-    _fbc: payload._fbc,
-    currency_code: payload.currency_code,
-    total: payload.total,
-    raw_total: payload.raw_total ?? payload.total,
-    value: payload.value,
-    items: payload.items ?? payload.contents,
-    context: {
-      ip: req.ip,
-      user_agent: req.get("user-agent"),
-      event_source_url: payload.event_source_url,
-    },
-  })
+  try {
+    const responseBody = await facebookCapiService.track(eventType, {
+      ...payload,
+      event_id: payload.event_id,
+      _fbp: payload._fbp,
+      _fbc: payload._fbc,
+      currency_code: payload.currency_code,
+      total: payload.total,
+      raw_total: payload.raw_total ?? payload.total,
+      value: payload.value,
+      items: payload.items ?? payload.contents,
+      context: {
+        ip: req.ip,
+        user_agent: req.get("user-agent"),
+        event_source_url: payload.event_source_url,
+      },
+    })
 
-  if (process.env.NODE_ENV !== "production") {
-    console.debug("[meta/server] meta response body", {
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[meta/server] meta response body", {
+        event_name: payload.event_name,
+        event_id: payload.event_id,
+        response: responseBody,
+      })
+    }
+
+    return res.status(200).json({ ok: true })
+  } catch (error) {
+    console.error("[meta/server] failed to forward event", {
       event_name: payload.event_name,
       event_id: payload.event_id,
-      response: responseBody,
+      error: error instanceof Error ? error.message : "Unknown error",
     })
-  }
 
-  return res.status(200).json({ ok: true })
+    // Tracking must never block checkout/cart flows.
+    return res.status(200).json({ ok: false })
+  }
 }
