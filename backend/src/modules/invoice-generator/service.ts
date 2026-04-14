@@ -16,13 +16,30 @@ const fonts = {
   },
 }
 
-const PdfmakeModule = require("pdfmake")
-const PdfPrinter = [
-  PdfmakeModule,
-  (PdfmakeModule as any)?.default,
-  (PdfmakeModule as any)?.PdfPrinter,
-  (PdfmakeModule as any)?.default?.PdfPrinter,
-].find((candidate) => typeof candidate === "function")
+const resolvePdfPrinter = () => {
+  const candidates = [
+    () => require("pdfmake/src/printer"),
+    () => require("pdfmake").PdfPrinter,
+    () => require("pdfmake").default?.PdfPrinter,
+    () => require("pdfmake"),
+    () => require("pdfmake").default,
+  ]
+
+  for (const candidate of candidates) {
+    try {
+      const resolved = candidate()
+      if (typeof resolved === "function") {
+        return resolved
+      }
+    } catch {
+      continue
+    }
+  }
+
+  return null
+}
+
+const PdfPrinter = resolvePdfPrinter()
 
 if (!PdfPrinter) {
   throw new Error("Unable to resolve PdfPrinter constructor from pdfmake")
