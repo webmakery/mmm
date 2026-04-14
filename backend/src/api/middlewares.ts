@@ -5,7 +5,6 @@ import {
   validateAndTransformQuery,
 } from "@medusajs/framework/http"
 import { createFindParams } from "@medusajs/medusa/api/utils/validators"
-import { AdminCreateProduct } from "@medusajs/medusa/api/admin/products/validators"
 import { UpsertProductBuilderSchema } from "./admin/products/[id]/builder/route"
 import { GetComplementaryProductsSchema } from "./admin/products/complementary/route"
 import { PostInvoiceConfgSchema } from "./admin/invoice-config/route"
@@ -14,7 +13,6 @@ import { PostAdminUpdateReviewsStatusSchema } from "./admin/reviews/status/route
 import { AddBuilderProductSchema } from "./store/carts/[id]/product-builder/route"
 import { GetStoreReviewsSchema } from "./store/products/[id]/reviews/route"
 import { PostStoreReviewSchema } from "./store/reviews/route"
-import { PostVendorCreateSchema } from "./vendors/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 
@@ -130,25 +128,6 @@ export default defineMiddlewares({
       matcher: "/store/payment-methods/:account_holder_id",
       methods: ["GET"],
       middlewares: [authenticate("customer", ["bearer", "session"])],
-    },
-    {
-      matcher: "/vendors",
-      methods: ["POST"],
-      middlewares: [
-        authenticate("vendor", ["session", "bearer"], {
-          allowUnregistered: true,
-        }),
-        validateAndTransformBody(PostVendorCreateSchema),
-      ],
-    },
-    {
-      matcher: "/vendors/*",
-      middlewares: [authenticate("vendor", ["session", "bearer"])],
-    },
-    {
-      matcher: "/vendors/products",
-      methods: ["POST"],
-      middlewares: [validateAndTransformBody(AdminCreateProduct)],
     },
   ],
 })
