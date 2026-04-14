@@ -7,6 +7,7 @@ import { UpsertProductBuilderSchema } from "./admin/products/[id]/builder/route"
 import { AddBuilderProductSchema } from "./store/carts/[id]/product-builder/route";
 import { GetComplementaryProductsSchema } from "./admin/products/complementary/route";
 import { createFindParams } from "@medusajs/medusa/api/utils/validators";
+import { PostInvoiceConfgSchema } from "./admin/invoice-config/route";
 
 export default defineMiddlewares({
   routes: [
@@ -40,6 +41,13 @@ export default defineMiddlewares({
       methods: ["POST"],
       middlewares: [
         validateAndTransformBody(AddBuilderProductSchema)
+      ]
+    },
+    {
+      matcher: "/admin/invoice-config",
+      methods: ["POST"],
+      middlewares: [
+        validateAndTransformBody(PostInvoiceConfgSchema)
       ]
     },
   ]
