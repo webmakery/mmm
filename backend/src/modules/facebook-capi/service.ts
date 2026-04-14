@@ -35,6 +35,10 @@ const hasEmailSource = (payload: BaseDomainEvent & Record<string, unknown>) =>
       )?.email
   )
 
+const hasPopulatedHashedField = (value: unknown): value is string[] =>
+  Array.isArray(value) &&
+  value.some((item) => typeof item === "string" && item.trim().length > 0)
+
 const formatSummaryMessage = (label: string, summary: Record<string, unknown>) =>
   `${label} ${inspect(summary, { depth: null, compact: true, breakLength: Infinity })}`
 
@@ -56,6 +60,9 @@ class FacebookCapiModuleService {
 
     const emailExists = hasEmailSource(payload)
     const event = mapToFacebookEvent(type, payload)
+    const emIncluded = hasPopulatedHashedField(event.user_data.em)
+    const phIncluded = hasPopulatedHashedField(event.user_data.ph)
+    const externalIdIncluded = hasPopulatedHashedField(event.user_data.external_id)
 
     if (process.env.NODE_ENV !== "production") {
       const emailSummary = {
@@ -63,7 +70,7 @@ class FacebookCapiModuleService {
         event_name: event.event_name,
         event_id: event.event_id,
         email_exists: emailExists,
-        email_hashed: Boolean(event.user_data.em?.length),
+        email_hashed: emIncluded,
       }
       this.deps.logger?.info(
         formatSummaryMessage("Facebook CAPI email matching status", emailSummary),
@@ -107,8 +114,11 @@ class FacebookCapiModuleService {
           event_name: event.event_name,
           user_data_keys: Object.keys(event.user_data),
           email_exists: emailExists,
-          email_hashed: Boolean(event.user_data.em?.length),
-          em_included: Object.prototype.hasOwnProperty.call(event.user_data, "em"),
+          email_hashed: emIncluded,
+          em_included: emIncluded,
+          em_count: emIncluded ? event.user_data.em!.length : 0,
+          ph_count: phIncluded ? event.user_data.ph!.length : 0,
+          external_id_included: externalIdIncluded,
         }
         this.deps.logger?.info(
           formatSummaryMessage("Facebook CAPI outbound user_data summary", outboundSummary),

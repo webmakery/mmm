@@ -28,16 +28,28 @@ const hashIfPresent = (input?: string) => {
     .digest("hex")
 }
 
+const withHashedField = (key: "em" | "ph" | "external_id", value?: string) => {
+  const hashedValue = hashIfPresent(value)
+  if (!hashedValue) {
+    return {}
+  }
+
+  return { [key]: [hashedValue] }
+}
+
 const extractEmail = (event: BaseDomainEvent & Record<string, unknown>) => {
   const cart = event.cart as Record<string, unknown> | undefined
   const order = event.order as Record<string, unknown> | undefined
   const checkout = event.checkout as Record<string, unknown> | undefined
+  const billingAddress = event.billing_address as Record<string, unknown> | undefined
+  const shippingAddress = event.shipping_address as Record<string, unknown> | undefined
+  const payload = event.payload as Record<string, unknown> | undefined
+  const payloadOrder = payload?.order as Record<string, unknown> | undefined
+  const payloadCart = payload?.cart as Record<string, unknown> | undefined
+  const orderBillingAddress = order?.billing_address as Record<string, unknown> | undefined
+  const orderShippingAddress = order?.shipping_address as Record<string, unknown> | undefined
 
-  const checkoutPayloadEmail =
-    (event.payload as Record<string, unknown> | undefined)?.email ||
-    ((event.payload as Record<string, unknown> | undefined)?.checkout as
-      | Record<string, unknown>
-      | undefined)?.email
+  const checkoutPayloadEmail = payload?.email || (payload?.checkout as Record<string, unknown> | undefined)?.email
 
   const emailCandidates = [
     event.email,
@@ -46,8 +58,18 @@ const extractEmail = (event: BaseDomainEvent & Record<string, unknown>) => {
     (cart?.customer as Record<string, unknown> | undefined)?.email,
     order?.email,
     (order?.customer as Record<string, unknown> | undefined)?.email,
+    orderBillingAddress?.email,
+    orderShippingAddress?.email,
     checkout?.email,
     (checkout?.customer as Record<string, unknown> | undefined)?.email,
+    billingAddress?.email,
+    shippingAddress?.email,
+    payloadOrder?.email,
+    (payloadOrder?.customer as Record<string, unknown> | undefined)?.email,
+    (payloadOrder?.billing_address as Record<string, unknown> | undefined)?.email,
+    (payloadOrder?.shipping_address as Record<string, unknown> | undefined)?.email,
+    payloadCart?.email,
+    (payloadCart?.customer as Record<string, unknown> | undefined)?.email,
     checkoutPayloadEmail,
   ]
 
@@ -61,14 +83,10 @@ const resolveCustomerData = (event: BaseDomainEvent) => {
   const phone = event.phone || event.customer?.phone
   const externalId = event.external_id || event.customer_id || event.customer?.id
 
-  const hashedEmail = hashIfPresent(email)
-  const hashedPhone = hashIfPresent(phone)
-  const hashedExternalId = hashIfPresent(externalId)
-
   return {
-    em: hashedEmail ? [hashedEmail] : undefined,
-    ph: hashedPhone ? [hashedPhone] : undefined,
-    external_id: hashedExternalId ? [hashedExternalId] : undefined,
+    ...withHashedField("em", email),
+    ...withHashedField("ph", phone),
+    ...withHashedField("external_id", externalId),
     client_ip_address: event.context?.ip,
     client_user_agent: event.context?.user_agent,
     fbp: event.fbp || event._fbp,

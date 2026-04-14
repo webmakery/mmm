@@ -96,4 +96,30 @@ describe("facebook capi mappers", () => {
       crypto.createHash("sha256").update("checkoutuser@email.com").digest("hex")
     )
   })
+
+  it("does not include em when no email source is present", () => {
+    const event = mapToFacebookEvent("purchase", {
+      id: "order_no_email",
+      event_id: "evt_no_email",
+      customer_id: "cus_1",
+    })
+
+    expect(event.user_data).not.toHaveProperty("em")
+  })
+
+  it("extracts and hashes email from order billing address", () => {
+    const event = mapToFacebookEvent("purchase", {
+      id: "order_billing_email",
+      event_id: "evt_billing_email",
+      order: {
+        billing_address: {
+          email: " BillingUser@Email.com ",
+        },
+      },
+    })
+
+    expect(event.user_data.em?.[0]).toBe(
+      crypto.createHash("sha256").update("billinguser@email.com").digest("hex")
+    )
+  })
 })

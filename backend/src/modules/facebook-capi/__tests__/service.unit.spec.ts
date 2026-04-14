@@ -117,6 +117,9 @@ describe("facebook capi service", () => {
         email_exists: true,
         email_hashed: true,
         em_included: true,
+        em_count: 1,
+        ph_count: 0,
+        external_id_included: false,
       })
     )
 
@@ -132,11 +135,43 @@ describe("facebook capi service", () => {
         email_exists: true,
         email_hashed: true,
         em_included: true,
+        em_count: 1,
+        ph_count: 0,
+        external_id_included: false,
       })
     )
 
     expect(outboundSummaryCall?.[1]).toHaveProperty("user_data_keys")
     expect(outboundSummaryCall?.[1]).not.toHaveProperty("email")
     expect(outboundSummaryCall?.[1]).not.toHaveProperty("em")
+  })
+
+  it("logs outbound Purchase user_data summary with em excluded when no email source exists", async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "ok" })
+    // @ts-expect-error test mock
+    global.fetch = fetchMock
+
+    const service = new FacebookCapiModuleService(
+      { logger },
+      { enabled: true, pixelId: "pixel", accessToken: "token", maxRetries: 0 }
+    )
+
+    await service.track("purchase", {
+      id: "order_2",
+      event_id: "evt_purchase_2",
+      created_at: "2026-01-01T00:00:00.000Z",
+      currency_code: "usd",
+    })
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining("Facebook CAPI outbound user_data summary"),
+      expect.objectContaining({
+        event_name: "Purchase",
+        email_exists: false,
+        email_hashed: false,
+        em_included: false,
+        em_count: 0,
+      })
+    )
   })
 })
