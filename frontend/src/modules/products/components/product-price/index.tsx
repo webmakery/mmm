@@ -14,9 +14,9 @@ const getBuilderTotal = (
   }
 
   const selectedVariantIds = [
-    ...Object.values(builderConfig.complementaryProducts || {}),
+    ...(builderConfig.complementary_products || []).map((comp) => comp.variant_id),
     ...(builderConfig.addons || []).map((addon) => addon.variant_id),
-  ].filter(Boolean) as string[]
+  ]
 
   if (!selectedVariantIds.length) {
     return 0

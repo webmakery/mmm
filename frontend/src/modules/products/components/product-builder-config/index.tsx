@@ -1,12 +1,11 @@
 "use client"
 
 import { listProducts } from "@lib/data/products"
+import Input from "@modules/common/components/input"
 import { useEffect, useMemo, useState } from "react"
 import {
-  AddonSelection,
   BuilderConfiguration,
-  ComplementarySelection,
-  CustomFieldValue,
+  BuilderCustomFieldValue,
   ProductWithBuilder,
 } from "types/global"
 import VariantSelector from "./variant-selector"
@@ -24,10 +23,11 @@ export default function ProductBuilderConfig({
   onConfigurationChange,
   onValidationChange,
 }: ProductBuilderConfigProps) {
-  const [customFields, setCustomFields] = useState<CustomFieldValue>({})
-  const [complementaryProducts, setComplementaryProducts] =
-    useState<ComplementarySelection>({})
-  const [addons, setAddons] = useState<AddonSelection[]>([])
+  const [customFields, setCustomFields] = useState<BuilderCustomFieldValue[]>([])
+  const [complementaryProducts, setComplementaryProducts] = useState<
+    Record<string, string | undefined>
+  >({})
+  const [addons, setAddons] = useState<Record<string, string | undefined>>({})
   const [isLoadingPrices, setIsLoadingPrices] = useState(false)
   const [productPrices, setProductPrices] = useState<Record<string, ProductWithBuilder>>({})
 
@@ -76,33 +76,45 @@ export default function ProductBuilderConfig({
     fetchPrices()
   }, [countryCode, relatedProductIds])
 
-  const isValid = useMemo(() => {
-    const requiredFields =
-      builder?.custom_fields?.filter((field) => field.is_required) || []
-
-    return requiredFields.every((field) => {
-      const value = customFields[field.id]
-      return typeof value === "string" && value.trim().length > 0
-    })
-  }, [builder?.custom_fields, customFields])
-
   useEffect(() => {
-    onValidationChange(isValid)
-  }, [isValid, onValidationChange])
+    if (!builder) {
+      onValidationChange(true)
+      return
+    }
+
+    const requiredCustomFields = (builder.custom_fields || []).filter((field) => field.is_required)
+    const customFieldsValid = requiredCustomFields.every((field) => {
+      const fieldValue = customFields.find((cf) => cf.field_id === field.id)?.value
+      return fieldValue !== undefined && fieldValue !== "" && fieldValue !== 0
+    })
+
+    onValidationChange(customFieldsValid)
+  }, [customFields, builder, onValidationChange])
 
   useEffect(() => {
     onConfigurationChange({
-      customFields,
-      complementaryProducts,
-      addons,
+      custom_fields: customFields,
+      complementary_products: Object.values(complementaryProducts)
+        .filter((variantId): variantId is string => Boolean(variantId))
+        .map((variant_id) => ({ variant_id })),
+      addons: Object.values(addons)
+        .filter((variantId): variantId is string => Boolean(variantId))
+        .map((variant_id) => ({ variant_id })),
     })
   }, [addons, complementaryProducts, customFields, onConfigurationChange])
 
   const handleCustomFieldChange = (fieldId: string, value: string) => {
-    setCustomFields((prev) => ({
-      ...prev,
-      [fieldId]: value,
-    }))
+    setCustomFields((prev) => {
+      const existingIndex = prev.findIndex((field) => field.field_id === fieldId)
+
+      if (existingIndex === -1) {
+        return [...prev, { field_id: fieldId, value }]
+      }
+
+      const next = [...prev]
+      next[existingIndex] = { ...next[existingIndex], value }
+      return next
+    })
   }
 
   const toggleComplementaryProduct = (itemId: string, variantId: string) => {
@@ -112,41 +124,11 @@ export default function ProductBuilderConfig({
     }))
   }
 
-  const toggleAddon = (
-    itemProductId: string,
-    productTitle: string,
-    productThumbnail: string | null | undefined,
-    variantId: string,
-    variantTitle: string | null | undefined,
-    variantPrice: number | null | undefined
-  ) => {
-    setAddons((prev) => {
-      const existingAddon = prev.find(
-        (addon) => addon.product_id === itemProductId
-      )
-
-      if (existingAddon?.variant_id === variantId) {
-        return prev.filter((addon) => addon.product_id !== itemProductId)
-      }
-
-      const title = variantTitle
-        ? `${productTitle} (${variantTitle})`
-        : productTitle
-
-      const nextAddon: AddonSelection = {
-        product_id: itemProductId,
-        variant_id: variantId,
-        title,
-        thumbnail: productThumbnail,
-        price: variantPrice || 0,
-        quantity: 1,
-      }
-
-      return [
-        ...prev.filter((addon) => addon.product_id !== itemProductId),
-        nextAddon,
-      ]
-    })
+  const toggleAddon = (itemId: string, variantId: string) => {
+    setAddons((prev) => ({
+      ...prev,
+      [itemId]: prev[itemId] === variantId ? undefined : variantId,
+    }))
   }
 
   if (!builder) {
@@ -157,19 +139,17 @@ export default function ProductBuilderConfig({
     <div className="flex flex-col gap-y-4" data-testid="product-builder-config">
       {(builder.custom_fields?.length || 0) > 0 && (
         <div className="flex flex-col gap-y-4">
-          {builder.custom_fields?.map((field) => (
-            <div key={field.id} className="flex flex-col gap-y-2">
-              <label htmlFor={field.id} className="text-sm">
-                {field.name}
-                {field.is_required ? " *" : ""}
-              </label>
-              <input
-                id={field.id}
-                value={customFields[field.id] || ""}
-                onChange={(event) =>
-                  handleCustomFieldChange(field.id, event.target.value)
-                }
-                className="bg-ui-bg-field shadow-borders-base rounded-rounded text-ui-fg-base h-10 px-3"
+          {builder.custom_fields.map((field) => (
+            <div key={field.id}>
+              <Input
+                name={field.id}
+                label={field.name}
+                required={field.is_required}
+                value={String(
+                  customFields.find((customField) => customField.field_id === field.id)?.value ||
+                    ""
+                )}
+                onChange={(event) => handleCustomFieldChange(field.id, event.target.value)}
               />
             </div>
           ))}
@@ -194,9 +174,7 @@ export default function ProductBuilderConfig({
                     key={variant.id}
                     variant={variant}
                     isSelected={complementaryProducts[item.id] === variant.id}
-                    onToggle={(variantId) =>
-                      toggleComplementaryProduct(item.id, variantId)
-                    }
+                    onToggle={(variantId) => toggleComplementaryProduct(item.id, variantId)}
                     disabled={isLoadingPrices}
                   />
                 ))}
@@ -223,23 +201,8 @@ export default function ProductBuilderConfig({
                   <VariantSelector
                     key={variant.id}
                     variant={variant}
-                    isSelected={
-                      addons.find(
-                        (addon) =>
-                          addon.product_id === item.product_id &&
-                          addon.variant_id === variant.id
-                      ) !== undefined
-                    }
-                    onToggle={(variantId) =>
-                      toggleAddon(
-                        item.product_id,
-                        pricedProduct.title,
-                        pricedProduct.thumbnail,
-                        variantId,
-                        variant.title,
-                        variant.calculated_price?.calculated_amount
-                      )
-                    }
+                    isSelected={addons[item.id] === variant.id}
+                    onToggle={(variantId) => toggleAddon(item.id, variantId)}
                     disabled={isLoadingPrices}
                   />
                 ))}
