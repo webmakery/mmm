@@ -24,5 +24,8 @@ module.exports = defineConfig({
     {
       resolve: "./src/modules/product-builder",
     },
+    {
+      resolve: "./src/modules/invoice-generator",
+    },
   ],
 })
