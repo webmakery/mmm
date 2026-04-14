@@ -33,7 +33,7 @@ export type FacebookCustomData = {
 }
 
 export type FacebookEventPayload = {
-  event_name: "Purchase" | "AddToCart" | "InitiateCheckout"
+  event_name: "Purchase" | "AddToCart" | "InitiateCheckout" | "AddPaymentInfo"
   event_time: number
   action_source: "website"
   event_source_url?: string
@@ -47,7 +47,11 @@ export type FacebookCapiRequest = {
   test_event_code?: string
 }
 
-export type DomainEventType = "purchase" | "add_to_cart" | "initiate_checkout"
+export type DomainEventType =
+  | "purchase"
+  | "add_to_cart"
+  | "initiate_checkout"
+  | "add_payment_info"
 
 export type BaseDomainEvent = {
   id?: string

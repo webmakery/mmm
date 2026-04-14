@@ -46,6 +46,16 @@ const loadMetaPixel = (pixelId: string) => {
   window.fbq?.("init", pixelId)
   window.fbq?.("track", "PageView")
   window._metaPixelLoaded = true
+
+  if (process.env.NODE_ENV !== "production") {
+    console.debug("[meta/browser] pixel initialized", {
+      pixel_id: pixelId,
+    })
+    console.debug("[meta/browser] fired", {
+      event_name: "PageView",
+      event_id: null,
+    })
+  }
 }
 
 export default function MetaPixelProvider() {
@@ -55,6 +65,18 @@ export default function MetaPixelProvider() {
 
   useEffect(() => {
     setIsConsentGranted(getMarketingConsent())
+
+    const interval = window.setInterval(() => {
+      setIsConsentGranted(getMarketingConsent())
+    }, 1000)
+
+    const onStorageChange = () => setIsConsentGranted(getMarketingConsent())
+    window.addEventListener("storage", onStorageChange)
+
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener("storage", onStorageChange)
+    }
   }, [])
 
   useEffect(() => {

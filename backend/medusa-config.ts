@@ -22,7 +22,8 @@ module.exports = defineConfig({
         accessToken: process.env.FACEBOOK_CAPI_ACCESS_TOKEN,
         testEventCode:
           process.env.META_TEST_EVENT_CODE ||
-          process.env.FACEBOOK_CAPI_TEST_EVENT_CODE,
+          process.env.FACEBOOK_CAPI_TEST_EVENT_CODE ||
+          (process.env.NODE_ENV !== "production" ? "TEST35035" : undefined),
         apiVersion: process.env.FACEBOOK_CAPI_API_VERSION,
         timeoutMs: process.env.FACEBOOK_CAPI_TIMEOUT_MS
           ? Number(process.env.FACEBOOK_CAPI_TIMEOUT_MS)

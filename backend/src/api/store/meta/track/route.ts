@@ -6,6 +6,8 @@ type MetaTrackStorePayload = {
   event_name?: "AddToCart" | "InitiateCheckout" | "AddPaymentInfo" | "Purchase"
   event_id?: string
   event_source_url?: string
+  _fbp?: string
+  _fbc?: string
   fbp?: string
   fbc?: string
   email?: string
@@ -27,6 +29,8 @@ const mapEventNameToDomainType = (eventName: MetaTrackStorePayload["event_name"]
       return "add_to_cart"
     case "InitiateCheckout":
       return "initiate_checkout"
+    case "AddPaymentInfo":
+      return "add_payment_info"
     case "Purchase":
       return "purchase"
     default:
@@ -63,6 +67,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   await facebookCapiService.track(eventType, {
     ...payload,
     event_id: payload.event_id,
+    _fbp: payload._fbp,
+    _fbc: payload._fbc,
     currency_code: payload.currency_code,
     total: payload.total ?? payload.value,
     items: payload.items ?? payload.contents,

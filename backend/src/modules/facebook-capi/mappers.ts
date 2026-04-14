@@ -70,6 +70,7 @@ export const mapToFacebookEvent = (
     purchase: "Purchase",
     add_to_cart: "AddToCart",
     initiate_checkout: "InitiateCheckout",
+    add_payment_info: "AddPaymentInfo",
   }
 
   const items = (event.items as Array<Record<string, unknown>> | undefined) || []

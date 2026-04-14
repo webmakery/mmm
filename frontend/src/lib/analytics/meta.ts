@@ -8,7 +8,11 @@ declare global {
   }
 }
 
-type MetaEventName = "AddToCart" | "InitiateCheckout" | "AddPaymentInfo" | "Purchase"
+export type MetaEventName =
+  | "AddToCart"
+  | "InitiateCheckout"
+  | "AddPaymentInfo"
+  | "Purchase"
 
 type MetaTrackResult = {
   eventId: string
@@ -64,7 +68,7 @@ export const getMetaBrowserIds = () => ({
   fbc: readCookie("_fbc") || undefined,
 })
 
-const createEventId = () => {
+export const createMetaEventId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID()
   }
@@ -74,7 +78,8 @@ const createEventId = () => {
 
 export const trackMetaEvent = (
   name: MetaEventName,
-  eventData: Record<string, unknown>
+  eventData: Record<string, unknown>,
+  eventId = createMetaEventId()
 ): MetaTrackResult | null => {
   if (typeof window === "undefined") {
     return null
@@ -87,8 +92,6 @@ export const trackMetaEvent = (
   if (!window.fbq || !window._metaPixelLoaded) {
     return null
   }
-
-  const eventId = createEventId()
 
   window.fbq("track", name, eventData, { eventID: eventId })
 
