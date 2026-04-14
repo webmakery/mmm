@@ -27,6 +27,13 @@ export default async function facebookCapiOrderPlacedHandler({
       event_id: eventId,
       source: "order-subscriber",
     })
+
+    console.debug("[meta/purchase] raw medusa totals from subscriber", {
+      event_id: eventId,
+      total: data.total,
+      subtotal: data.subtotal,
+      raw_total: data.raw_total,
+    })
   }
 
   const facebookCapiService: FacebookCapiModuleService = container.resolve(FACEBOOK_CAPI_MODULE)

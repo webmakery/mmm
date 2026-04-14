@@ -1,6 +1,7 @@
 "use client"
 
 import { getMetaBrowserIds, trackMetaEvent } from "@lib/analytics/meta"
+import { resolveMetaValue } from "@lib/analytics/meta-value"
 import { addToCart, trackMetaAddToCart } from "@lib/data/cart"
 import { useIntersection } from "@lib/hooks/use-in-view"
 import { HttpTypes } from "@medusajs/types"
@@ -129,6 +130,9 @@ export default function ProductActions({
 
     const quantity = 1
     const price = selectedVariant.calculated_price?.calculated_amount
+    const normalizedItemPrice = resolveMetaValue({ medusaMinorUnitValue: price })
+    const normalizedValue =
+      typeof normalizedItemPrice === "number" ? normalizedItemPrice * quantity : undefined
 
     const eventPayload = {
       content_ids: [selectedVariant.id],
@@ -136,12 +140,12 @@ export default function ProductActions({
         {
           id: selectedVariant.id,
           quantity,
-          item_price: typeof price === "number" ? price : undefined,
+          item_price: normalizedItemPrice,
         },
       ],
       content_type: "product",
       currency: selectedVariant.calculated_price?.currency_code?.toUpperCase(),
-      value: typeof price === "number" ? price * quantity : undefined,
+      value: normalizedValue,
       num_items: quantity,
     }
 

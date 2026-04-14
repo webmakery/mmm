@@ -58,6 +58,21 @@ const convertMedusaAmountFromSmallestUnit = (value: unknown) => {
   return Number((amount / 100).toFixed(2))
 }
 
+const resolveMetaValue = ({
+  forwardedValue,
+  medusaMinorUnitValue,
+}: {
+  forwardedValue?: unknown
+  medusaMinorUnitValue?: unknown
+}) => {
+  const explicitValue = asNumber(forwardedValue)
+  if (typeof explicitValue === "number") {
+    return explicitValue
+  }
+
+  return convertMedusaAmountFromSmallestUnit(medusaMinorUnitValue)
+}
+
 const resolveEventId = (
   type: DomainEventType,
   event: BaseDomainEvent,
@@ -86,18 +101,27 @@ export const mapToFacebookEvent = (
   const contents = items.map((item) => ({
     id: String(item.variant_id || item.product_id || item.id || "unknown"),
     quantity: asNumber(item.quantity),
-    item_price:
-      asNumber(item.item_price) ??
-      convertMedusaAmountFromSmallestUnit(item.unit_price),
+    item_price: resolveMetaValue({
+      forwardedValue: item.item_price,
+      medusaMinorUnitValue: item.unit_price,
+    }),
   }))
 
-  const convertedMedusaTotal =
-    convertMedusaAmountFromSmallestUnit(event.total) ??
-    convertMedusaAmountFromSmallestUnit(event.subtotal) ??
-    convertMedusaAmountFromSmallestUnit(event.raw_total)
+  const convertedMedusaTotal = resolveMetaValue({
+    medusaMinorUnitValue:
+      asNumber(event.total) ??
+      asNumber(event.subtotal) ??
+      asNumber(event.raw_total),
+  })
 
   const totalValue =
-    asNumber(event.value) ??
+    resolveMetaValue({
+      forwardedValue: event.value,
+      medusaMinorUnitValue:
+        asNumber(event.total) ??
+        asNumber(event.subtotal) ??
+        asNumber(event.raw_total),
+    }) ??
     convertedMedusaTotal ??
     contents.reduce((sum, content) => {
       const line = (content.item_price || 0) * (content.quantity || 1)

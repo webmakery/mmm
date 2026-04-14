@@ -1,6 +1,7 @@
 "use client"
 
 import { createMetaEventId, getMetaBrowserIds, trackMetaEvent } from "@lib/analytics/meta"
+import { resolveMetaValue } from "@lib/analytics/meta-value"
 import { trackMetaEventToBackend } from "@lib/data/cart"
 import { HttpTypes } from "@medusajs/types"
 import { useEffect, useRef } from "react"
@@ -19,13 +20,12 @@ export default function MetaPurchaseTracker({ order }: MetaPurchaseTrackerProps)
 
     const currency = order.currency_code?.toUpperCase()
     const medusaTotal = typeof order.total === "number" ? order.total : undefined
-    const value = typeof medusaTotal === "number" ? medusaTotal / 100 : undefined
+    const value = resolveMetaValue({ medusaMinorUnitValue: medusaTotal })
     const contents =
       order.items?.map((item) => ({
         id: String(item.variant_id || item.product_id || item.id || "unknown"),
         quantity: item.quantity,
-        item_price:
-          typeof item.unit_price === "number" ? item.unit_price / 100 : undefined,
+        item_price: resolveMetaValue({ medusaMinorUnitValue: item.unit_price }),
       })) ?? []
 
     const eventPayload = {
@@ -42,8 +42,9 @@ export default function MetaPurchaseTracker({ order }: MetaPurchaseTrackerProps)
       process.env.NEXT_PUBLIC_META_DEBUG === "true"
     ) {
       console.debug("[meta/purchase] currency conversion", {
-        medusa_total: medusaTotal,
-        meta_value: value,
+        raw_medusa_total: order.total,
+        frontend_computed_meta_value: value,
+        source: "order.completed",
       })
     }
 
@@ -67,6 +68,7 @@ export default function MetaPurchaseTracker({ order }: MetaPurchaseTrackerProps)
       fbc: browserIds.fbc,
       currency,
       total: medusaTotal,
+      raw_total: medusaTotal,
       value,
       content_type: "product",
       content_ids: eventPayload.content_ids,
