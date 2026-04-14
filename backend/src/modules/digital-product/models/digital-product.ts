@@ -10,7 +10,6 @@ const DigitalProduct = model.define("digital_product", {
   }),
   orders: model.manyToMany(() => DigitalProductOrder, {
     mappedBy: "products",
-    pivotTable: "digitalproduct_digitalproductorders",
   }),
 })
 
