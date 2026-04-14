@@ -1,6 +1,6 @@
 "use client"
 
-import { clx, Container } from "@medusajs/ui"
+import { clx } from "@medusajs/ui"
 import { ArrowRightOnRectangle } from "@medusajs/icons"
 import { useParams, usePathname } from "next/navigation"
 
@@ -108,13 +108,12 @@ const AccountNav = ({
         )}
       </div>
       <div className="hidden small:block" data-testid="account-nav">
-        <Container className="p-4">
-          <div className="pb-4 border-b border-ui-border-base">
-            <p className="text-small-regular text-ui-fg-subtle">Account</p>
-            <h3 className="text-base-semi mt-1">Hello {customer?.first_name}</h3>
+        <div>
+          <div className="pb-4">
+            <h3 className="text-base-semi">Account</h3>
           </div>
-          <div className="text-base-regular pt-4">
-            <ul className="flex mb-0 justify-start items-start flex-col gap-y-1">
+          <div className="text-base-regular">
+            <ul className="flex mb-0 justify-start items-start flex-col gap-y-4">
               <li>
                 <AccountNavLink
                   href="/account"
@@ -151,11 +150,10 @@ const AccountNav = ({
                   Orders
                 </AccountNavLink>
               </li>
-              <li className="text-grey-700 w-full">
+              <li className="text-grey-700">
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="w-full px-3 py-2 rounded-md text-left text-ui-fg-subtle hover:text-ui-fg-base hover:bg-ui-bg-base"
                   data-testid="logout-button"
                 >
                   Log out
@@ -163,7 +161,7 @@ const AccountNav = ({
               </li>
             </ul>
           </div>
-        </Container>
+        </div>
       </div>
     </div>
   )
@@ -188,12 +186,9 @@ const AccountNavLink = ({
   return (
     <LocalizedClientLink
       href={href}
-      className={clx(
-        "w-full block px-3 py-2 rounded-md text-ui-fg-subtle hover:text-ui-fg-base hover:bg-ui-bg-base",
-        {
-          "text-ui-fg-base bg-ui-bg-base font-semibold": active,
-        }
-      )}
+      className={clx("text-ui-fg-subtle hover:text-ui-fg-base", {
+        "text-ui-fg-base font-semibold": active,
+      })}
       data-testid={dataTestId}
     >
       {children}
