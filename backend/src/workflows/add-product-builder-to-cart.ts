@@ -42,6 +42,17 @@ export const addProductBuilderToCartWorkflow = createWorkflow(
       ttl: 10,
     })
 
+    const { data: cartBeforeMainProduct } = useQueryGraphStep({
+      entity: "cart",
+      fields: ["id", "items.id"],
+      filters: {
+        id: input.cart_id,
+      },
+      options: {
+        throwIfKeyNotFound: true,
+      },
+    }).config({ name: "get-cart-before-main-product" })
+
     // Step 2: Add main product to cart
     const addMainProductData = transform({
       input,
@@ -89,15 +100,20 @@ export const addProductBuilderToCartWorkflow = createWorkflow(
       main_item_update: mainItemUpdate
     } = transform({
       input,
-      cartWithMainProduct
+      cartWithMainProduct,
+      cartBeforeMainProduct
     }, (data) => {
       if (!data.input.complementary_product_variants?.length && !data.input.addon_variants?.length) {
         return {}
       }
 
-      // Find the main product line item (most recent addition with builder metadata)
-      const mainLineItem = data.cartWithMainProduct[0].items.find((item: any) => 
-        item.metadata?.is_builder_main_product === true
+      const existingLineItemIds = new Set(
+        (data.cartBeforeMainProduct[0]?.items || []).map((item: any) => item.id)
+      )
+
+      // Find the main product line item created by this workflow execution
+      const mainLineItem = data.cartWithMainProduct[0].items.find((item: any) =>
+        item.metadata?.is_builder_main_product === true && !existingLineItemIds.has(item.id)
       )
 
       if (!mainLineItem) {
