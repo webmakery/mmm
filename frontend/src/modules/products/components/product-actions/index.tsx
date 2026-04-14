@@ -4,8 +4,14 @@ import { getMetaBrowserIds, trackMetaEvent } from "@lib/analytics/meta"
 import { resolveMetaValue } from "@lib/analytics/meta-value"
 import { addToCart, trackMetaAddToCart } from "@lib/data/cart"
 import { useIntersection } from "@lib/hooks/use-in-view"
+import {
+  isBuilderSelectionValid,
+  parseProductBuilderConfig,
+  ProductBuilderSelection,
+  toLineItemBuilderMetadata,
+} from "@lib/util/product-builder"
 import { HttpTypes } from "@medusajs/types"
-import { Button } from "@medusajs/ui"
+import { Button, Input } from "@medusajs/ui"
 import Divider from "@modules/common/components/divider"
 import OptionSelect from "@modules/products/components/product-actions/option-select"
 import { isEqual } from "lodash"
@@ -39,8 +45,13 @@ export default function ProductActions({
   const searchParams = useSearchParams()
 
   const [options, setOptions] = useState<Record<string, string | undefined>>({})
+  const [builderSelection, setBuilderSelection] = useState<ProductBuilderSelection>({})
   const [isAdding, setIsAdding] = useState(false)
   const countryCode = useParams().countryCode as string
+  const productBuilder = useMemo(
+    () => parseProductBuilderConfig(product.metadata),
+    [product.metadata]
+  )
 
   // If there is only 1 variant, preselect the options
   useEffect(() => {
@@ -76,6 +87,10 @@ export default function ProductActions({
       return isEqual(variantOptions, options)
     })
   }, [product.variants, options])
+
+  const isValidBuilderSelection = useMemo(() => {
+    return isBuilderSelectionValid(productBuilder, builderSelection)
+  }, [productBuilder, builderSelection])
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString())
@@ -157,6 +172,7 @@ export default function ProductActions({
       variantId: selectedVariant.id,
       quantity,
       countryCode,
+      metadata: toLineItemBuilderMetadata(productBuilder, builderSelection),
     })
 
     const trackedEvent = trackMetaEvent("AddToCart", eventPayload)
@@ -205,6 +221,53 @@ export default function ProductActions({
             </div>
           )}
         </div>
+        {productBuilder && (
+          <div className="flex flex-col gap-y-4">
+            {productBuilder.options.map((option) => {
+              if (option.type === "text") {
+                return (
+                  <div key={option.id} className="flex flex-col gap-y-3">
+                    <span className="text-sm">{option.title}</span>
+                    <Input
+                      value={builderSelection[option.id] || ""}
+                      onChange={(event) =>
+                        setBuilderSelection((prev) => ({
+                          ...prev,
+                          [option.id]: event.target.value,
+                        }))
+                      }
+                      disabled={!!disabled || isAdding}
+                    />
+                  </div>
+                )
+              }
+
+              return (
+                <OptionSelect
+                  key={option.id}
+                  option={{
+                    id: option.id,
+                    title: option.title,
+                    values: (option.values || []).map((value) => ({
+                      id: value,
+                      value,
+                    })),
+                  }}
+                  current={builderSelection[option.id]}
+                  updateOption={(optionId, value) =>
+                    setBuilderSelection((prev) => ({
+                      ...prev,
+                      [optionId]: value,
+                    }))
+                  }
+                  title={option.title}
+                  data-testid="product-builder-options"
+                  disabled={!!disabled || isAdding}
+                />
+              )
+            })}
+          </div>
+        )}
 
         <ProductPrice product={product} variant={selectedVariant} />
 
@@ -215,7 +278,8 @@ export default function ProductActions({
             !selectedVariant ||
             !!disabled ||
             isAdding ||
-            !isValidVariant
+            !isValidVariant ||
+            !isValidBuilderSelection
           }
           variant="primary"
           className="w-full h-10"
@@ -224,6 +288,8 @@ export default function ProductActions({
         >
           {!selectedVariant && !options
             ? "Select variant"
+            : !isValidBuilderSelection
+            ? "Complete configuration"
             : !inStock || !isValidVariant
             ? "Out of stock"
             : "Add to cart"}
