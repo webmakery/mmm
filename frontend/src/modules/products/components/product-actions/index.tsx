@@ -14,9 +14,12 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import ProductPrice from "../product-price"
 import MobileActions from "./mobile-actions"
 import { useRouter } from "next/navigation"
+import ProductBuilderConfig from "../product-builder-config"
+import { hasProductBuilder } from "@lib/util/product"
+import { BuilderConfiguration, ProductWithBuilder } from "types/global"
 
 type ProductActionsProps = {
-  product: HttpTypes.StoreProduct
+  product: ProductWithBuilder
   region: HttpTypes.StoreRegion
   disabled?: boolean
 }
@@ -40,6 +43,12 @@ export default function ProductActions({
 
   const [options, setOptions] = useState<Record<string, string | undefined>>({})
   const [isAdding, setIsAdding] = useState(false)
+  const [builderConfig, setBuilderConfig] = useState<BuilderConfiguration>({
+    customFields: {},
+    complementaryProducts: {},
+    addons: {},
+  })
+  const [isBuilderConfigValid, setIsBuilderConfigValid] = useState(true)
   const countryCode = useParams().countryCode as string
 
   // If there is only 1 variant, preselect the options
@@ -121,6 +130,8 @@ export default function ProductActions({
   const actionsRef = useRef<HTMLDivElement>(null)
 
   const inView = useIntersection(actionsRef, "0px")
+
+  const hasBuilder = hasProductBuilder(product)
 
   // add the selected variant to the cart
   const handleAddToCart = async () => {
@@ -206,7 +217,20 @@ export default function ProductActions({
           )}
         </div>
 
-        <ProductPrice product={product} variant={selectedVariant} />
+        {hasBuilder && (
+          <ProductBuilderConfig
+            product={product}
+            countryCode={countryCode}
+            onConfigurationChange={setBuilderConfig}
+            onValidationChange={setIsBuilderConfigValid}
+          />
+        )}
+
+        <ProductPrice
+          product={product}
+          variant={selectedVariant}
+          builderConfig={builderConfig}
+        />
 
         <Button
           onClick={handleAddToCart}
@@ -215,7 +239,8 @@ export default function ProductActions({
             !selectedVariant ||
             !!disabled ||
             isAdding ||
-            !isValidVariant
+            !isValidVariant ||
+            (hasBuilder && !isBuilderConfigValid)
           }
           variant="primary"
           className="w-full h-10"
@@ -224,6 +249,8 @@ export default function ProductActions({
         >
           {!selectedVariant && !options
             ? "Select variant"
+            : hasBuilder && !isBuilderConfigValid
+            ? "Complete required fields"
             : !inStock || !isValidVariant
             ? "Out of stock"
             : "Add to cart"}
