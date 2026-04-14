@@ -58,10 +58,17 @@ export type CustomFieldValue = Record<string, string>
 
 export type ComplementarySelection = Record<string, string | undefined>
 
-export type AddonSelection = Record<string, string | undefined>
+export type AddonSelection = {
+  product_id: string
+  variant_id: string
+  title: string
+  thumbnail?: string | null
+  price: number
+  quantity: number
+}
 
 export type BuilderConfiguration = {
   customFields: CustomFieldValue
   complementaryProducts: ComplementarySelection
-  addons: AddonSelection
+  addons: AddonSelection[]
 }

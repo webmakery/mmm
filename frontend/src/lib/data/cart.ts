@@ -15,6 +15,7 @@ import {
 } from "./cookies"
 import { getRegion } from "./regions"
 import { getLocale } from "@lib/data/locale-actions"
+import { BuilderConfiguration } from "types/global"
 
 /**
  * Retrieves a cart by its ID. If no ID is provided, it will use the cart ID from the cookies.
@@ -169,6 +170,61 @@ export async function addToCart({
       {},
       headers
     )
+    .then(async () => {
+      const cartCacheTag = await getCacheTag("carts")
+      revalidateTag(cartCacheTag)
+
+      const fulfillmentCacheTag = await getCacheTag("fulfillment")
+      revalidateTag(fulfillmentCacheTag)
+    })
+    .catch(medusaError)
+}
+
+export async function addBuilderProductToCart({
+  productId,
+  variantId,
+  quantity,
+  countryCode,
+  builderConfig,
+}: {
+  productId: string
+  variantId: string
+  quantity: number
+  countryCode: string
+  builderConfig: BuilderConfiguration
+}) {
+  if (!variantId) {
+    throw new Error("Missing variant ID when adding builder product to cart")
+  }
+
+  const cart = await getOrSetCart(countryCode)
+
+  if (!cart) {
+    throw new Error("Error retrieving or creating cart")
+  }
+
+  const headers = {
+    ...(await getAuthHeaders()),
+  }
+
+  await sdk.client
+    .fetch(`/store/carts/${cart.id}/product-builder`, {
+      method: "POST",
+      headers,
+      body: {
+        product_id: productId,
+        variant_id: variantId,
+        quantity,
+        custom_field_values: builderConfig.customFields,
+        complementary_product_variants: Object.values(
+          builderConfig.complementaryProducts || {}
+        ).filter(Boolean),
+        addon_variants: (builderConfig.addons || []).map(
+          (addon) => addon.variant_id
+        ),
+      },
+      cache: "no-store",
+    })
     .then(async () => {
       const cartCacheTag = await getCacheTag("carts")
       revalidateTag(cartCacheTag)

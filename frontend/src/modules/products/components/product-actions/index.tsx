@@ -2,7 +2,11 @@
 
 import { getMetaBrowserIds, trackMetaEvent } from "@lib/analytics/meta"
 import { resolveMetaValue } from "@lib/analytics/meta-value"
-import { addToCart, trackMetaAddToCart } from "@lib/data/cart"
+import {
+  addBuilderProductToCart,
+  addToCart,
+  trackMetaAddToCart,
+} from "@lib/data/cart"
 import { useIntersection } from "@lib/hooks/use-in-view"
 import { HttpTypes } from "@medusajs/types"
 import { Button } from "@medusajs/ui"
@@ -46,7 +50,7 @@ export default function ProductActions({
   const [builderConfig, setBuilderConfig] = useState<BuilderConfiguration>({
     customFields: {},
     complementaryProducts: {},
-    addons: {},
+    addons: [],
   })
   const [isBuilderConfigValid, setIsBuilderConfigValid] = useState(true)
   const countryCode = useParams().countryCode as string
@@ -164,11 +168,21 @@ export default function ProductActions({
       num_items: quantity,
     }
 
-    await addToCart({
-      variantId: selectedVariant.id,
-      quantity,
-      countryCode,
-    })
+    if (hasBuilder) {
+      await addBuilderProductToCart({
+        productId: product.id,
+        variantId: selectedVariant.id,
+        quantity,
+        countryCode,
+        builderConfig,
+      })
+    } else {
+      await addToCart({
+        variantId: selectedVariant.id,
+        quantity,
+        countryCode,
+      })
+    }
 
     const trackedEvent = trackMetaEvent("AddToCart", eventPayload)
 

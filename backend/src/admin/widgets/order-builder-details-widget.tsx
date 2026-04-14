@@ -29,9 +29,8 @@ const OrderBuilderDetailsWidget = ({
   const orderItems = (order.items || []) as LineItemWithBuilderMetadata[]
 
   // Find all builder main products (items with custom configurations)
-  const builderItems = orderItems.filter(item => 
-    item.metadata?.is_builder_main_product || 
-    item.metadata?.custom_fields?.length
+  const builderItems = orderItems.filter(
+    (item) => item.metadata?.is_builder_main_product === true
   )
 
   // If no builder items, don't show the widget
