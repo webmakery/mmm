@@ -40,6 +40,8 @@ const Addresses = ({
   }
 
   const [message, formAction] = useActionState(setAddresses, null)
+  const addressForSummary =
+    cart?.shipping_address || (!requiresShipping ? cart?.billing_address : null)
 
   return (
     <div className="bg-white">
@@ -48,7 +50,7 @@ const Addresses = ({
           level="h2"
           className="flex flex-row text-3xl-regular gap-x-2 items-baseline"
         >
-          Shipping Address
+          {requiresShipping ? "Shipping Address" : "Billing Address"}
           {!isOpen && <CheckCircleSolid />}
         </Heading>
         {!isOpen && cart?.shipping_address && (
@@ -94,7 +96,7 @@ const Addresses = ({
       ) : (
         <div>
           <div className="text-small-regular">
-            {cart && cart.shipping_address ? (
+            {cart && addressForSummary ? (
               <div className="flex items-start gap-x-8">
                 <div className="flex items-start gap-x-1 w-full">
                   <div
@@ -102,22 +104,19 @@ const Addresses = ({
                     data-testid="shipping-address-summary"
                   >
                     <Text className="txt-medium-plus text-ui-fg-base mb-1">
-                      Shipping Address
+                      {requiresShipping ? "Shipping Address" : "Billing Address"}
                     </Text>
                     <Text className="txt-medium text-ui-fg-subtle">
-                      {cart.shipping_address.first_name}{" "}
-                      {cart.shipping_address.last_name}
+                      {addressForSummary.first_name} {addressForSummary.last_name}
                     </Text>
                     <Text className="txt-medium text-ui-fg-subtle">
-                      {cart.shipping_address.address_1}{" "}
-                      {cart.shipping_address.address_2}
+                      {addressForSummary.address_1} {addressForSummary.address_2}
                     </Text>
                     <Text className="txt-medium text-ui-fg-subtle">
-                      {cart.shipping_address.postal_code},{" "}
-                      {cart.shipping_address.city}
+                      {addressForSummary.postal_code}, {addressForSummary.city}
                     </Text>
                     <Text className="txt-medium text-ui-fg-subtle">
-                      {cart.shipping_address.country_code?.toUpperCase()}
+                      {addressForSummary.country_code?.toUpperCase()}
                     </Text>
                   </div>
 
@@ -129,51 +128,51 @@ const Addresses = ({
                       Contact
                     </Text>
                     <Text className="txt-medium text-ui-fg-subtle">
-                      {cart.shipping_address.phone}
+                      {addressForSummary.phone}
                     </Text>
                     <Text className="txt-medium text-ui-fg-subtle">
                       {cart.email}
                     </Text>
                   </div>
 
-                  <div
-                    className="flex flex-col w-1/3"
-                    data-testid="billing-address-summary"
-                  >
-                    <Text className="txt-medium-plus text-ui-fg-base mb-1">
-                      Billing Address
-                    </Text>
-
-                    {sameAsBilling ? (
-                      <Text className="txt-medium text-ui-fg-subtle">
-                        Billing and delivery address are the same.
+                  {requiresShipping && (
+                    <div
+                      className="flex flex-col w-1/3"
+                      data-testid="billing-address-summary"
+                    >
+                      <Text className="txt-medium-plus text-ui-fg-base mb-1">
+                        Billing Address
                       </Text>
-                    ) : (
-                      <>
+
+                      {sameAsBilling ? (
                         <Text className="txt-medium text-ui-fg-subtle">
-                          {cart.billing_address?.first_name}{" "}
-                          {cart.billing_address?.last_name}
+                          Billing and delivery address are the same.
                         </Text>
-                        <Text className="txt-medium text-ui-fg-subtle">
-                          {cart.billing_address?.address_1}{" "}
-                          {cart.billing_address?.address_2}
-                        </Text>
-                        <Text className="txt-medium text-ui-fg-subtle">
-                          {cart.billing_address?.postal_code},{" "}
-                          {cart.billing_address?.city}
-                        </Text>
-                        <Text className="txt-medium text-ui-fg-subtle">
-                          {cart.billing_address?.country_code?.toUpperCase()}
-                        </Text>
-                      </>
-                    )}
-                  </div>
+                      ) : (
+                        <>
+                          <Text className="txt-medium text-ui-fg-subtle">
+                            {cart.billing_address?.first_name}{" "}
+                            {cart.billing_address?.last_name}
+                          </Text>
+                          <Text className="txt-medium text-ui-fg-subtle">
+                            {cart.billing_address?.address_1}{" "}
+                            {cart.billing_address?.address_2}
+                          </Text>
+                          <Text className="txt-medium text-ui-fg-subtle">
+                            {cart.billing_address?.postal_code},{" "}
+                            {cart.billing_address?.city}
+                          </Text>
+                          <Text className="txt-medium text-ui-fg-subtle">
+                            {cart.billing_address?.country_code?.toUpperCase()}
+                          </Text>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
-              <div>
-                <Spinner />
-              </div>
+              <div>{requiresShipping && <Spinner />}</div>
             )}
           </div>
         </div>

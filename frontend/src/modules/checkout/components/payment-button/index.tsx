@@ -19,9 +19,13 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
   requiresShipping,
   "data-testid": dataTestId,
 }) => {
+  const hasCheckoutAddress = Boolean(
+    cart?.shipping_address || (!requiresShipping && cart?.billing_address)
+  )
+
   const notReady =
     !cart ||
-    !cart.shipping_address ||
+    !hasCheckoutAddress ||
     !cart.billing_address ||
     !cart.email ||
     (requiresShipping && (cart.shipping_methods?.length ?? 0) < 1)
