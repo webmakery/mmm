@@ -83,16 +83,27 @@ const resolvePdfPrinter = async () => {
 
   try {
     const pdfmakeEntrypointPath = localRequire.resolve("pdfmake")
-    const pdfmakeRoot = path.dirname(pdfmakeEntrypointPath)
+    const pdfmakeEntrypointDir = path.dirname(pdfmakeEntrypointPath)
+    const pdfmakePackageJsonPath = localRequire.resolve("pdfmake/package.json")
+    const pdfmakePackageRoot = path.dirname(pdfmakePackageJsonPath)
 
     candidates.push(
       {
-        label: `import(${path.join(pdfmakeRoot, "build/pdfmake.js")})`,
-        resolve: () => import(pathToFileURL(path.join(pdfmakeRoot, "build/pdfmake.js")).href),
+        label: `import(${path.join(pdfmakeEntrypointDir, "printer.js")})`,
+        resolve: () => import(pathToFileURL(path.join(pdfmakeEntrypointDir, "printer.js")).href),
       },
       {
-        label: `require(${path.join(pdfmakeRoot, "build/pdfmake.js")})`,
-        resolve: () => localRequire(path.join(pdfmakeRoot, "build/pdfmake.js")),
+        label: `require(${path.join(pdfmakeEntrypointDir, "printer.js")})`,
+        resolve: () => localRequire(path.join(pdfmakeEntrypointDir, "printer.js")),
+      },
+      {
+        label: `import(${path.join(pdfmakePackageRoot, "build/pdfmake.js")})`,
+        resolve: () =>
+          import(pathToFileURL(path.join(pdfmakePackageRoot, "build/pdfmake.js")).href),
+      },
+      {
+        label: `require(${path.join(pdfmakePackageRoot, "build/pdfmake.js")})`,
+        resolve: () => localRequire(path.join(pdfmakePackageRoot, "build/pdfmake.js")),
       }
     )
   } catch (error: any) {
