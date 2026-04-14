@@ -18,7 +18,40 @@ module.exports = defineConfig({
   },
   modules: [
     {
+      resolve: "./src/modules/digital-product",
+    },
+    {
       resolve: "./src/modules/subscription",
+    },
+    {
+      resolve: "@medusajs/fulfillment",
+      options: {
+        providers: [
+          {
+            resolve: "@medusajs/fulfillment-manual",
+            id: "manual",
+          },
+          {
+            resolve: "./src/modules/digital-product-fulfillment",
+            id: "digital",
+          },
+        ],
+      },
+    },
+    {
+      resolve: "@medusajs/notification",
+      options: {
+        providers: [
+          {
+            resolve: "@medusajs/notification-local",
+            id: "local",
+            options: {
+              name: "Local Notification Provider",
+              channels: ["email"],
+            },
+          },
+        ],
+      },
     },
     {
       resolve: "@medusajs/medusa/payment",

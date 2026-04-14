@@ -5,16 +5,19 @@ import {
   validateAndTransformQuery,
 } from "@medusajs/framework/http"
 import { createFindParams } from "@medusajs/medusa/api/utils/validators"
+import multer from "multer"
 import { UpsertProductBuilderSchema } from "./admin/products/[id]/builder/route"
 import { GetComplementaryProductsSchema } from "./admin/products/complementary/route"
 import { PostInvoiceConfgSchema } from "./admin/invoice-config/route"
 import { GetAdminReviewsSchema } from "./admin/reviews/route"
 import { PostAdminUpdateReviewsStatusSchema } from "./admin/reviews/status/route"
+import { createDigitalProductsSchema } from "./validation-schemas"
 import { AddBuilderProductSchema } from "./store/carts/[id]/product-builder/route"
 import { GetStoreReviewsSchema } from "./store/products/[id]/reviews/route"
 import { PostStoreReviewSchema } from "./store/reviews/route"
 
 export const GetSubscriptionsSchema = createFindParams()
+const upload = multer({ storage: multer.memoryStorage() })
 
 export default defineMiddlewares({
   routes: [
@@ -58,6 +61,34 @@ export default defineMiddlewares({
           isList: true,
         }),
       ],
+    },
+    {
+      matcher: "/admin/digital-products",
+      methods: ["GET"],
+      middlewares: [
+        validateAndTransformQuery(createFindParams(), {
+          defaults: [
+            "id",
+            "name",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "medias.*",
+            "product_variant.*",
+          ],
+          isList: true,
+        }),
+      ],
+    },
+    {
+      matcher: "/admin/digital-products",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(createDigitalProductsSchema)],
+    },
+    {
+      matcher: "/admin/digital-products/upload*",
+      methods: ["POST"],
+      middlewares: [upload.array("files")],
     },
     {
       matcher: "/store/carts/:id/product-builder",
