@@ -115,8 +115,11 @@ export async function updateCart(data: HttpTypes.StoreUpdateCart) {
 }
 
 type MetaAddToCartTrackingPayload = {
+  event_name?: "AddToCart" | "InitiateCheckout" | "AddPaymentInfo" | "Purchase"
   event_id: string
   event_source_url?: string
+  _fbp?: string
+  _fbc?: string
   fbp?: string
   fbc?: string
   currency?: string
@@ -175,6 +178,13 @@ export async function addToCart({
 }
 
 export async function trackMetaAddToCart(payload: MetaAddToCartTrackingPayload) {
+  return trackMetaEventToBackend({
+    ...payload,
+    event_name: "AddToCart",
+  })
+}
+
+export async function trackMetaEventToBackend(payload: MetaAddToCartTrackingPayload) {
   if (!payload.event_id) {
     return
   }
@@ -186,9 +196,11 @@ export async function trackMetaAddToCart(payload: MetaAddToCartTrackingPayload) 
   await sdk.client.fetch("/store/meta/track", {
     method: "POST",
     body: {
-      event_name: "AddToCart",
+      event_name: payload.event_name || "AddToCart",
       event_id: payload.event_id,
       event_source_url: payload.event_source_url,
+      _fbp: payload._fbp,
+      _fbc: payload._fbc,
       fbp: payload.fbp,
       fbc: payload.fbc,
       currency_code: payload.currency,

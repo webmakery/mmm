@@ -159,6 +159,8 @@ export default function ProductActions({
       await trackMetaAddToCart({
         event_id: trackedEvent.eventId,
         event_source_url: typeof window !== "undefined" ? window.location.href : undefined,
+        _fbp: browserIds.fbp,
+        _fbc: browserIds.fbc,
         ...browserIds,
         ...eventPayload,
       }).catch((error) => {
@@ -169,6 +171,21 @@ export default function ProductActions({
     }
 
     setIsAdding(false)
+  }
+
+  const handleMetaTestEvent = () => {
+    if (!selectedVariant?.id) {
+      return
+    }
+
+    const eventPayload = {
+      content_ids: [selectedVariant.id],
+      contents: [{ id: selectedVariant.id, quantity: 1 }],
+      content_type: "product",
+      num_items: 1,
+    }
+
+    trackMetaEvent("AddToCart", eventPayload)
   }
 
   return (
@@ -229,6 +246,16 @@ export default function ProductActions({
           show={!inView}
           optionsDisabled={!!disabled || isAdding}
         />
+        {process.env.NODE_ENV !== "production" && (
+          <Button
+            onClick={handleMetaTestEvent}
+            variant="transparent"
+            className="w-full h-10 border border-ui-border-base text-ui-fg-subtle"
+            data-testid="meta-test-event-button"
+          >
+            Dev: Fire Meta AddToCart
+          </Button>
+        )}
       </div>
     </>
   )
