@@ -207,6 +207,8 @@ export default function ProductActions({
           }
         })
       }
+
+      router.push(`/${countryCode}/checkout`)
     } catch (error) {
       toast.error(`Failed to add product to cart: ${error}`)
     } finally {
