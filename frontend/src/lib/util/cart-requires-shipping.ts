@@ -14,6 +14,10 @@ export function cartRequiresShipping(cart: HttpTypes.StoreCart | null) {
       return item.variant.requires_shipping
     }
 
+    if (item?.variant?.digital_product) {
+      return false
+    }
+
     return true
   })
 }
