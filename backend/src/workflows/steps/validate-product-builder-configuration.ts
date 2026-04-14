@@ -54,7 +54,7 @@ export const validateProductBuilderConfigurationStep = createStep(
       if (!field) {
         continue
       }
-      const value = custom_field_values?.[field.name]
+      const value = custom_field_values?.[field.id]
       
       // Check required fields
       if (field.is_required && (!value || value === "")) {
