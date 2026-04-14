@@ -16,9 +16,11 @@ import { useCallback, useEffect, useState } from "react"
 const Payment = ({
   cart,
   availablePaymentMethods,
+  requiresShipping,
 }: {
   cart: any
   availablePaymentMethods: any[]
+  requiresShipping: boolean
 }) => {
   const activeSession = cart.payment_collection?.payment_sessions?.find(
     (paymentSession: any) => paymentSession.status === "pending"
@@ -54,8 +56,11 @@ const Payment = ({
   const paidByGiftcard =
     cart?.gift_cards && cart?.gift_cards?.length > 0 && cart?.total === 0
 
+  const shippingStepReady =
+    !requiresShipping || (cart?.shipping_methods?.length ?? 0) > 0
+
   const paymentReady =
-    (activeSession && cart?.shipping_methods.length !== 0) || paidByGiftcard
+    (activeSession && shippingStepReady) || paidByGiftcard
 
   const createQueryString = useCallback(
     (name: string, value: string) => {

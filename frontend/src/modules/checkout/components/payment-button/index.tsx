@@ -10,11 +10,13 @@ import ErrorMessage from "../error-message"
 
 type PaymentButtonProps = {
   cart: HttpTypes.StoreCart
+  requiresShipping: boolean
   "data-testid": string
 }
 
 const PaymentButton: React.FC<PaymentButtonProps> = ({
   cart,
+  requiresShipping,
   "data-testid": dataTestId,
 }) => {
   const notReady =
@@ -22,7 +24,7 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
     !cart.shipping_address ||
     !cart.billing_address ||
     !cart.email ||
-    (cart.shipping_methods?.length ?? 0) < 1
+    (requiresShipping && (cart.shipping_methods?.length ?? 0) < 1)
 
   const paymentSession = cart.payment_collection?.payment_sessions?.[0]
 
