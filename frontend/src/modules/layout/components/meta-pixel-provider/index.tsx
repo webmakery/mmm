@@ -1,6 +1,6 @@
 "use client"
 
-import { getMarketingConsent } from "@lib/analytics/meta"
+import { createMetaEventId, getMarketingConsent } from "@lib/analytics/meta"
 import { useEffect, useMemo, useState } from "react"
 
 declare global {
@@ -48,6 +48,7 @@ const loadMetaPixel = (pixelId: string) => {
   window._metaPixelLoaded = true
 
   if (process.env.NODE_ENV !== "production") {
+    console.debug("Meta Pixel initialized")
     console.debug("[meta/browser] pixel initialized", {
       pixel_id: pixelId,
     })
@@ -81,11 +82,40 @@ export default function MetaPixelProvider() {
 
   useEffect(() => {
     if (!canLoadPixel || !META_PIXEL_ID) {
+      if (process.env.NODE_ENV !== "production" && !META_PIXEL_ID) {
+        console.warn("[meta/browser] NEXT_PUBLIC_META_PIXEL_ID is missing")
+      }
+
       return
     }
 
     loadMetaPixel(META_PIXEL_ID)
   }, [canLoadPixel])
 
-  return null
+  const fireDevPurchaseEvent = () => {
+    if (typeof window === "undefined" || !window.fbq || !window._metaPixelLoaded) {
+      return
+    }
+
+    const eventID = createMetaEventId()
+    window.fbq("track", "Purchase", { currency: "USD", value: 1.0 }, { eventID })
+
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[meta/browser] fired", {
+        event_name: "Purchase",
+        event_id: eventID,
+      })
+    }
+  }
+
+  return process.env.NODE_ENV !== "production" ? (
+    <button
+      type="button"
+      onClick={fireDevPurchaseEvent}
+      className="fixed bottom-3 right-3 z-[9999] rounded bg-black px-3 py-2 text-xs text-white opacity-80 hover:opacity-100"
+      data-testid="meta-dev-purchase-button"
+    >
+      Dev: Fire Meta Purchase
+    </button>
+  ) : null
 }
