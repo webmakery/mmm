@@ -229,7 +229,7 @@ export default defineMiddlewares({
     {
       matcher: "/store/subscription-plans/:id/checkout-session",
       methods: ["POST"],
-      middlewares: [],
+      middlewares: [authenticate("customer", ["bearer", "session"])],
     },
   ],
 })
