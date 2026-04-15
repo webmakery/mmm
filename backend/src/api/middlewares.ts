@@ -211,5 +211,10 @@ export default defineMiddlewares({
       methods: ["GET"],
       middlewares: [authenticate("customer", ["bearer", "session"])],
     },
+    {
+      matcher: "/store/customers/me/subscriptions/portal",
+      methods: ["POST"],
+      middlewares: [authenticate("customer", ["bearer", "session"])],
+    },
   ],
 })
