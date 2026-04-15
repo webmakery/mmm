@@ -27,6 +27,7 @@
     "@medusajs/admin-sdk": "2.13.6",
     "@medusajs/cli": "2.13.6",
     "@medusajs/framework": "2.13.6",
+    "@medusajs/icons": "2.13.6",
     "@medusajs/medusa": "2.13.6",
     "@paypal/paypal-server-sdk": "^2.1.0",
     "medusa-plugin-blogger": "^0.0.1",

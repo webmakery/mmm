@@ -24204,6 +24204,7 @@ __metadata:
     "@medusajs/admin-sdk": "npm:2.13.6"
     "@medusajs/cli": "npm:2.13.6"
     "@medusajs/framework": "npm:2.13.6"
+    "@medusajs/icons": "npm:2.13.6"
     "@medusajs/medusa": "npm:2.13.6"
     "@medusajs/test-utils": "npm:2.13.6"
     "@paypal/paypal-server-sdk": "npm:^2.1.0"
