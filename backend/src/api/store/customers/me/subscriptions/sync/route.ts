@@ -5,6 +5,7 @@ import {
 import {
   ContainerRegistrationKeys,
   MedusaError,
+  Modules,
 } from "@medusajs/framework/utils"
 import { z } from "zod"
 import Stripe from "stripe"
@@ -99,6 +100,36 @@ export const POST = async (
   const stripeSubscriptionId = stripeSubscription.id
 
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
+  const link = req.scope.resolve(ContainerRegistrationKeys.LINK)
+
+  const ensureCustomerSubscriptionLink = async (subscriptionId: string) => {
+    const {
+      data: [customer],
+    } = await query.graph({
+      entity: "customer",
+      fields: ["id", "subscriptions.id"],
+      filters: {
+        id: [actorId],
+      },
+    })
+
+    const isAlreadyLinked = (customer?.subscriptions || []).some(
+      (subscription) => subscription?.id === subscriptionId
+    )
+
+    if (isAlreadyLinked) {
+      return
+    }
+
+    await link.create({
+      [SUBSCRIPTION_MODULE]: {
+        subscription_id: subscriptionId,
+      },
+      [Modules.CUSTOMER]: {
+        customer_id: actorId,
+      },
+    })
+  }
 
   const { data: existingSubscriptions } = await query.graph({
     entity: "subscription",
@@ -109,6 +140,8 @@ export const POST = async (
   })
 
   if (existingSubscriptions.length) {
+    await ensureCustomerSubscriptionLink(existingSubscriptions[0].id)
+
     res.json({
       subscription: existingSubscriptions[0],
     })
@@ -156,6 +189,8 @@ export const POST = async (
         ? firstSubscriptionItem.price.product
         : firstSubscriptionItem?.price?.product?.id,
   })
+
+  await ensureCustomerSubscriptionLink(createdSubscription[0].id)
 
   res.json({
     subscription: createdSubscription[0],
