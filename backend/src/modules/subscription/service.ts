@@ -36,7 +36,11 @@ class SubscriptionModuleService extends MedusaService({
             interval: subscription.interval,
             period: subscription.period
           }),
-          expiration_date: expirationDate
+          expiration_date: expirationDate,
+          stripe_customer_id: subscription.stripe_customer_id ?? null,
+          stripe_subscription_id: subscription.stripe_subscription_id ?? null,
+          stripe_price_id: subscription.stripe_price_id ?? null,
+          stripe_product_id: subscription.stripe_product_id ?? null,
         })
       })
     )

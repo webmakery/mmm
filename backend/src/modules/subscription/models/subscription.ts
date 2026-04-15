@@ -11,7 +11,11 @@ const Subscription = model.define("subscription", {
   last_order_date: model.dateTime(),
   next_order_date: model.dateTime().index().nullable(),
   expiration_date: model.dateTime().index(),
-  metadata: model.json().nullable()
+  metadata: model.json().nullable(),
+  stripe_customer_id: model.text().nullable(),
+  stripe_subscription_id: model.text().nullable(),
+  stripe_price_id: model.text().nullable(),
+  stripe_product_id: model.text().nullable()
 })
 
 export default Subscription

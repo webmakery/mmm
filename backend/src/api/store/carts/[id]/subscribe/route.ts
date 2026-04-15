@@ -42,6 +42,10 @@ export const POST = async (
       subscription_data: {
         interval: metadata.subscription_interval as SubscriptionInterval,
         period: metadata.subscription_period as number,
+        stripe_customer_id: metadata.stripe_customer_id as string | undefined,
+        stripe_subscription_id: metadata.stripe_subscription_id as string | undefined,
+        stripe_price_id: metadata.stripe_price_id as string | undefined,
+        stripe_product_id: metadata.stripe_product_id as string | undefined,
       }
     }
   })
