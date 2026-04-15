@@ -3,6 +3,7 @@
 import { sdk } from "@lib/config"
 import { getAuthHeaders } from "@lib/data/cookies"
 import medusaError from "@lib/util/medusa-error"
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 export type StoreSubscriptionPlan = {
@@ -29,16 +30,16 @@ export const listSubscriptionPlans = async () => {
 }
 
 export const requestPlanCheckoutUrl = async (planId: string) => {
-  const headers = {
-    ...(await getAuthHeaders()),
-  }
+  const authHeaders = await getAuthHeaders()
+  const requestHeaders =
+    Object.keys(authHeaders).length > 0 ? authHeaders : undefined
 
   return sdk.client
     .fetch<{ url: string }>(
       `/store/subscription-plans/${planId}/checkout-session`,
       {
         method: "POST",
-        headers,
+        headers: requestHeaders,
       }
     )
     .then(({ url }) => url)
@@ -52,7 +53,24 @@ export const subscribeToPlan = async (formData: FormData) => {
     return
   }
 
-  const url = await requestPlanCheckoutUrl(planId)
+  try {
+    const url = await requestPlanCheckoutUrl(planId)
+    redirect(url)
+  } catch {
+    const requestHeaders = await headers()
+    const referer = requestHeaders.get("referer")
+    const fallbackPath = "/plans?checkout_error=1"
 
-  redirect(url)
+    if (!referer) {
+      redirect(fallbackPath)
+    }
+
+    try {
+      const refererUrl = new URL(referer)
+      refererUrl.searchParams.set("checkout_error", "1")
+      redirect(`${refererUrl.pathname}${refererUrl.search}`)
+    } catch {
+      redirect(fallbackPath)
+    }
+  }
 }

@@ -62,9 +62,8 @@ export const manageSubscription = async () => {
 
 
 export const syncSubscriptionFromCheckoutSession = async (sessionId: string) => {
-  const headers = {
-    ...(await getAuthHeaders()),
-  }
+  const authHeaders = await getAuthHeaders()
+  const headers = Object.keys(authHeaders).length ? authHeaders : undefined
 
   return sdk.client
     .fetch<{ subscription: CustomerSubscription }>(

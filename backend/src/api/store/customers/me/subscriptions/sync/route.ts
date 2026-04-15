@@ -7,52 +7,26 @@ import {
   MedusaError,
   Modules,
 } from "@medusajs/framework/utils"
+import { createCustomersWorkflow } from "@medusajs/core-flows"
 import { z } from "zod"
 import Stripe from "stripe"
 import SubscriptionModuleService from "../../../../../../modules/subscription/service"
 import { SUBSCRIPTION_MODULE } from "../../../../../../modules/subscription"
 import {
   SubscriptionInterval,
-  SubscriptionStatus,
 } from "../../../../../../modules/subscription/types"
+import {
+  mapStripeStatusToDisplayStatus,
+  mapStripeStatusToInternalStatus,
+} from "../../../../../../modules/subscription/utils/stripe-status"
 
-export const PostStoreSyncSubscriptionSchema = z.object({
-  session_id: z.string().min(1),
-})
-
-type StripeSubscriptionStatus = Stripe.Subscription.Status
-
-const mapStripeStatusToSubscriptionStatus = (
-  status: StripeSubscriptionStatus
-): SubscriptionStatus => {
-  if (status === "canceled" || status === "incomplete_expired") {
-    return SubscriptionStatus.CANCELED
-  }
-
-  if (
-    status === "past_due" ||
-    status === "unpaid" ||
-    status === "incomplete" ||
-    status === "paused"
-  ) {
-    return SubscriptionStatus.FAILED
-  }
-
-  return SubscriptionStatus.ACTIVE
-}
+export const PostStoreSyncSubscriptionSchema = z.object({ session_id: z.string().min(1) })
 
 export const POST = async (
   req: AuthenticatedMedusaRequest<z.infer<typeof PostStoreSyncSubscriptionSchema>>,
   res: MedusaResponse
 ) => {
-  const actorId = req.auth_context.actor_id
-
-  if (!actorId) {
-    throw new MedusaError(
-      MedusaError.Types.NOT_ALLOWED,
-      "You must be authenticated to sync subscriptions."
-    )
-  }
+  const actorId = req.auth_context?.actor_id
 
   const stripeApiKey = process.env.STRIPE_API_KEY
 
@@ -65,12 +39,9 @@ export const POST = async (
 
   const stripe = new Stripe(stripeApiKey)
 
-  const checkoutSession = await stripe.checkout.sessions.retrieve(
-    req.validatedBody.session_id,
-    {
-      expand: ["subscription"],
-    }
-  )
+  const checkoutSession = await stripe.checkout.sessions.retrieve(req.validatedBody.session_id, {
+    expand: ["subscription", "customer"],
+  })
 
   if (checkoutSession.mode !== "subscription") {
     throw new MedusaError(
@@ -80,8 +51,7 @@ export const POST = async (
   }
 
   const metadataCustomerId = checkoutSession.metadata?.customer_id
-
-  if (metadataCustomerId && metadataCustomerId !== actorId) {
+  if (actorId && metadataCustomerId && metadataCustomerId !== actorId) {
     throw new MedusaError(
       MedusaError.Types.NOT_ALLOWED,
       "You are not allowed to sync this subscription."
@@ -102,6 +72,64 @@ export const POST = async (
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
   const link = req.scope.resolve(ContainerRegistrationKeys.LINK)
 
+  const checkoutEmail =
+    checkoutSession.customer_details?.email ||
+    (checkoutSession.customer &&
+    typeof checkoutSession.customer === "object" &&
+    "email" in checkoutSession.customer
+      ? checkoutSession.customer.email || undefined
+      : undefined) ||
+    checkoutSession.metadata?.customer_email
+
+  const resolveCustomerId = async (): Promise<string> => {
+    if (actorId) {
+      return actorId
+    }
+
+    if (!checkoutEmail) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "An email address is required to complete subscription setup."
+      )
+    }
+
+    const { data: existingCustomers } = await query.graph({
+      entity: "customer",
+      fields: ["id"],
+      filters: { email: [checkoutEmail] },
+    })
+
+    if (existingCustomers.length) {
+      return existingCustomers[0].id
+    }
+
+    const customerResult = await createCustomersWorkflow(req.scope).run({
+      input: {
+        customersData: [
+          {
+            email: checkoutEmail,
+            first_name: checkoutSession.customer_details?.name?.split(" ").slice(0, -1).join(" ") || undefined,
+            last_name: checkoutSession.customer_details?.name?.split(" ").slice(-1).join(" ") || undefined,
+            phone: checkoutSession.customer_details?.phone || undefined,
+            has_account: false,
+          },
+        ],
+      },
+    })
+
+    const createdCustomer = customerResult.result?.[0]
+    if (!createdCustomer?.id) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        "Unable to create customer account after checkout."
+      )
+    }
+
+    return createdCustomer.id
+  }
+
+  const customerId = await resolveCustomerId()
+
   const ensureCustomerSubscriptionLink = async (subscriptionId: string) => {
     const {
       data: [customer],
@@ -109,25 +137,18 @@ export const POST = async (
       entity: "customer",
       fields: ["id", "subscriptions.id"],
       filters: {
-        id: [actorId],
+        id: [customerId],
       },
     })
 
-    const isAlreadyLinked = (customer?.subscriptions || []).some(
-      (subscription) => subscription?.id === subscriptionId
-    )
-
+    const isAlreadyLinked = (customer?.subscriptions || []).some((subscription) => subscription?.id === subscriptionId)
     if (isAlreadyLinked) {
       return
     }
 
     await link.create({
-      [SUBSCRIPTION_MODULE]: {
-        subscription_id: subscriptionId,
-      },
-      [Modules.CUSTOMER]: {
-        customer_id: actorId,
-      },
+      [SUBSCRIPTION_MODULE]: { subscription_id: subscriptionId },
+      [Modules.CUSTOMER]: { customer_id: customerId },
     })
   }
 
@@ -143,7 +164,10 @@ export const POST = async (
     await ensureCustomerSubscriptionLink(existingSubscriptions[0].id)
 
     res.json({
-      subscription: existingSubscriptions[0],
+      subscription: {
+        ...existingSubscriptions[0],
+        status: mapStripeStatusToDisplayStatus(stripeSubscription.status),
+      },
     })
     return
   }
@@ -171,12 +195,13 @@ export const POST = async (
   const createdSubscription = await subscriptionModuleService.createSubscriptions({
     interval,
     period,
-    status: mapStripeStatusToSubscriptionStatus(stripeSubscription.status),
+    status: mapStripeStatusToInternalStatus(stripeSubscription.status),
     subscription_date: new Date(stripeSubscription.start_date * 1000),
     metadata: {
       checkout_session_id: checkoutSession.id,
       subscription_plan_id: checkoutSession.metadata?.subscription_plan_id,
-      customer_id: actorId,
+      customer_id: customerId,
+      customer_email: checkoutEmail,
     },
     stripe_customer_id:
       typeof stripeSubscription.customer === "string"
@@ -193,6 +218,9 @@ export const POST = async (
   await ensureCustomerSubscriptionLink(createdSubscription[0].id)
 
   res.json({
-    subscription: createdSubscription[0],
+    subscription: {
+      ...createdSubscription[0],
+      status: mapStripeStatusToDisplayStatus(stripeSubscription.status),
+    },
   })
 }

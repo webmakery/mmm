@@ -7,6 +7,10 @@ import {
   MedusaError,
 } from "@medusajs/framework/utils"
 import Stripe from "stripe"
+import {
+  mapStripeStatusToDisplayStatus,
+  normalizeSubscriptionDisplayStatus,
+} from "../../../../../modules/subscription/utils/stripe-status"
 
 export const GET = async (
   req: AuthenticatedMedusaRequest,
@@ -53,6 +57,8 @@ export const GET = async (
     }
   }
 
+  const stripeSubscriptionsByStripeId = new Map<string, Stripe.Subscription>()
+
   const stripeApiKey = process.env.STRIPE_API_KEY
 
   if (stripeApiKey && customer.email) {
@@ -88,7 +94,51 @@ export const GET = async (
     }
   }
 
+  const stripeSubscriptionIds = Array.from(subscriptionsById.values())
+    .map((subscription) => subscription.stripe_subscription_id)
+    .filter((value): value is string => typeof value === "string" && !!value)
+
+  if (stripeApiKey && stripeSubscriptionIds.length) {
+    const stripe = new Stripe(stripeApiKey)
+
+    await Promise.all(
+      [...new Set(stripeSubscriptionIds)].map(async (stripeSubscriptionId) => {
+        try {
+          const stripeSubscription = await stripe.subscriptions.retrieve(
+            stripeSubscriptionId
+          )
+          stripeSubscriptionsByStripeId.set(stripeSubscription.id, stripeSubscription)
+        } catch (error) {
+          req.scope.resolve(ContainerRegistrationKeys.LOGGER).warn(
+            `Unable to retrieve Stripe subscription ${stripeSubscriptionId}`
+          )
+        }
+      })
+    )
+  }
+
+  const subscriptions = Array.from(subscriptionsById.values()).map(
+    (subscription) => {
+      const stripeSubscriptionId = subscription.stripe_subscription_id
+      const stripeSubscription =
+        typeof stripeSubscriptionId === "string"
+          ? stripeSubscriptionsByStripeId.get(stripeSubscriptionId)
+          : undefined
+
+      const status = stripeSubscription
+        ? mapStripeStatusToDisplayStatus(stripeSubscription.status)
+        : normalizeSubscriptionDisplayStatus(
+            typeof subscription.status === "string" ? subscription.status : null
+          )
+
+      return {
+        ...subscription,
+        status,
+      }
+    }
+  )
+
   res.json({
-    subscriptions: Array.from(subscriptionsById.values()),
+    subscriptions,
   })
 }

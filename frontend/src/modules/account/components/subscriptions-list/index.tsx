@@ -2,6 +2,7 @@ import {
   manageSubscription,
   type CustomerSubscription,
 } from "@lib/data/subscriptions"
+import { getSubscriptionStatusLabel } from "@lib/util/subscription-status"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { Button } from "@medusajs/ui"
 
@@ -23,14 +24,6 @@ const getSubscriptionLabel = (subscription: CustomerSubscription) => {
   }
 
   return "Subscription"
-}
-
-const getStatusLabel = (status?: string | null) => {
-  if (!status) {
-    return "Unknown"
-  }
-
-  return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 const SubscriptionsList = ({
@@ -72,7 +65,7 @@ const SubscriptionsList = ({
               {getSubscriptionLabel(subscription)}
             </p>
             <p className="text-base-regular text-ui-fg-subtle">
-              Status: {getStatusLabel(subscription.status)}
+              Status: {getSubscriptionStatusLabel(subscription.status)}
             </p>
           </div>
           <form action={manageSubscription}>
