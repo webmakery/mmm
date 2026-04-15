@@ -9,6 +9,7 @@ import {
   getCustomerSubscriptions,
   syncSubscriptionFromCheckoutSession,
 } from "@lib/data/subscriptions"
+import { getSubscriptionStatusLabel } from "@lib/util/subscription-status"
 
 export const metadata: Metadata = {
   title: "Subscriptions",
@@ -70,7 +71,8 @@ export default async function SubscriptionsPage({
         <div className="mb-8 flex flex-col gap-y-4 border border-gray-200 p-4">
           <h2 className="text-large-semi">Thank you for your purchase!</h2>
           <p className="text-base-regular">
-            Your subscription is active and ready to manage.
+            Subscription status:{" "}
+            {getSubscriptionStatusLabel(checkoutSubscription.status)}
           </p>
           <div>
             <p className="text-base-semi">

@@ -216,7 +216,6 @@ export default defineMiddlewares({
       matcher: "/store/customers/me/subscriptions/sync",
       methods: ["POST"],
       middlewares: [
-        authenticate("customer", ["bearer", "session"]),
         validateAndTransformBody(PostStoreSyncSubscriptionSchema),
       ],
     },
@@ -229,7 +228,7 @@ export default defineMiddlewares({
     {
       matcher: "/store/subscription-plans/:id/checkout-session",
       methods: ["POST"],
-      middlewares: [authenticate("customer", ["bearer", "session"])],
+      middlewares: [],
     },
   ],
 })
