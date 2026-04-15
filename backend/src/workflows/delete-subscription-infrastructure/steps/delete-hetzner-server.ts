@@ -46,6 +46,10 @@ const deleteHetznerServerStep = createStep(
     const hetzner = new HetznerCloudService()
 
     try {
+      logger.info(
+        `[infra] Hetzner deleteServer call infrastructure_id=${infrastructure.id} server_id=${infrastructure.hetzner_server_id}`
+      )
+
       const result = await hetzner.deleteServer(infrastructure.hetzner_server_id)
 
       await infraService.updateSubscriptionInfrastructures({
