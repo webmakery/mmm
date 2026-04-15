@@ -2,6 +2,14 @@
 
 This matrix inventories the customer account targets in `/frontend` and maps each to the closest reusable admin pattern in `/backend/src/admin`.
 
+## Rollout phases (execution order)
+
+1. **Phase 1: Login/Signup**
+2. **Phase 2: Dashboard shell + core widgets**
+3. **Phase 3: Remaining dashboard pages/states**
+
+All implementation, QA, and release tracking should follow this exact phase order.
+
 ## Responsive checkpoints (aligned to admin UI shell behavior)
 
 The admin shell and route patterns are treated as the responsive source of truth (`backend/node_modules/@medusajs/dashboard/src/components/layout/shell/shell.tsx` + mapped admin route pages). For parity work in frontend account pages, use these checkpoints:
@@ -64,6 +72,26 @@ Apply this checklist to every target above:
 - No new layout primitives when an existing admin structure covers the use case.
 
 If a frontend implementation cannot be completed using these existing APIs/classes, it should be considered out of parity and blocked until an exact existing backend pattern is identified and reused.
+
+## PR traceability requirement (for implementation PRs)
+
+Each PR must reference at least one row from the parity matrix above and include:
+
+- frontend file/route changed
+- mapped backend source file(s)
+- rollout phase (`Phase 1`, `Phase 2`, or `Phase 3`)
+
+PRs without this mapping reference are considered incomplete.
+
+## Deviation log requirement
+
+Any mismatch from mapped admin source behavior must be recorded in a deviation log with status:
+
+- `open`
+- `approved`
+- `fixed`
+
+Unresolved (`open`) deviations are release-blocking until explicitly approved or fixed.
 
 ## Breakpoint comparison and resolved deviations
 
