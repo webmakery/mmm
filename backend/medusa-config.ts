@@ -17,6 +17,15 @@ module.exports = defineConfig({
     },
   },
   plugins: [
+    {
+      resolve: "@codee-sh/medusa-plugin-notification-emails",
+      options: {
+        customTranslations: {},
+        extend: {
+          services: [],
+        },
+      },
+    },
     "@codee-sh/medusa-plugin-automations",
   ],
   modules: [
