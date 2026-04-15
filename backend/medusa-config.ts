@@ -16,6 +16,9 @@ module.exports = defineConfig({
       cookieSecret: process.env.COOKIE_SECRET || "supersecret",
     },
   },
+  plugins: [
+    "@codee-sh/medusa-plugin-automations",
+  ],
   modules: [
     {
       resolve: "./src/modules/digital-product",
