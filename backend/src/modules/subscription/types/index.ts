@@ -19,6 +19,10 @@ export type CreateSubscriptionData = {
   status?: SubscriptionStatus
   subscription_date?: Date
   metadata?: Record<string, unknown>
+  stripe_customer_id?: string | null
+  stripe_subscription_id?: string | null
+  stripe_price_id?: string | null
+  stripe_product_id?: string | null
 }
 
 export type SubscriptionData = InferTypeOf<typeof Subscription>

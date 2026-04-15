@@ -21,6 +21,10 @@ type WorkflowInput = {
   subscription_data: {
     interval: SubscriptionInterval
     period: number
+    stripe_customer_id?: string
+    stripe_subscription_id?: string
+    stripe_price_id?: string
+    stripe_product_id?: string
   }
 }
 

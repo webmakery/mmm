@@ -13,7 +13,11 @@ export const GET = async (
   const { data: [customer] } = await query.graph({
     entity: "customer",
     fields: [
-      "subscriptions.*"
+      "subscriptions.*",
+      "subscriptions.stripe_customer_id",
+      "subscriptions.stripe_subscription_id",
+      "subscriptions.stripe_price_id",
+      "subscriptions.stripe_product_id",
     ],
     filters: {
       id: [req.auth_context.actor_id]

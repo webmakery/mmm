@@ -88,6 +88,10 @@ export type SubscriptionData = {
   next_order_date: string | null
   expiration_date: string
   metadata: Record<string, unknown> | null
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
+  stripe_price_id: string | null
+  stripe_product_id: string | null
   orders?: { id: string; created_at: string }[]
   customer?: { id: string; email?: string | null }
 }
