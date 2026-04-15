@@ -25,6 +25,15 @@ const appendQueryParam = (url: string, key: string, value: string) => {
   }
 }
 
+const appendRawQueryParam = (url: string, key: string, value: string) => {
+  const hashIndex = url.indexOf("#")
+  const urlWithoutHash = hashIndex === -1 ? url : url.slice(0, hashIndex)
+  const hash = hashIndex === -1 ? "" : url.slice(hashIndex)
+  const separator = urlWithoutHash.includes("?") ? "&" : "?"
+
+  return `${urlWithoutHash}${separator}${key}=${value}${hash}`
+}
+
 const getCountryCodeFromReferer = (referer?: string) => {
   if (!referer) {
     return undefined
@@ -186,7 +195,7 @@ export const POST = async (
 
   const stripe = new Stripe(stripeApiKey)
 
-  const successUrlWithSessionId = appendQueryParam(
+  const successUrlWithSessionId = appendRawQueryParam(
     successUrl,
     "session_id",
     "{CHECKOUT_SESSION_ID}"
