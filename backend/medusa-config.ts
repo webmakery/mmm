@@ -27,6 +27,12 @@ module.exports = defineConfig({
       },
     },
     "@codee-sh/medusa-plugin-automations",
+    {
+      resolve: "medusa-plugin-blogger",
+      options: {
+        enableUI: true,
+      },
+    },
   ],
   modules: [
     {
