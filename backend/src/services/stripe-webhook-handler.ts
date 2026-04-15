@@ -16,20 +16,29 @@ type ResolveContainer = {
   resolve: <T = unknown>(key: string) => T
 }
 
-const getStripeSubscriptionIdFromInvoice = (invoice: Stripe.Invoice): string | undefined => {
-  const subscriptionValue = (invoice as Stripe.Invoice & {
-    subscription?: string | { id?: string } | null
-  }).subscription
+const checkoutSubscriptionByCustomer = new Map<string, string>()
 
-  if (typeof subscriptionValue === "string") {
-    return subscriptionValue
+const getStripeCustomerId = (
+  value: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined
+): string | undefined => {
+  if (typeof value === "string") {
+    return value
   }
 
-  if (subscriptionValue && typeof subscriptionValue === "object") {
-    return subscriptionValue.id
+  if (value && typeof value === "object" && "id" in value && typeof value.id === "string") {
+    return value.id
   }
 
   return undefined
+}
+
+const getStripeSubscriptionIdFromInvoice = (invoice: Stripe.Invoice): string | undefined => {
+  const subscriptionId =
+    typeof invoice.subscription === "string"
+      ? invoice.subscription
+      : invoice.subscription?.id
+
+  return subscriptionId || undefined
 }
 
 const parsePlanMapping = (): Record<string, HetznerPlanConfig> => {
@@ -202,10 +211,31 @@ const handleInvoicePaid = async (
   invoice: Stripe.Invoice,
   logger: Logger
 ) => {
-  const stripeSubscriptionId = getStripeSubscriptionIdFromInvoice(invoice)
+  const rawSubscriptionValue = invoice.subscription
+  const extractedSubscriptionId = getStripeSubscriptionIdFromInvoice(invoice)
+  const invoiceCustomerId = getStripeCustomerId(invoice.customer)
+  const fallbackSubscriptionId =
+    !extractedSubscriptionId && invoiceCustomerId
+      ? checkoutSubscriptionByCustomer.get(invoiceCustomerId)
+      : undefined
+  const stripeSubscriptionId = extractedSubscriptionId || fallbackSubscriptionId
+  const usedFallbackMapping = !extractedSubscriptionId && !!fallbackSubscriptionId
+
+  logger.info(`[stripe-webhook] invoice.payment_succeeded invoice_id=${invoice.id}`)
+  logger.info(
+    `[stripe-webhook] invoice.subscription raw=${typeof rawSubscriptionValue === "string" ? rawSubscriptionValue : JSON.stringify(rawSubscriptionValue)}`
+  )
+  logger.info(
+    `[stripe-webhook] invoice.subscription extracted subscription_id=${extractedSubscriptionId || "n/a"}`
+  )
+  logger.info(
+    `[stripe-webhook] invoice.subscription fallback_mapping_used=${usedFallbackMapping} customer_id=${invoiceCustomerId || "n/a"}`
+  )
 
   if (!stripeSubscriptionId) {
-    logger.warn(`[stripe-webhook] ${event.type} ${event.id} has no subscription id`)
+    logger.warn(
+      `[stripe-webhook] ${event.type} ${event.id} has no subscription id invoice_id=${invoice.id}`
+    )
     return
   }
 
@@ -316,8 +346,18 @@ export const processStripeWebhookEvent = async ({
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session
+      const sessionCustomerId = getStripeCustomerId(session.customer)
+      const sessionSubscriptionId =
+        typeof session.subscription === "string"
+          ? session.subscription
+          : session.subscription?.id
+
+      if (sessionCustomerId && sessionSubscriptionId) {
+        checkoutSubscriptionByCustomer.set(sessionCustomerId, sessionSubscriptionId)
+      }
+
       logger.info(
-        `[stripe-webhook] checkout.session.completed id=${session.id} subscription=${session.subscription}`
+        `[stripe-webhook] checkout.session.completed id=${session.id} customer=${sessionCustomerId || "n/a"} subscription=${sessionSubscriptionId || "n/a"}`
       )
       break
     }
