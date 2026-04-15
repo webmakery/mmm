@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useActionState } from "react";
+import React, { useEffect, useActionState } from "react"
 
 import Input from "@modules/common/components/input"
 
@@ -55,7 +55,7 @@ const ProfileName: React.FC<MyInformationProps> = ({ customer }) => {
         clearState={clearState}
         data-testid="account-name-editor"
       >
-        <div className="grid grid-cols-1 gap-y-2 small:grid-cols-2 small:gap-x-4 small:gap-y-0">
+        <div className="grid grid-cols-1 gap-3 small:grid-cols-2">
           <Input
             label="First name"
             name="first_name"

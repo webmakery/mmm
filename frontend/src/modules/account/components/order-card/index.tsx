@@ -24,8 +24,8 @@ const OrderCard = ({ order }: OrderCardProps) => {
   }, [order])
 
   return (
-    <div className="bg-white flex flex-col" data-testid="order-card">
-      <div className="uppercase text-large-semi mb-1">
+    <div className="flex flex-col gap-4 bg-ui-bg-base" data-testid="order-card">
+      <div className="uppercase text-large-semi">
         #<span data-testid="order-display-id">{order.display_id}</span>
       </div>
       <div className="flex items-center divide-x divide-gray-200 text-small-regular text-ui-fg-base">
@@ -42,7 +42,7 @@ const OrderCard = ({ order }: OrderCardProps) => {
           numberOfLines > 1 ? "items" : "item"
         }`}</span>
       </div>
-      <div className="grid grid-cols-2 small:grid-cols-4 gap-4 my-4">
+      <div className="grid grid-cols-2 gap-4 small:grid-cols-4">
         {order.items?.slice(0, 3).map((i) => {
           return (
             <div
@@ -73,7 +73,7 @@ const OrderCard = ({ order }: OrderCardProps) => {
           </div>
         )}
       </div>
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end pt-2">
         <LocalizedClientLink href={`/account/orders/details/${order.id}`}>
           <Button data-testid="order-details-link" variant="secondary">
             See details

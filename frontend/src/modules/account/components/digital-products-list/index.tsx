@@ -35,14 +35,14 @@ const DigitalProductsList = async ({
   if (!downloadableMedias.length) {
     return (
       <div
-        className="w-full flex flex-col gap-y-4 border border-gray-200 p-6"
+        className="flex w-full flex-col gap-4 rounded-lg border border-ui-border-base bg-ui-bg-base p-6"
         data-testid="no-digital-products-container"
       >
         <h2 className="text-large-semi">Nothing to see here</h2>
         <p className="text-base-regular">
           You don&apos;t have any digital products yet.
         </p>
-        <div className="pt-2">
+        <div className="flex justify-end pt-2">
           <LocalizedClientLink href="/" passHref>
             <Button data-testid="continue-shopping-button">
               Continue shopping
@@ -54,21 +54,26 @@ const DigitalProductsList = async ({
   }
 
   return (
-    <ul className="flex flex-col w-full" data-testid="digital-products-list">
+    <ul
+      className="flex w-full flex-col rounded-lg border border-ui-border-base bg-ui-bg-base"
+      data-testid="digital-products-list"
+    >
       {downloadableMedias.map((media) => (
         <li
           key={media.id}
-          className="flex flex-col small:flex-row small:items-center small:justify-between gap-y-2 border-b border-gray-200 py-4"
+          className="flex flex-col gap-3 border-b border-ui-border-base px-5 py-4 last:border-b-0 small:flex-row small:items-center small:justify-between small:gap-4"
         >
           <div>
             <p className="text-base-semi">{media.productTitle}</p>
-            <p className="text-base-regular text-ui-fg-subtle">{media.fileName}</p>
+            <p className="text-base-regular text-ui-fg-subtle">
+              {media.fileName}
+            </p>
           </div>
           <a
             href={media.downloadUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-ui-fg-interactive"
+            className="text-ui-fg-interactive text-base-semi"
           >
             Download
           </a>

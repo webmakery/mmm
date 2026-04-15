@@ -41,14 +41,14 @@ const SubscriptionsList = ({
   if (!subscriptions.length) {
     return (
       <div
-        className="w-full flex flex-col gap-y-4 border border-gray-200 p-6"
+        className="flex w-full flex-col gap-4 rounded-lg border border-ui-border-base bg-ui-bg-base p-6"
         data-testid="no-subscriptions-container"
       >
         <h2 className="text-large-semi">Nothing to see here</h2>
         <p className="text-base-regular">
           You don&apos;t have any subscriptions yet.
         </p>
-        <div className="pt-2">
+        <div className="flex justify-end pt-2">
           <LocalizedClientLink href="/" passHref>
             <Button data-testid="continue-shopping-button">
               Continue shopping
@@ -60,11 +60,14 @@ const SubscriptionsList = ({
   }
 
   return (
-    <ul className="flex flex-col w-full" data-testid="subscriptions-list">
+    <ul
+      className="flex w-full flex-col rounded-lg border border-ui-border-base bg-ui-bg-base"
+      data-testid="subscriptions-list"
+    >
       {subscriptions.map((subscription) => (
         <li
           key={subscription.id}
-          className="flex flex-col small:flex-row small:items-center small:justify-between gap-y-2 border-b border-gray-200 py-4"
+          className="flex flex-col gap-3 px-5 py-4 small:flex-row small:items-center small:justify-between small:gap-4 border-b border-ui-border-base last:border-b-0"
           data-testid="subscription-item"
         >
           <div>

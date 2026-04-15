@@ -97,14 +97,18 @@ const ReturnItemSelector: React.FC<ReturnItemSelectorProps> = ({
         return (
           <div
             key={item.id}
-            className={`p-4 border rounded-lg ${
-              !item.isReturnable ? "opacity-60 bg-gray-50" : ""
+            className={`rounded-lg border border-ui-border-base bg-ui-bg-base p-4 ${
+              !item.isReturnable ? "bg-ui-bg-subtle opacity-60" : ""
             }`}
           >
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0">
                 <div className="flex w-16">
-                  <Thumbnail thumbnail={item.thumbnail} images={[]} size="square" />
+                  <Thumbnail
+                    thumbnail={item.thumbnail}
+                    images={[]}
+                    size="square"
+                  />
                 </div>
               </div>
 
@@ -119,7 +123,9 @@ const ReturnItemSelector: React.FC<ReturnItemSelectorProps> = ({
                   )}
                 </div>
                 {item.variant && (
-                  <p className="txt-small text-ui-fg-subtle">{item.variant.title}</p>
+                  <p className="txt-small text-ui-fg-subtle">
+                    {item.variant.title}
+                  </p>
                 )}
                 <p className="txt-small text-ui-fg-subtle">
                   {item.isReturnable ? (
@@ -130,7 +136,8 @@ const ReturnItemSelector: React.FC<ReturnItemSelectorProps> = ({
                   ) : item.isDelivered ? (
                     <>
                       Delivered: {item.deliveredQuantity} of {item.quantity}{" "}
-                      {item.quantity === 1 ? "item" : "items"} (already processed)
+                      {item.quantity === 1 ? "item" : "items"} (already
+                      processed)
                     </>
                   ) : (
                     <>
@@ -166,7 +173,9 @@ const ReturnItemSelector: React.FC<ReturnItemSelectorProps> = ({
                       <Minus />
                     </IconButton>
 
-                    <span className="w-8 text-center txt-small">{currentQuantity}</span>
+                    <span className="w-8 text-center txt-small">
+                      {currentQuantity}
+                    </span>
 
                     {/* @ts-ignore */}
                     <IconButton
@@ -184,13 +193,15 @@ const ReturnItemSelector: React.FC<ReturnItemSelectorProps> = ({
                     </IconButton>
                   </div>
                 ) : (
-                  <div className="txt-small text-ui-fg-subtle">Not available</div>
+                  <div className="txt-small text-ui-fg-subtle">
+                    Not available
+                  </div>
                 )}
               </div>
             </div>
 
             {item.isReturnable && currentQuantity > 0 && (
-              <div className="mt-4 pt-4 border-t border-ui-border-base space-y-3">
+              <div className="mt-4 space-y-3 border-t border-ui-border-base pt-4">
                 <div>
                   <label className="block txt-small-plus mb-2">
                     Return Reason (Optional)
@@ -246,7 +257,7 @@ const ReturnItemSelector: React.FC<ReturnItemSelectorProps> = ({
       })}
 
       {selectedItems.length > 0 && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <div className="mt-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
           <h4 className="txt-medium-plus mb-2">Selected Items Summary</h4>
           <div className="space-y-3">
             {selectedItems.map((selectedItem) => {

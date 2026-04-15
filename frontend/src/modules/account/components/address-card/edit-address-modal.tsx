@@ -65,9 +65,10 @@ const EditAddress: React.FC<EditAddressProps> = ({
     <>
       <div
         className={clx(
-          "border rounded-rounded p-5 min-h-[220px] h-full w-full flex flex-col justify-between transition-colors",
+          "flex h-full min-h-[220px] w-full flex-col justify-between rounded-lg border border-ui-border-base bg-ui-bg-base p-5 transition-colors",
           {
             "border-gray-900": isActive,
+            "hover:bg-ui-bg-subtle": !isActive,
           }
         )}
         data-testid="address-container"
@@ -128,8 +129,8 @@ const EditAddress: React.FC<EditAddressProps> = ({
         <form action={formAction}>
           <input type="hidden" name="addressId" value={address.id} />
           <Modal.Body>
-            <div className="grid grid-cols-1 gap-y-2">
-              <div className="grid grid-cols-1 gap-y-2 small:grid-cols-2 small:gap-x-2 small:gap-y-0">
+            <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 gap-3 small:grid-cols-2">
                 <Input
                   label="First name"
                   name="first_name"
@@ -169,7 +170,7 @@ const EditAddress: React.FC<EditAddressProps> = ({
                 defaultValue={address.address_2 || undefined}
                 data-testid="address-2-input"
               />
-              <div className="grid grid-cols-1 gap-y-2 small:grid-cols-[144px_1fr] small:gap-x-2 small:gap-y-0">
+              <div className="grid grid-cols-1 gap-3 small:grid-cols-[160px_1fr]">
                 <Input
                   label="Postal code"
                   name="postal_code"
@@ -217,7 +218,7 @@ const EditAddress: React.FC<EditAddressProps> = ({
             )}
           </Modal.Body>
           <Modal.Footer>
-            <div className="flex gap-3 mt-6">
+            <div className="mt-6 flex w-full items-center justify-end gap-3">
               <Button
                 type="reset"
                 variant="secondary"

@@ -73,12 +73,15 @@ const ReturnShippingSelector: React.FC<ReturnShippingSelectorProps> = ({
           <RadioGroup.Option
             key={option.id}
             value={option.id}
-            className={clx("p-4 border rounded-lg cursor-pointer transition-colors", {
-              "border-ui-fg-interactive bg-ui-bg-interactive/5":
-                selectedOption === option.id,
-              "border-gray-200 hover:border-gray-300":
-                selectedOption !== option.id,
-            })}
+            className={clx(
+              "cursor-pointer rounded-lg border p-4 transition-colors",
+              {
+                "border-ui-fg-interactive bg-ui-bg-interactive/5":
+                  selectedOption === option.id,
+                "border-ui-border-base hover:border-ui-border-strong":
+                  selectedOption !== option.id,
+              }
+            )}
           >
             <div className="flex items-center gap-3">
               <Radio

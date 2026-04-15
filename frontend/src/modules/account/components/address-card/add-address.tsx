@@ -49,7 +49,7 @@ const AddAddress = ({
   return (
     <>
       <button
-        className="border border-ui-border-base rounded-rounded p-5 min-h-[220px] h-full w-full flex flex-col justify-between"
+        className="flex h-full min-h-[220px] w-full flex-col justify-between rounded-lg border border-ui-border-base bg-ui-bg-base p-5 transition-colors hover:bg-ui-bg-subtle"
         onClick={open}
         data-testid="add-address-button"
       >
@@ -63,8 +63,8 @@ const AddAddress = ({
         </Modal.Title>
         <form action={formAction}>
           <Modal.Body>
-            <div className="flex flex-col gap-y-2">
-              <div className="grid grid-cols-1 gap-y-2 small:grid-cols-2 small:gap-x-2 small:gap-y-0">
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 gap-3 small:grid-cols-2">
                 <Input
                   label="First name"
                   name="first_name"
@@ -99,7 +99,7 @@ const AddAddress = ({
                 autoComplete="address-line2"
                 data-testid="address-2-input"
               />
-              <div className="grid grid-cols-1 gap-y-2 small:grid-cols-[144px_1fr] small:gap-x-2 small:gap-y-0">
+              <div className="grid grid-cols-1 gap-3 small:grid-cols-[160px_1fr]">
                 <Input
                   label="Postal code"
                   name="postal_code"
@@ -145,7 +145,7 @@ const AddAddress = ({
             )}
           </Modal.Body>
           <Modal.Footer>
-            <div className="flex gap-3 mt-6">
+            <div className="mt-6 flex w-full items-center justify-end gap-3">
               <Button
                 type="reset"
                 variant="secondary"

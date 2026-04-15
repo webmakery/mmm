@@ -32,7 +32,9 @@ const ReturnRequestTemplate: React.FC<ReturnRequestTemplateProps> = ({
     return: null,
   })
 
-  const itemsWithDeliveryStatus = enhanceItemsWithReturnStatus(order.items || [])
+  const itemsWithDeliveryStatus = enhanceItemsWithReturnStatus(
+    order.items || []
+  )
 
   const handleItemSelection = ({
     id,
@@ -72,7 +74,7 @@ const ReturnRequestTemplate: React.FC<ReturnRequestTemplateProps> = ({
 
   if (state.success && state.return) {
     return (
-      <div className="flex flex-col justify-center gap-y-4">
+      <div className="flex flex-col gap-6">
         <div className="flex gap-2 justify-between items-center">
           <h1 className="text-2xl-semi">Return Request Submitted</h1>
           <LocalizedClientLink
@@ -82,11 +84,14 @@ const ReturnRequestTemplate: React.FC<ReturnRequestTemplateProps> = ({
             <XMark /> Back to orders
           </LocalizedClientLink>
         </div>
-        <div className="bg-white p-6 rounded-lg border">
+        <div className="rounded-lg border border-ui-border-base bg-ui-bg-base p-6">
           <div className="text-center">
-            <h2 className="text-xl-semi mb-4">Return Request Created Successfully</h2>
+            <h2 className="text-xl-semi mb-4">
+              Return Request Created Successfully
+            </h2>
             <p className="text-base-regular mb-4">
-              Your return request has been submitted. Return ID: <strong>{state.return.id}</strong>
+              Your return request has been submitted. Return ID:{" "}
+              <strong>{state.return.id}</strong>
             </p>
             <p className="text-small-regular text-ui-fg-subtle">
               Our support team may contact you for further information regarding
@@ -99,8 +104,8 @@ const ReturnRequestTemplate: React.FC<ReturnRequestTemplateProps> = ({
   }
 
   return (
-    <div className="flex flex-col justify-center gap-y-4">
-      <div className="flex gap-2 justify-between items-center">
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl-semi">Request Return</h1>
         <LocalizedClientLink
           href={`/account/orders/details/${order.id}`}
@@ -110,8 +115,8 @@ const ReturnRequestTemplate: React.FC<ReturnRequestTemplateProps> = ({
         </LocalizedClientLink>
       </div>
 
-      <div>
-        <div className="mb-6">
+      <div className="rounded-lg border border-ui-border-base bg-ui-bg-base p-6">
+        <div className="mb-8">
           <h2 className="text-xl-semi mb-2">Order #{order.display_id}</h2>
           <div className="flex items-center gap-4 text-small-regular text-ui-fg-subtle mb-4">
             <span>Ordered: {new Date(order.created_at).toDateString()}</span>
@@ -125,7 +130,8 @@ const ReturnRequestTemplate: React.FC<ReturnRequestTemplateProps> = ({
           </div>
           <p className="text-base-regular text-ui-fg-subtle">
             You can request a return for items that have been delivered. Select
-            the items you&apos;d like to return and choose a return shipping option.
+            the items you&apos;d like to return and choose a return shipping
+            option.
           </p>
         </div>
 
@@ -136,7 +142,7 @@ const ReturnRequestTemplate: React.FC<ReturnRequestTemplateProps> = ({
             </p>
           </div>
         ) : (
-          <form action={handleSubmit} className="space-y-6">
+          <form action={handleSubmit} className="space-y-8">
             <div>
               <h3 className="txt-medium-plus mb-4">Items to Return</h3>
               <ReturnItemSelector
@@ -159,12 +165,12 @@ const ReturnRequestTemplate: React.FC<ReturnRequestTemplateProps> = ({
             </div>
 
             {state.error && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+              <div className="rounded-md border border-red-200 bg-red-50 p-4">
                 <p className="text-red-800 text-sm">{state.error}</p>
               </div>
             )}
 
-            <div className="flex justify-end">
+            <div className="flex items-center justify-end border-t border-ui-border-base pt-4">
               <Button
                 type="submit"
                 variant="primary"

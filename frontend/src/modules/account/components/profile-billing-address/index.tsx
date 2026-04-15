@@ -100,8 +100,8 @@ const ProfileBillingAddress: React.FC<MyInformationProps> = ({
         clearState={clearState}
         data-testid="account-billing-address-editor"
       >
-        <div className="grid grid-cols-1 gap-y-2">
-          <div className="grid grid-cols-1 gap-y-2 small:grid-cols-2 small:gap-x-2 small:gap-y-0">
+        <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-3 small:grid-cols-2">
             <Input
               label="First name"
               name="first_name"
@@ -145,7 +145,7 @@ const ProfileBillingAddress: React.FC<MyInformationProps> = ({
             defaultValue={billingAddress?.address_2 || undefined}
             data-testid="billing-address-2-input"
           />
-          <div className="grid grid-cols-1 gap-y-2 small:grid-cols-[144px_1fr] small:gap-x-2 small:gap-y-0">
+          <div className="grid grid-cols-1 gap-3 small:grid-cols-[160px_1fr]">
             <Input
               label="Postal code"
               name="postal_code"
