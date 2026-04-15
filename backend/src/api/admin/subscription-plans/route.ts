@@ -18,6 +18,12 @@ export const AdminCreateSubscriptionPlanSchema = z.object({
 
 type AdminCreateSubscriptionPlan = z.infer<typeof AdminCreateSubscriptionPlanSchema>
 
+type SubscriptionPlanRecord = Record<string, unknown>
+
+const pickFirst = (result: SubscriptionPlanRecord | SubscriptionPlanRecord[]) => {
+  return Array.isArray(result) ? result[0] : result
+}
+
 export const GET = async (
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
@@ -45,10 +51,12 @@ export const POST = async (
   res: MedusaResponse
 ) => {
   const subscriptionPlanModuleService = req.scope.resolve(SUBSCRIPTION_PLAN_MODULE) as {
-    createSubscriptionPlans: (data: Record<string, unknown>) => Promise<Record<string, unknown>[]>
+    createSubscriptionPlans: (
+      data: SubscriptionPlanRecord
+    ) => Promise<SubscriptionPlanRecord | SubscriptionPlanRecord[]>
   }
 
-  const [subscriptionPlan] = await subscriptionPlanModuleService.createSubscriptionPlans({
+  const createResult = await subscriptionPlanModuleService.createSubscriptionPlans({
     name: req.validatedBody.name,
     stripe_product_id: req.validatedBody.stripe_product_id,
     stripe_price_id: req.validatedBody.stripe_price_id,
@@ -56,6 +64,7 @@ export const POST = async (
     active: req.validatedBody.active,
     metadata: req.validatedBody.metadata ?? null,
   })
+  const subscriptionPlan = pickFirst(createResult)
 
   res.status(201).json({
     subscription_plan: subscriptionPlan,
