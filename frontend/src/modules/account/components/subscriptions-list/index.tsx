@@ -33,29 +33,6 @@ const getStatusLabel = (status?: string | null) => {
   return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
-const getEffectiveStripeStatus = (subscription: CustomerSubscription) => {
-  return subscription.stripe_status || subscription.status
-}
-
-const getStatusBadgeClassName = (status?: string | null) => {
-  switch (status) {
-    case "active":
-      return "bg-emerald-100 text-emerald-800"
-    case "canceled":
-      return "bg-rose-100 text-rose-800"
-    case "past_due":
-    case "unpaid":
-      return "bg-orange-100 text-orange-800"
-    case "trialing":
-      return "bg-blue-100 text-blue-800"
-    case "incomplete":
-    case "incomplete_expired":
-      return "bg-gray-100 text-red-700"
-    default:
-      return "bg-gray-100 text-gray-700"
-  }
-}
-
 const SubscriptionsList = ({
   subscriptions,
 }: {
@@ -94,24 +71,9 @@ const SubscriptionsList = ({
             <p className="text-base-semi">
               {getSubscriptionLabel(subscription)}
             </p>
-            <div className="mt-1 flex flex-col gap-y-1">
-              <div className="flex items-center gap-x-2">
-                <span className="text-base-regular text-ui-fg-subtle">Status:</span>
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-small-regular ${getStatusBadgeClassName(
-                    getEffectiveStripeStatus(subscription)
-                  )}`}
-                >
-                  {getStatusLabel(getEffectiveStripeStatus(subscription))}
-                </span>
-              </div>
-              {subscription.cancel_at_period_end &&
-                getEffectiveStripeStatus(subscription) === "active" && (
-                  <p className="text-small-regular text-ui-fg-subtle">
-                    Cancels at period end
-                  </p>
-                )}
-            </div>
+            <p className="text-base-regular text-ui-fg-subtle">
+              Status: {getStatusLabel(subscription.status)}
+            </p>
           </div>
           <form action={manageSubscription}>
             <Button

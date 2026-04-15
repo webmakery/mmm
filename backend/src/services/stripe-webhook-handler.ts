@@ -1,9 +1,6 @@
 import { Logger } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import Stripe from "stripe"
-import { SUBSCRIPTION_MODULE } from "../modules/subscription"
-import SubscriptionModuleService from "../modules/subscription/service"
-import { SubscriptionStatus } from "../modules/subscription/types"
 import { SUBSCRIPTION_INFRASTRUCTURE_MODULE } from "../modules/subscription-infrastructure"
 import SubscriptionInfrastructureModuleService from "../modules/subscription-infrastructure/service"
 import deleteSubscriptionInfrastructureWorkflow from "../workflows/delete-subscription-infrastructure"
@@ -56,70 +53,6 @@ const parsePlanMapping = (): Record<string, HetznerPlanConfig> => {
 
 const sanitizeNamePart = (value: string) => value.toLowerCase().replace(/[^a-z0-9-]/g, "-")
 const pickFirst = <T>(result: T | T[]): T => (Array.isArray(result) ? result[0] : result)
-
-const mapStripeStatusToLocalSubscriptionStatus = (
-  status: Stripe.Subscription.Status
-): SubscriptionStatus => {
-  if (status === "canceled" || status === "incomplete_expired") {
-    return SubscriptionStatus.CANCELED
-  }
-
-  if (status === "past_due" || status === "unpaid" || status === "incomplete" || status === "paused") {
-    return SubscriptionStatus.FAILED
-  }
-
-  return SubscriptionStatus.ACTIVE
-}
-
-const syncLocalSubscriptionFromStripe = async (
-  container: ResolveContainer,
-  stripeSubscription: Stripe.Subscription,
-  logger: Logger
-) => {
-  const query = container.resolve<any>(ContainerRegistrationKeys.QUERY)
-  const subscriptionService = container.resolve<SubscriptionModuleService>(SUBSCRIPTION_MODULE)
-  const localStatus =
-    stripeSubscription.status === "canceled"
-      ? SubscriptionStatus.CANCELED
-      : mapStripeStatusToLocalSubscriptionStatus(stripeSubscription.status)
-  const canceledAt = stripeSubscription.canceled_at
-    ? new Date(stripeSubscription.canceled_at * 1000)
-    : null
-
-  const { data: subscriptions } = await query.graph({
-    entity: "subscription",
-    fields: ["id", "status"],
-    filters: {
-      stripe_subscription_id: [stripeSubscription.id],
-    },
-  })
-
-  if (!subscriptions.length) {
-    logger.info(
-      `[stripe-webhook] subscription_sync_skipped stripe_subscription_id=${stripeSubscription.id} stripe_status=${stripeSubscription.status} cancel_at_period_end=${!!stripeSubscription.cancel_at_period_end} canceled_at=${canceledAt?.toISOString() || "null"} local_persisted_status=not_found`
-    )
-    return
-  }
-
-  await Promise.all(
-    subscriptions.map((subscription) =>
-      subscriptionService.updateSubscriptions({
-        id: subscription.id,
-        status: localStatus,
-        stripe_status: stripeSubscription.status,
-        cancel_at_period_end: !!stripeSubscription.cancel_at_period_end,
-        canceled_at: canceledAt,
-        current_period_end: stripeSubscription.current_period_end
-          ? new Date(stripeSubscription.current_period_end * 1000)
-          : null,
-      })
-    )
-  )
-
-  logger.info(
-    `[stripe-webhook] subscription_sync_updated stripe_subscription_id=${stripeSubscription.id} stripe_status=${stripeSubscription.status} cancel_at_period_end=${!!stripeSubscription.cancel_at_period_end} canceled_at=${canceledAt?.toISOString() || "null"} local_persisted_status=${localStatus}`
-  )
-}
 
 const resolveOrderDataFromStripeSubscription = async (
   query: any,
@@ -559,7 +492,6 @@ export const processStripeWebhookEvent = async ({
 
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription
-      await syncLocalSubscriptionFromStripe(container, subscription, logger)
 
       if (subscription.cancel_at_period_end) {
         logger.info(
@@ -576,7 +508,6 @@ export const processStripeWebhookEvent = async ({
 
     case "customer.subscription.deleted": {
       const subscription = event.data.object as Stripe.Subscription
-      await syncLocalSubscriptionFromStripe(container, subscription, logger)
       await handleSubscriptionEnded(container, subscription.id, logger)
       break
     }
