@@ -11,10 +11,13 @@ export const SubscriptionInfrastructureStatus = [
 
 const SubscriptionInfrastructure = model.define("subscription_infrastructure", {
   id: model.id().primaryKey(),
-  order_id: model.text(),
+  order_id: model.text().nullable(),
   customer_id: model.text(),
   stripe_customer_id: model.text(),
   stripe_subscription_id: model.text(),
+  checkout_session_id: model.text().nullable(),
+  subscription_plan_id: model.text().nullable(),
+  stripe_price_id: model.text().nullable(),
   stripe_invoice_id: model.text().nullable(),
   hetzner_server_id: model.text().nullable(),
   hetzner_server_name: model.text(),

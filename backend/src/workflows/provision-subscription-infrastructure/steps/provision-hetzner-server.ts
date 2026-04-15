@@ -35,6 +35,10 @@ const provisionHetznerServerStep = createStep(
 
     try {
       logger.info(
+        `[infra] plan mapping availability infrastructure_id=${infrastructure.id} server_type_set=${!!infrastructure.hetzner_server_type} image_set=${!!infrastructure.hetzner_image} location_set=${!!infrastructure.hetzner_region}`
+      )
+
+      logger.info(
         `[infra] Hetzner createServer request infrastructure_id=${infrastructure.id} name=${infrastructure.hetzner_server_name} server_type=${infrastructure.hetzner_server_type} image=${infrastructure.hetzner_image} location=${infrastructure.hetzner_region}`
       )
 

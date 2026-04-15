@@ -110,57 +110,100 @@ const findInfrastructureRecord = async (
   return record
 }
 
+const findInfrastructureRecordBySubscription = async (
+  infraService: SubscriptionInfrastructureModuleService,
+  stripeSubscriptionId: string
+) => {
+  const [record] = await infraService.listSubscriptionInfrastructures({
+    stripe_subscription_id: stripeSubscriptionId,
+  })
+
+  return record
+}
+
 const ensureInfrastructureRecord = async ({
   infraService,
   orderId,
   customerId,
   stripeCustomerId,
   stripeSubscriptionId,
+  checkoutSessionId,
+  subscriptionPlanId,
   stripeInvoiceId,
   stripePriceId,
   logger,
 }: {
   infraService: SubscriptionInfrastructureModuleService
-  orderId: string
+  orderId?: string
   customerId: string
   stripeCustomerId: string
   stripeSubscriptionId: string
+  checkoutSessionId?: string
+  subscriptionPlanId?: string
   stripeInvoiceId?: string
-  stripePriceId: string
+  stripePriceId?: string
   logger: Logger
 }) => {
   const planMap = parsePlanMapping()
-  const config = planMap[stripePriceId]
+  const config = stripePriceId ? planMap[stripePriceId] : undefined
 
   logger.info(
-    `[stripe-webhook] resolved plan mapping stripe_price_id=${stripePriceId} server_type=${config?.server_type || "n/a"} image=${config?.image || "n/a"} location=${config?.location || "n/a"}`
+    `[stripe-webhook] resolved plan mapping stripe_price_id=${stripePriceId || "n/a"} available=${!!config} server_type=${config?.server_type || "n/a"} image=${config?.image || "n/a"} location=${config?.location || "n/a"}`
   )
 
   if (!config) {
-    throw new Error(`No Hetzner plan mapping for Stripe price '${stripePriceId}'`)
+    throw new Error(`No Hetzner plan mapping for Stripe price '${stripePriceId || "n/a"}'`)
   }
 
-  const existing = await findInfrastructureRecord(infraService, orderId, stripeSubscriptionId)
+  const existing = orderId
+    ? await findInfrastructureRecord(infraService, orderId, stripeSubscriptionId)
+    : await findInfrastructureRecordBySubscription(infraService, stripeSubscriptionId)
 
   if (existing) {
+    const updates: Record<string, string | null> = {
+      id: existing.id,
+      stripe_invoice_id: stripeInvoiceId ?? existing.stripe_invoice_id ?? null,
+      stripe_customer_id: stripeCustomerId,
+      customer_id: customerId,
+      stripe_price_id: stripePriceId || null,
+      checkout_session_id: checkoutSessionId || null,
+      subscription_plan_id: subscriptionPlanId || null,
+      hetzner_region: config.location,
+      hetzner_server_type: config.server_type,
+      hetzner_image: config.image,
+    }
+
+    if (orderId) {
+      updates.order_id = orderId
+    }
+
+    await infraService.updateSubscriptionInfrastructures(updates as any)
+
+    logger.info(
+      `[stripe-webhook] Reused existing subscription_infrastructure id=${existing.id} subscription=${stripeSubscriptionId} order_id=${orderId || existing.order_id || "n/a"}`
+    )
+
     if (stripeInvoiceId && existing.stripe_invoice_id !== stripeInvoiceId) {
-      await infraService.updateSubscriptionInfrastructures({
-        id: existing.id,
-        stripe_invoice_id: stripeInvoiceId,
-      })
+      logger.info(
+        `[stripe-webhook] Updated existing infrastructure invoice id=${existing.id} stripe_invoice_id=${stripeInvoiceId}`
+      )
     }
 
     return existing
   }
 
-  const serverName = `cust-${sanitizeNamePart(customerId)}-order-${sanitizeNamePart(orderId)}`
+  const orderSegment = orderId ? `-order-${sanitizeNamePart(orderId)}` : ""
+  const serverName = `cust-${sanitizeNamePart(customerId)}${orderSegment}`
 
   const created = pickFirst(
     await infraService.createSubscriptionInfrastructures({
-      order_id: orderId,
+      order_id: orderId ?? null,
       customer_id: customerId,
       stripe_customer_id: stripeCustomerId,
       stripe_subscription_id: stripeSubscriptionId,
+      checkout_session_id: checkoutSessionId ?? null,
+      subscription_plan_id: subscriptionPlanId ?? null,
+      stripe_price_id: stripePriceId ?? null,
       stripe_invoice_id: stripeInvoiceId ?? null,
       hetzner_server_id: null,
       hetzner_server_name: serverName,
@@ -173,7 +216,7 @@ const ensureInfrastructureRecord = async ({
   )
 
   logger.info(
-    `[stripe-webhook] Created subscription_infrastructure ${created.id} for order ${orderId}`
+    `[stripe-webhook] Created subscription_infrastructure id=${created.id} checkout_session_id=${checkoutSessionId || "n/a"} subscription=${stripeSubscriptionId} order_id=${orderId || "n/a"} customer_id=${customerId} subscription_plan_id=${subscriptionPlanId || "n/a"} stripe_price_id=${stripePriceId || "n/a"}`
   )
 
   return created
@@ -248,29 +291,65 @@ const handleInvoicePaid = async (
     SUBSCRIPTION_INFRASTRUCTURE_MODULE
   )
 
-  const resolved = await resolveOrderDataFromStripeSubscription(query, stripeSubscriptionId)
+  logger.info(
+    `[stripe-webhook] invoice.payment_succeeded lookup_path step=subscription_infrastructure_by_subscription_id subscription_id=${stripeSubscriptionId}`
+  )
 
-  if (!resolved) {
-    logger.warn(
-      `[stripe-webhook] Could not resolve order data for stripe subscription ${stripeSubscriptionId}`
+  let infrastructure = await findInfrastructureRecordBySubscription(
+    infraService,
+    stripeSubscriptionId
+  )
+
+  if (infrastructure) {
+    logger.info(
+      `[stripe-webhook] invoice.payment_succeeded lookup_path hit=subscription_infrastructure id=${infrastructure.id} order_id=${infrastructure.order_id || "n/a"}`
     )
-    return
+    if (infrastructure.stripe_invoice_id !== invoice.id) {
+      await infraService.updateSubscriptionInfrastructures({
+        id: infrastructure.id,
+        stripe_invoice_id: invoice.id,
+      })
+    }
+  } else {
+    logger.warn(
+      `[stripe-webhook] invoice.payment_succeeded lookup_path miss=subscription_infrastructure subscription_id=${stripeSubscriptionId}; fallback=resolve_order_from_subscription`
+    )
+
+    const resolved = await resolveOrderDataFromStripeSubscription(query, stripeSubscriptionId)
+
+    if (!resolved) {
+      logger.warn(
+        `[stripe-webhook] Could not resolve order data for stripe subscription ${stripeSubscriptionId}. reason=no_subscription_or_missing_main_order_id`
+      )
+      return
+    }
+
+    logger.info(
+      `[stripe-webhook] resolved Medusa order ID order_id=${resolved.orderId} subscription_id=${stripeSubscriptionId}`
+    )
+
+    infrastructure = await ensureInfrastructureRecord({
+      infraService,
+      orderId: resolved.orderId,
+      customerId: resolved.customerId,
+      stripeCustomerId: resolved.stripeCustomerId,
+      stripeSubscriptionId,
+      stripeInvoiceId: invoice.id,
+      stripePriceId: resolved.stripePriceId,
+      logger,
+    })
   }
 
   logger.info(
-    `[stripe-webhook] resolved Medusa order ID order_id=${resolved.orderId} subscription_id=${stripeSubscriptionId}`
+    `[stripe-webhook] plan mapping preflight infrastructure_id=${infrastructure.id} stripe_price_id=${infrastructure.stripe_price_id || "n/a"} available=${!!(infrastructure.stripe_price_id && parsePlanMapping()[infrastructure.stripe_price_id])}`
   )
 
-  const infrastructure = await ensureInfrastructureRecord({
-    infraService,
-    orderId: resolved.orderId,
-    customerId: resolved.customerId,
-    stripeCustomerId: resolved.stripeCustomerId,
-    stripeSubscriptionId,
-    stripeInvoiceId: invoice.id,
-    stripePriceId: resolved.stripePriceId,
-    logger,
-  })
+  if (!infrastructure.stripe_price_id) {
+    logger.warn(
+      `[stripe-webhook] Cannot provision infrastructure ${infrastructure.id}: missing stripe_price_id`
+    )
+    return
+  }
 
   if (
     ["active", "provisioning", "deleting", "deleted"].includes(
@@ -351,6 +430,11 @@ export const processStripeWebhookEvent = async ({
         typeof session.subscription === "string"
           ? session.subscription
           : session.subscription?.id
+      const metadata = session.metadata || {}
+      const checkoutCustomerId = metadata.customer_id
+      const subscriptionPlanId = metadata.subscription_plan_id
+      const stripePriceId = metadata.stripe_price_id
+      const orderId = metadata.order_id || metadata.main_order_id
 
       if (sessionCustomerId && sessionSubscriptionId) {
         checkoutSubscriptionByCustomer.set(sessionCustomerId, sessionSubscriptionId)
@@ -359,6 +443,40 @@ export const processStripeWebhookEvent = async ({
       logger.info(
         `[stripe-webhook] checkout.session.completed id=${session.id} customer=${sessionCustomerId || "n/a"} subscription=${sessionSubscriptionId || "n/a"}`
       )
+
+      logger.info(
+        `[stripe-webhook] checkout.session.completed metadata customer_id=${checkoutCustomerId || "n/a"} subscription_plan_id=${subscriptionPlanId || "n/a"} stripe_price_id=${stripePriceId || "n/a"} order_id=${orderId || "n/a"}`
+      )
+
+      if (!sessionCustomerId || !sessionSubscriptionId || !checkoutCustomerId) {
+        logger.warn(
+          `[stripe-webhook] checkout.session.completed pending infra not created reason=missing_identifiers customer=${sessionCustomerId || "n/a"} subscription=${sessionSubscriptionId || "n/a"} customer_id=${checkoutCustomerId || "n/a"}`
+        )
+        break
+      }
+
+      try {
+        const infrastructure = await ensureInfrastructureRecord({
+          infraService,
+          orderId,
+          customerId: checkoutCustomerId,
+          stripeCustomerId: sessionCustomerId,
+          stripeSubscriptionId: sessionSubscriptionId,
+          checkoutSessionId: session.id,
+          subscriptionPlanId,
+          stripePriceId,
+          logger,
+        })
+
+        logger.info(
+          `[stripe-webhook] checkout.session.completed subscription_infrastructure_created=true infrastructure_id=${infrastructure.id} checkout_session_id=${session.id}`
+        )
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "Unknown error"
+        logger.warn(
+          `[stripe-webhook] checkout.session.completed subscription_infrastructure_created=false checkout_session_id=${session.id} reason=${message}`
+        )
+      }
       break
     }
 
