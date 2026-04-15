@@ -57,6 +57,10 @@ export default async function SubscriptionsPage({
     notFound()
   }
 
+  const subscriptionsToRender = checkoutSubscription
+    ? subscriptions.filter((subscription) => subscription.id !== checkoutSubscription?.id)
+    : subscriptions
+
   return (
     <div className="w-full" data-testid="subscriptions-page-wrapper">
       <div className="mb-8 flex flex-col gap-y-4">
@@ -87,7 +91,7 @@ export default async function SubscriptionsPage({
           </div>
         </div>
       )}
-      <SubscriptionsList subscriptions={subscriptions} />
+      <SubscriptionsList subscriptions={subscriptionsToRender} />
     </div>
   )
 }
