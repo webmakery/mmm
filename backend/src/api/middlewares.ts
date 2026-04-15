@@ -18,6 +18,7 @@ import { createDigitalProductsSchema } from "./validation-schemas"
 import { AddBuilderProductSchema } from "./store/carts/[id]/product-builder/route"
 import { GetStoreReviewsSchema } from "./store/products/[id]/reviews/route"
 import { PostStoreReviewSchema } from "./store/reviews/route"
+import { PostStoreSyncSubscriptionSchema } from "./store/customers/me/subscriptions/sync/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -211,6 +212,15 @@ export default defineMiddlewares({
       methods: ["GET"],
       middlewares: [authenticate("customer", ["bearer", "session"])],
     },
+    {
+      matcher: "/store/customers/me/subscriptions/sync",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("customer", ["bearer", "session"]),
+        validateAndTransformBody(PostStoreSyncSubscriptionSchema),
+      ],
+    },
+
     {
       matcher: "/store/customers/me/subscriptions/portal",
       methods: ["POST"],

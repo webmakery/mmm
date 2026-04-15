@@ -114,9 +114,13 @@ export const POST = async (
 
   const stripe = new Stripe(stripeApiKey)
 
+  const successUrlWithSessionId = successUrl.includes("?")
+    ? `${successUrl}&session_id={CHECKOUT_SESSION_ID}`
+    : `${successUrl}?session_id={CHECKOUT_SESSION_ID}`
+
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "subscription",
-    success_url: successUrl,
+    success_url: successUrlWithSessionId,
     cancel_url: cancelUrl,
     line_items: [
       {
