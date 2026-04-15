@@ -30,7 +30,7 @@ const AccountNav = ({
         {route !== `/${countryCode}/account` ? (
           <LocalizedClientLink
             href="/account"
-            className="flex items-center gap-x-2 text-small-regular py-2"
+            className="flex items-center gap-x-2 px-6 py-4 text-small-regular text-ui-fg-subtle"
             data-testid="account-main-link"
           >
             <>
@@ -40,15 +40,23 @@ const AccountNav = ({
           </LocalizedClientLink>
         ) : (
           <>
-            <div className="text-xl-semi mb-4 px-8">
-              Hello {customer?.first_name}
+            <div className="border-b border-ui-border-base px-6 pb-4 pt-6">
+              <p className="txt-compact-small-plus text-ui-fg-subtle mb-2 uppercase">
+                Account
+              </p>
+              <div className="text-xl-semi">Hello {customer?.first_name}</div>
             </div>
-            <div className="text-base-regular">
-              <ul>
+            <div className="px-6 pb-6 pt-2">
+              <p className="txt-compact-small-plus text-ui-fg-subtle mb-2 uppercase">
+                Navigation
+              </p>
+            </div>
+            <div className="text-base-regular border-y border-ui-border-base">
+              <ul className="divide-y divide-ui-border-base">
                 <li>
                   <LocalizedClientLink
                     href="/account/profile"
-                    className="flex items-center justify-between py-4 border-b border-gray-200 px-8"
+                    className="flex items-center justify-between px-6 py-4"
                     data-testid="profile-link"
                   >
                     <>
@@ -63,7 +71,7 @@ const AccountNav = ({
                 <li>
                   <LocalizedClientLink
                     href="/account/addresses"
-                    className="flex items-center justify-between py-4 border-b border-gray-200 px-8"
+                    className="flex items-center justify-between px-6 py-4"
                     data-testid="addresses-link"
                   >
                     <>
@@ -78,7 +86,7 @@ const AccountNav = ({
                 <li>
                   <LocalizedClientLink
                     href="/account/orders"
-                    className="flex items-center justify-between py-4 border-b border-gray-200 px-8"
+                    className="flex items-center justify-between px-6 py-4"
                     data-testid="orders-link"
                   >
                     <div className="flex items-center gap-x-2">
@@ -91,7 +99,7 @@ const AccountNav = ({
                 <li>
                   <LocalizedClientLink
                     href="/account/subscriptions"
-                    className="flex items-center justify-between py-4 border-b border-gray-200 px-8"
+                    className="flex items-center justify-between px-6 py-4"
                     data-testid="subscriptions-link"
                   >
                     <div className="flex items-center gap-x-2">
@@ -104,7 +112,7 @@ const AccountNav = ({
                 <li>
                   <LocalizedClientLink
                     href="/account/digital-products"
-                    className="flex items-center justify-between py-4 border-b border-gray-200 px-8"
+                    className="flex items-center justify-between px-6 py-4"
                     data-testid="digital-products-link"
                   >
                     <div className="flex items-center gap-x-2">
@@ -117,7 +125,7 @@ const AccountNav = ({
                 <li>
                   <button
                     type="button"
-                    className="flex items-center justify-between py-4 border-b border-gray-200 px-8 w-full"
+                    className="flex w-full items-center justify-between px-6 py-4"
                     onClick={handleLogout}
                     data-testid="logout-button"
                   >
@@ -134,76 +142,84 @@ const AccountNav = ({
         )}
       </div>
       <div className="hidden small:block" data-testid="account-nav">
-        <div>
-          <div className="pb-4">
-            <h3 className="text-base-semi">Account</h3>
+        <div className="p-6">
+          <div className="border-b border-ui-border-base pb-4">
+            <h3 className="txt-compact-small-plus text-ui-fg-subtle uppercase">
+              Account
+            </h3>
           </div>
-          <div className="text-base-regular">
-            <ul className="flex mb-0 justify-start items-start flex-col gap-y-4">
-              <li>
-                <AccountNavLink
-                  href="/account"
-                  route={route!}
-                  data-testid="overview-link"
-                >
-                  Overview
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/profile"
-                  route={route!}
-                  data-testid="profile-link"
-                >
-                  Profile
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/addresses"
-                  route={route!}
-                  data-testid="addresses-link"
-                >
-                  Addresses
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/orders"
-                  route={route!}
-                  data-testid="orders-link"
-                >
-                  Orders
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/subscriptions"
-                  route={route!}
-                  data-testid="subscriptions-link"
-                >
-                  Subscriptions
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/digital-products"
-                  route={route!}
-                  data-testid="digital-products-link"
-                >
-                  Digital Products
-                </AccountNavLink>
-              </li>
-              <li className="text-grey-700">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  data-testid="logout-button"
-                >
-                  Log out
-                </button>
-              </li>
-            </ul>
+          <div className="pt-4">
+            <p className="txt-compact-small-plus text-ui-fg-subtle mb-2 uppercase">
+              Navigation
+            </p>
+            <div className="text-base-regular">
+              <ul className="mb-0 flex flex-col items-start justify-start gap-y-1">
+                <li className="w-full">
+                  <AccountNavLink
+                    href="/account"
+                    route={route!}
+                    data-testid="overview-link"
+                  >
+                    Overview
+                  </AccountNavLink>
+                </li>
+                <li className="w-full">
+                  <AccountNavLink
+                    href="/account/profile"
+                    route={route!}
+                    data-testid="profile-link"
+                  >
+                    Profile
+                  </AccountNavLink>
+                </li>
+                <li className="w-full">
+                  <AccountNavLink
+                    href="/account/addresses"
+                    route={route!}
+                    data-testid="addresses-link"
+                  >
+                    Addresses
+                  </AccountNavLink>
+                </li>
+                <li className="w-full">
+                  <AccountNavLink
+                    href="/account/orders"
+                    route={route!}
+                    data-testid="orders-link"
+                  >
+                    Orders
+                  </AccountNavLink>
+                </li>
+                <li className="w-full">
+                  <AccountNavLink
+                    href="/account/subscriptions"
+                    route={route!}
+                    data-testid="subscriptions-link"
+                  >
+                    Subscriptions
+                  </AccountNavLink>
+                </li>
+                <li className="w-full">
+                  <AccountNavLink
+                    href="/account/digital-products"
+                    route={route!}
+                    data-testid="digital-products-link"
+                  >
+                    Digital Products
+                  </AccountNavLink>
+                </li>
+                <li className="mt-3 w-full border-t border-ui-border-base pt-3">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="txt-compact-small-plus flex w-full items-center rounded-md px-3 py-2 text-ui-fg-subtle transition-colors hover:bg-ui-bg-base-hover hover:text-ui-fg-base"
+                    data-testid="logout-button"
+                  >
+                    Log out
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -230,9 +246,12 @@ const AccountNavLink = ({
   return (
     <LocalizedClientLink
       href={href}
-      className={clx("text-ui-fg-subtle hover:text-ui-fg-base", {
-        "text-ui-fg-base font-semibold": active,
-      })}
+      className={clx(
+        "txt-compact-small-plus flex w-full items-center rounded-md px-3 py-2 text-ui-fg-subtle transition-colors hover:bg-ui-bg-base-hover hover:text-ui-fg-base",
+        {
+          "bg-ui-bg-base-hover text-ui-fg-base": active,
+        }
+      )}
       data-testid={dataTestId}
     >
       {children}
