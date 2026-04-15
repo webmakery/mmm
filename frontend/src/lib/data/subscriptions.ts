@@ -33,7 +33,7 @@ export const getCustomerSubscriptions = async () => {
         method: "GET",
         headers,
         next,
-        cache: "force-cache",
+        cache: "no-cache",
       }
     )
     .then(({ subscriptions }) => subscriptions)
@@ -58,4 +58,24 @@ export const manageSubscription = async () => {
   const url = await requestSubscriptionPortalUrl()
 
   redirect(url)
+}
+
+
+export const syncSubscriptionFromCheckoutSession = async (sessionId: string) => {
+  const headers = {
+    ...(await getAuthHeaders()),
+  }
+
+  return sdk.client
+    .fetch<{ subscription: CustomerSubscription }>(
+      "/store/customers/me/subscriptions/sync",
+      {
+        method: "POST",
+        headers,
+        body: {
+          session_id: sessionId,
+        },
+      }
+    )
+    .catch((err) => medusaError(err))
 }

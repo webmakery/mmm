@@ -2,14 +2,28 @@ import { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import SubscriptionsList from "@modules/account/components/subscriptions-list"
-import { getCustomerSubscriptions } from "@lib/data/subscriptions"
+import {
+  getCustomerSubscriptions,
+  syncSubscriptionFromCheckoutSession,
+} from "@lib/data/subscriptions"
 
 export const metadata: Metadata = {
   title: "Subscriptions",
   description: "View and manage your subscriptions.",
 }
 
-export default async function SubscriptionsPage() {
+export default async function SubscriptionsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
+}) {
+  const resolvedSearchParams = (await searchParams) || {}
+  const checkoutSessionId = resolvedSearchParams.session_id
+
+  if (typeof checkoutSessionId === "string" && checkoutSessionId) {
+    await syncSubscriptionFromCheckoutSession(checkoutSessionId).catch(() => null)
+  }
+
   const subscriptions = await getCustomerSubscriptions().catch(() => null)
 
   if (!subscriptions) {
