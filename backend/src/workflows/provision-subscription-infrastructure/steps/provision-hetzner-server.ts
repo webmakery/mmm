@@ -34,6 +34,10 @@ const provisionHetznerServerStep = createStep(
     const hetzner = new HetznerCloudService()
 
     try {
+      logger.info(
+        `[infra] Hetzner createServer call infrastructure_id=${infrastructure.id} name=${infrastructure.hetzner_server_name}`
+      )
+
       const result = await hetzner.createServer({
         name: infrastructure.hetzner_server_name,
         serverType: infrastructure.hetzner_server_type,
