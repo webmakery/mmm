@@ -8,6 +8,69 @@ import {
 } from "@medusajs/framework/utils"
 import Stripe from "stripe"
 
+type ConfigModule = {
+  admin?: {
+    storefrontUrl?: string
+  }
+}
+
+const appendQueryParam = (url: string, key: string, value: string) => {
+  try {
+    const parsedUrl = new URL(url)
+    parsedUrl.searchParams.set(key, value)
+    return parsedUrl.toString()
+  } catch {
+    const separator = url.includes("?") ? "&" : "?"
+    return `${url}${separator}${key}=${encodeURIComponent(value)}`
+  }
+}
+
+const getCountryCodeFromReferer = (referer?: string) => {
+  if (!referer) {
+    return undefined
+  }
+
+  try {
+    const pathname = new URL(referer).pathname
+
+    return pathname
+      .split("/")
+      .filter(Boolean)
+      .at(0)
+  } catch {
+    return undefined
+  }
+}
+
+const getStorefrontBaseUrl = (
+  req: AuthenticatedMedusaRequest,
+  configModule?: ConfigModule
+) => {
+  if (process.env.STRIPE_SUBSCRIPTION_STOREFRONT_URL) {
+    return process.env.STRIPE_SUBSCRIPTION_STOREFRONT_URL
+  }
+
+  if (configModule?.admin?.storefrontUrl) {
+    return configModule.admin.storefrontUrl
+  }
+
+  if (process.env.STOREFRONT_URL) {
+    return process.env.STOREFRONT_URL
+  }
+
+  const referer = req.headers.referer
+
+  if (!referer) {
+    return undefined
+  }
+
+  try {
+    return new URL(referer).origin
+  } catch {
+    return undefined
+  }
+}
+
 export const POST = async (
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
@@ -31,6 +94,7 @@ export const POST = async (
   }
 
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
+  const configModule = req.scope.resolve<ConfigModule>("configModule")
 
   const {
     data: [subscriptionPlan],
@@ -87,46 +151,31 @@ export const POST = async (
       !!(subscription as Record<string, unknown> | null)?.stripe_customer_id
   )?.stripe_customer_id as string | undefined
 
-  const forwardedProto = req.headers["x-forwarded-proto"]
-  const forwardedHost = req.headers["x-forwarded-host"]
-  const referer = req.headers.referer
-  const host = req.headers.host
-  const protocol = Array.isArray(forwardedProto)
-    ? forwardedProto[0]
-    : forwardedProto || "http"
-  const hostname = Array.isArray(forwardedHost)
-    ? forwardedHost[0]
-    : forwardedHost || host
-  const baseUrl = hostname ? `${protocol}://${hostname}` : undefined
+  const countryCode = getCountryCodeFromReferer(req.headers.referer)
+  const storefrontBaseUrl = getStorefrontBaseUrl(req, configModule)
 
-  const refererPathname = (() => {
-    if (!referer) {
-      return undefined
-    }
-
-    try {
-      return new URL(referer).pathname
-    } catch {
-      return undefined
-    }
-  })()
-
-  const countryCode = refererPathname
-    ?.split("/")
-    .filter(Boolean)
-    .at(0)
-
-  const localizedAccountSubscriptionsPath = countryCode
+  const localizedSubscriptionsPath = countryCode
     ? `/${countryCode}/account/subscriptions`
     : "/account/subscriptions"
-  const localizedPlansPath = countryCode ? `/${countryCode}/plans` : "/plans"
 
-  const successUrl =
-    process.env.STRIPE_SUBSCRIPTION_SUCCESS_URL ||
-    (baseUrl ? `${baseUrl}${localizedAccountSubscriptionsPath}` : undefined)
-  const cancelUrl =
-    process.env.STRIPE_SUBSCRIPTION_CANCEL_URL ||
-    (baseUrl ? `${baseUrl}${localizedPlansPath}` : undefined)
+  const defaultSuccessUrl = storefrontBaseUrl
+    ? appendQueryParam(
+        `${storefrontBaseUrl}${localizedSubscriptionsPath}`,
+        "checkout",
+        "success"
+      )
+    : undefined
+
+  const defaultCancelUrl = storefrontBaseUrl
+    ? appendQueryParam(
+        `${storefrontBaseUrl}${localizedSubscriptionsPath}`,
+        "checkout",
+        "cancel"
+      )
+    : undefined
+
+  const successUrl = process.env.STRIPE_SUBSCRIPTION_SUCCESS_URL || defaultSuccessUrl
+  const cancelUrl = process.env.STRIPE_SUBSCRIPTION_CANCEL_URL || defaultCancelUrl
 
   if (!successUrl || !cancelUrl) {
     throw new MedusaError(
@@ -137,9 +186,11 @@ export const POST = async (
 
   const stripe = new Stripe(stripeApiKey)
 
-  const successUrlWithSessionId = successUrl.includes("?")
-    ? `${successUrl}&session_id={CHECKOUT_SESSION_ID}`
-    : `${successUrl}?session_id={CHECKOUT_SESSION_ID}`
+  const successUrlWithSessionId = appendQueryParam(
+    successUrl,
+    "session_id",
+    "{CHECKOUT_SESSION_ID}"
+  )
 
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "subscription",
