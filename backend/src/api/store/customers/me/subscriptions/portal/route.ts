@@ -51,8 +51,11 @@ export const POST = async (
   })
 
   const stripeCustomerId = customer?.subscriptions?.find(
-    ({ stripe_customer_id }) => !!stripe_customer_id
-  )?.stripe_customer_id
+    (subscription) =>
+      typeof (subscription as Record<string, unknown> | null)?.stripe_customer_id ===
+        "string" &&
+      !!(subscription as Record<string, unknown> | null)?.stripe_customer_id
+  )?.stripe_customer_id as string | undefined
 
   if (!stripeCustomerId) {
     throw new MedusaError(
