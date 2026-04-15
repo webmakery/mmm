@@ -11,6 +11,8 @@ import { UpsertProductBuilderSchema } from "./admin/products/[id]/builder/route"
 import { GetComplementaryProductsSchema } from "./admin/products/complementary/route"
 import { PostInvoiceConfgSchema } from "./admin/invoice-config/route"
 import { GetAdminReviewsSchema } from "./admin/reviews/route"
+import { AdminCreateSubscriptionPlanSchema } from "./admin/subscription-plans/route"
+import { AdminUpdateSubscriptionPlanSchema } from "./admin/subscription-plans/[id]/route"
 import { PostAdminUpdateReviewsStatusSchema } from "./admin/reviews/status/route"
 import { createDigitalProductsSchema } from "./validation-schemas"
 import { AddBuilderProductSchema } from "./store/carts/[id]/product-builder/route"
@@ -18,6 +20,7 @@ import { GetStoreReviewsSchema } from "./store/products/[id]/reviews/route"
 import { PostStoreReviewSchema } from "./store/reviews/route"
 
 export const GetSubscriptionsSchema = createFindParams()
+export const GetSubscriptionPlansSchema = createFindParams()
 const upload = multer({ storage: multer.memoryStorage() })
 
 export default defineMiddlewares({
@@ -56,6 +59,36 @@ export default defineMiddlewares({
           isList: true,
         }),
       ],
+    },
+    {
+      matcher: "/admin/subscription-plans",
+      methods: ["GET"],
+      middlewares: [
+        validateAndTransformQuery(GetSubscriptionPlansSchema, {
+          defaults: [
+            "id",
+            "name",
+            "stripe_product_id",
+            "stripe_price_id",
+            "interval",
+            "active",
+            "metadata",
+            "created_at",
+            "updated_at",
+          ],
+          isList: true,
+        }),
+      ],
+    },
+    {
+      matcher: "/admin/subscription-plans",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(AdminCreateSubscriptionPlanSchema)],
+    },
+    {
+      matcher: "/admin/subscription-plans/:id",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(AdminUpdateSubscriptionPlanSchema)],
     },
     {
       matcher: "/admin/products/:id/builder",

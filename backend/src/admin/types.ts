@@ -79,6 +79,18 @@ export enum SubscriptionInterval {
   YEARLY = "yearly",
 }
 
+export type SubscriptionPlanData = {
+  id: string
+  name: string
+  stripe_product_id: string
+  stripe_price_id: string
+  interval: SubscriptionInterval
+  active: boolean
+  metadata: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
+
 export type SubscriptionData = {
   id: string
   status: SubscriptionStatus
