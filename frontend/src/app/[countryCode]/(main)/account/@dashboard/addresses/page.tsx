@@ -1,3 +1,4 @@
+import { Container } from "@medusajs/ui"
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 
@@ -24,15 +25,20 @@ export default async function Addresses(props: {
   }
 
   return (
-    <div className="w-full" data-testid="addresses-page-wrapper">
-      <div className="mb-8 flex flex-col gap-y-4">
-        <h1 className="text-2xl-semi">Shipping Addresses</h1>
-        <p className="text-base-regular">
-          View and update your shipping addresses, you can add as many as you
-          like. Saving your addresses will make them available during checkout.
-        </p>
-      </div>
-      <AddressBook customer={customer} region={region} />
-    </div>
+    <Container className="w-full" data-testid="addresses-page-wrapper">
+      <section className="mb-6 rounded-lg border border-ui-border-base p-6">
+        <div className="flex flex-col gap-y-4">
+          <h1 className="text-2xl-semi">Shipping Addresses</h1>
+          <p className="text-base-regular">
+            View and update your shipping addresses, you can add as many as you
+            like. Saving your addresses will make them available during checkout.
+          </p>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-ui-border-base p-6">
+        <AddressBook customer={customer} region={region} />
+      </section>
+    </Container>
   )
 }

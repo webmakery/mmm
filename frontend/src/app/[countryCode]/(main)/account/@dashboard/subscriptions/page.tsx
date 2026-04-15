@@ -59,35 +59,40 @@ export default async function SubscriptionsPage({
 
   return (
     <Container className="w-full" data-testid="subscriptions-page-wrapper">
-      <div className="mb-8 flex flex-col gap-y-4">
-        <h1 className="text-2xl-semi">Subscriptions</h1>
-        <p className="text-base-regular">
-          View your purchased subscriptions, check their current status, and
-          manage billing from your Stripe customer portal.
-        </p>
-      </div>
-      {checkoutSubscription && (
-        <div className="mb-8 flex flex-col gap-y-4 border border-gray-200 p-4">
-          <h2 className="text-large-semi">Thank you for your purchase!</h2>
+      <section className="mb-6 rounded-lg border border-ui-border-base p-6">
+        <div className="flex flex-col gap-y-4">
+          <h1 className="text-2xl-semi">Subscriptions</h1>
           <p className="text-base-regular">
-            Your subscription is active and ready to manage.
+            View your purchased subscriptions, check their current status, and
+            manage billing from your Stripe customer portal.
           </p>
-          <div>
-            <p className="text-base-semi">
-              {getSubscriptionLabel(checkoutSubscription)}
-            </p>
-            <p className="text-base-regular text-ui-fg-subtle">
-              Subscription ID: {checkoutSubscription.id}
-            </p>
-          </div>
-          <div>
-            <LocalizedClientLink href="/account" passHref>
-              <Button variant="secondary">Go to account</Button>
-            </LocalizedClientLink>
-          </div>
         </div>
-      )}
-      <SubscriptionsList subscriptions={subscriptions} />
+      </section>
+
+      <section className="rounded-lg border border-ui-border-base p-6">
+        {checkoutSubscription && (
+          <div className="mb-8 flex flex-col gap-y-4 rounded-lg border border-ui-border-base p-4">
+            <h2 className="text-large-semi">Thank you for your purchase!</h2>
+            <p className="text-base-regular">
+              Your subscription is active and ready to manage.
+            </p>
+            <div>
+              <p className="text-base-semi">
+                {getSubscriptionLabel(checkoutSubscription)}
+              </p>
+              <p className="text-base-regular text-ui-fg-subtle">
+                Subscription ID: {checkoutSubscription.id}
+              </p>
+            </div>
+            <div>
+              <LocalizedClientLink href="/account" passHref>
+                <Button variant="secondary">Go to account</Button>
+              </LocalizedClientLink>
+            </div>
+          </div>
+        )}
+        <SubscriptionsList subscriptions={subscriptions} />
+      </section>
     </Container>
   )
 }
