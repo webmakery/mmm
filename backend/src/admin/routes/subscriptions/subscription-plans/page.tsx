@@ -17,8 +17,8 @@ import {
 } from "@medusajs/ui"
 import { useQuery } from "@tanstack/react-query"
 import { FormEvent, useMemo, useState } from "react"
-import { sdk } from "../../lib/sdk"
-import { SubscriptionInterval, SubscriptionPlanData } from "../../types"
+import { sdk } from "../../../lib/sdk"
+import { SubscriptionInterval, SubscriptionPlanData } from "../../../types"
 
 type SubscriptionPlanFormState = {
   name: string
@@ -159,6 +159,29 @@ const SubscriptionPlansPage = () => {
     }
   }
 
+  const onDelete = async () => {
+    if (!editingPlan) {
+      return
+    }
+
+    setSubmitting(true)
+
+    try {
+      await sdk.client.fetch(`/admin/subscription-plans/${editingPlan.id}`, {
+        method: "DELETE",
+      })
+      toast.success("Subscription plan deleted")
+      setDrawerOpen(false)
+      resetForm()
+      refetch()
+    } catch (error) {
+      console.error(error)
+      toast.error("Failed to delete subscription plan")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const table = useDataTable({
     columns,
     data: data?.subscription_plans || [],
@@ -262,9 +285,23 @@ const SubscriptionPlansPage = () => {
                 }
               />
 
-              <Button type="submit" isLoading={submitting}>
-                Save
-              </Button>
+              <div className="flex items-center justify-between gap-x-2">
+                {editingPlan ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={onDelete}
+                    isLoading={submitting}
+                  >
+                    Delete
+                  </Button>
+                ) : (
+                  <div />
+                )}
+                <Button type="submit" isLoading={submitting}>
+                  Save
+                </Button>
+              </div>
             </form>
           </Drawer.Body>
         </Drawer.Content>
