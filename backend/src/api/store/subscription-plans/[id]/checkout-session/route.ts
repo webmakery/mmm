@@ -89,6 +89,7 @@ export const POST = async (
 
   const forwardedProto = req.headers["x-forwarded-proto"]
   const forwardedHost = req.headers["x-forwarded-host"]
+  const referer = req.headers.referer
   const host = req.headers.host
   const protocol = Array.isArray(forwardedProto)
     ? forwardedProto[0]
@@ -98,12 +99,34 @@ export const POST = async (
     : forwardedHost || host
   const baseUrl = hostname ? `${protocol}://${hostname}` : undefined
 
+  const refererPathname = (() => {
+    if (!referer) {
+      return undefined
+    }
+
+    try {
+      return new URL(referer).pathname
+    } catch {
+      return undefined
+    }
+  })()
+
+  const countryCode = refererPathname
+    ?.split("/")
+    .filter(Boolean)
+    .at(0)
+
+  const localizedAccountSubscriptionsPath = countryCode
+    ? `/${countryCode}/account/subscriptions`
+    : "/account/subscriptions"
+  const localizedPlansPath = countryCode ? `/${countryCode}/plans` : "/plans"
+
   const successUrl =
     process.env.STRIPE_SUBSCRIPTION_SUCCESS_URL ||
-    (baseUrl ? `${baseUrl}/account/subscriptions` : undefined)
+    (baseUrl ? `${baseUrl}${localizedAccountSubscriptionsPath}` : undefined)
   const cancelUrl =
     process.env.STRIPE_SUBSCRIPTION_CANCEL_URL ||
-    (baseUrl ? `${baseUrl}/plans` : undefined)
+    (baseUrl ? `${baseUrl}${localizedPlansPath}` : undefined)
 
   if (!successUrl || !cancelUrl) {
     throw new MedusaError(
