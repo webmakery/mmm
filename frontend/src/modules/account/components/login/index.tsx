@@ -19,7 +19,7 @@ const LoginSubmitButton = ({
 
   return (
     <Button
-      className="w-full"
+      className="h-11 w-full rounded-md text-sm font-medium"
       type="submit"
       isLoading={pending}
       data-testid={dataTestId}
@@ -33,21 +33,27 @@ const Login = ({ setCurrentView }: Props) => {
   const [message, formAction] = useActionState(login, null)
 
   return (
-    <div className="m-4 flex w-full max-w-[280px] flex-col items-center" data-testid="login-page">
-      <div className="mb-4 flex flex-col items-center">
-        <Heading>Welcome back</Heading>
-        <Text size="small" className="text-ui-fg-subtle text-center">
+    <div
+      className="bg-ui-bg-base border-ui-border-base shadow-elevation-card flex w-full flex-col rounded-xl border p-6 small:p-8"
+      data-testid="login-page"
+    >
+      <div className="mb-6 flex flex-col gap-y-2 text-center">
+        <Heading level="h1" className="text-xl leading-8">
+          Welcome back
+        </Heading>
+        <Text size="small" className="text-ui-fg-subtle">
           Sign in to continue to your account.
         </Text>
       </div>
 
-      <form action={formAction} className="flex w-full flex-col gap-y-6">
-        <div className="flex flex-col gap-y-1">
+      <form action={formAction} className="flex w-full flex-col gap-y-5">
+        <div className="flex flex-col gap-y-4">
           <div className="flex flex-col gap-y-2">
             <Label size="small" weight="plus" htmlFor="email">
               Email
             </Label>
             <Input
+              className="h-11"
               id="email"
               name="email"
               type="email"
@@ -61,6 +67,7 @@ const Login = ({ setCurrentView }: Props) => {
               Password
             </Label>
             <Input
+              className="h-11"
               id="password"
               name="password"
               type="password"
@@ -79,7 +86,7 @@ const Login = ({ setCurrentView }: Props) => {
           </div>
         )}
 
-        <div className="flex w-full flex-col gap-y-3">
+        <div className="mt-1 flex w-full flex-col gap-y-3">
           <LoginSubmitButton data-testid="sign-in-button" />
           <span className="text-ui-fg-muted txt-small text-center">
             Don&apos;t have an account?{" "}

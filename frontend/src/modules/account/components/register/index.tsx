@@ -20,7 +20,7 @@ const RegisterSubmitButton = ({
 
   return (
     <Button
-      className="w-full"
+      className="h-11 w-full rounded-md text-sm font-medium"
       type="submit"
       isLoading={pending}
       data-testid={dataTestId}
@@ -34,21 +34,27 @@ const Register = ({ setCurrentView }: Props) => {
   const [message, formAction] = useActionState(signup, null)
 
   return (
-    <div className="m-4 flex w-full max-w-[360px] flex-col items-center" data-testid="register-page">
-      <div className="mb-4 flex flex-col items-center">
-        <Heading>Create your account</Heading>
-        <Text size="small" className="text-ui-fg-subtle text-center">
+    <div
+      className="bg-ui-bg-base border-ui-border-base shadow-elevation-card flex w-full flex-col rounded-xl border p-6 small:p-8"
+      data-testid="register-page"
+    >
+      <div className="mb-6 flex flex-col gap-y-2 text-center">
+        <Heading level="h1" className="text-xl leading-8">
+          Create your account
+        </Heading>
+        <Text size="small" className="text-ui-fg-subtle">
           Enter your details to get started.
         </Text>
       </div>
 
-      <form className="flex w-full flex-col gap-y-6" action={formAction}>
-        <div className="flex flex-col gap-y-1">
+      <form className="flex w-full flex-col gap-y-5" action={formAction}>
+        <div className="flex flex-col gap-y-4">
           <div className="flex flex-col gap-y-2">
             <Label size="small" weight="plus" htmlFor="first_name">
               First name
             </Label>
             <Input
+              className="h-11"
               id="first_name"
               name="first_name"
               required
@@ -62,6 +68,7 @@ const Register = ({ setCurrentView }: Props) => {
               Last name
             </Label>
             <Input
+              className="h-11"
               id="last_name"
               name="last_name"
               required
@@ -75,6 +82,7 @@ const Register = ({ setCurrentView }: Props) => {
               Email
             </Label>
             <Input
+              className="h-11"
               id="email"
               name="email"
               required
@@ -89,6 +97,7 @@ const Register = ({ setCurrentView }: Props) => {
               Phone
             </Label>
             <Input
+              className="h-11"
               id="phone"
               name="phone"
               type="tel"
@@ -102,6 +111,7 @@ const Register = ({ setCurrentView }: Props) => {
               Password
             </Label>
             <Input
+              className="h-11"
               id="password"
               name="password"
               required
@@ -120,7 +130,7 @@ const Register = ({ setCurrentView }: Props) => {
           </div>
         )}
 
-        <div className="flex w-full flex-col gap-y-3">
+        <div className="mt-1 flex w-full flex-col gap-y-3">
           <Text size="small" className="text-ui-fg-muted text-center">
             By creating an account, you agree to our{" "}
             <LocalizedClientLink
