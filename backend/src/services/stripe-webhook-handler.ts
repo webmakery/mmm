@@ -16,7 +16,11 @@ type ResolveContainer = {
   resolve: <T = unknown>(key: string) => T
 }
 
-const checkoutSubscriptionByCustomer = new Map<string, string>()
+const checkoutSubscriptionByCustomer = new Map<
+  string,
+  { subscriptionId: string; observedAtMs: number }
+>()
+const CHECKOUT_SUBSCRIPTION_HINT_TTL_MS = 1000 * 60 * 60
 
 const getStripeCustomerId = (
   value: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined
@@ -39,6 +43,60 @@ const getStripeSubscriptionIdFromInvoice = (invoice: Stripe.Invoice): string | u
       : invoice.subscription?.id
 
   return subscriptionId || undefined
+}
+
+const getCheckoutSubscriptionHint = (stripeCustomerId: string, nowMs: number) => {
+  const hint = checkoutSubscriptionByCustomer.get(stripeCustomerId)
+
+  if (!hint) {
+    return undefined
+  }
+
+  if (nowMs - hint.observedAtMs > CHECKOUT_SUBSCRIPTION_HINT_TTL_MS) {
+    checkoutSubscriptionByCustomer.delete(stripeCustomerId)
+    return undefined
+  }
+
+  return hint.subscriptionId
+}
+
+const shouldSkipProvisioning = (status: string | null | undefined) =>
+  ["active", "provisioning", "deleting", "deleted"].includes(String(status || ""))
+
+const triggerProvisioningIfNeeded = async ({
+  container,
+  infrastructure,
+  logger,
+}: {
+  container: ResolveContainer
+  infrastructure: { id: string; status?: string | null; stripe_price_id?: string | null }
+  logger: Logger
+}) => {
+  logger.info(
+    `[stripe-webhook] plan mapping preflight infrastructure_id=${infrastructure.id} stripe_price_id=${infrastructure.stripe_price_id || "n/a"} available=${!!(infrastructure.stripe_price_id && parsePlanMapping()[infrastructure.stripe_price_id])}`
+  )
+
+  if (!infrastructure.stripe_price_id) {
+    logger.warn(
+      `[stripe-webhook] Cannot provision infrastructure ${infrastructure.id}: missing stripe_price_id`
+    )
+    return
+  }
+
+  if (shouldSkipProvisioning(infrastructure.status)) {
+    logger.info(
+      `[stripe-webhook] Skipping provisioning for infrastructure ${infrastructure.id} with status ${infrastructure.status}`
+    )
+    return
+  }
+
+  logger.info(`[stripe-webhook] provisioning workflow start infrastructure_id=${infrastructure.id}`)
+
+  await provisionSubscriptionInfrastructureWorkflow(container as any).run({
+    input: {
+      infrastructure_id: infrastructure.id,
+    },
+  })
 }
 
 const parsePlanMapping = (): Record<string, HetznerPlanConfig> => {
@@ -259,7 +317,7 @@ const handleInvoicePaid = async (
   const invoiceCustomerId = getStripeCustomerId(invoice.customer)
   const fallbackSubscriptionId =
     !extractedSubscriptionId && invoiceCustomerId
-      ? checkoutSubscriptionByCustomer.get(invoiceCustomerId)
+      ? getCheckoutSubscriptionHint(invoiceCustomerId, event.created * 1000)
       : undefined
   const stripeSubscriptionId = extractedSubscriptionId || fallbackSubscriptionId
   const usedFallbackMapping = !extractedSubscriptionId && !!fallbackSubscriptionId
@@ -340,34 +398,10 @@ const handleInvoicePaid = async (
     })
   }
 
-  logger.info(
-    `[stripe-webhook] plan mapping preflight infrastructure_id=${infrastructure.id} stripe_price_id=${infrastructure.stripe_price_id || "n/a"} available=${!!(infrastructure.stripe_price_id && parsePlanMapping()[infrastructure.stripe_price_id])}`
-  )
-
-  if (!infrastructure.stripe_price_id) {
-    logger.warn(
-      `[stripe-webhook] Cannot provision infrastructure ${infrastructure.id}: missing stripe_price_id`
-    )
-    return
-  }
-
-  if (
-    ["active", "provisioning", "deleting", "deleted"].includes(
-      String(infrastructure.status || "")
-    )
-  ) {
-    logger.info(
-      `[stripe-webhook] Skipping provisioning for infrastructure ${infrastructure.id} with status ${infrastructure.status}`
-    )
-    return
-  }
-
-  logger.info(`[stripe-webhook] provisioning workflow start infrastructure_id=${infrastructure.id}`)
-
-  await provisionSubscriptionInfrastructureWorkflow(container as any).run({
-    input: {
-      infrastructure_id: infrastructure.id,
-    },
+  await triggerProvisioningIfNeeded({
+    container,
+    infrastructure,
+    logger,
   })
 }
 
@@ -437,7 +471,10 @@ export const processStripeWebhookEvent = async ({
       const orderId = metadata.order_id || metadata.main_order_id
 
       if (sessionCustomerId && sessionSubscriptionId) {
-        checkoutSubscriptionByCustomer.set(sessionCustomerId, sessionSubscriptionId)
+        checkoutSubscriptionByCustomer.set(sessionCustomerId, {
+          subscriptionId: sessionSubscriptionId,
+          observedAtMs: event.created * 1000,
+        })
       }
 
       logger.info(
@@ -471,6 +508,12 @@ export const processStripeWebhookEvent = async ({
         logger.info(
           `[stripe-webhook] checkout.session.completed subscription_infrastructure_created=true infrastructure_id=${infrastructure.id} checkout_session_id=${session.id}`
         )
+
+        await triggerProvisioningIfNeeded({
+          container,
+          infrastructure,
+          logger,
+        })
       } catch (e) {
         const message = e instanceof Error ? e.message : "Unknown error"
         logger.warn(
@@ -492,6 +535,11 @@ export const processStripeWebhookEvent = async ({
 
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription
+      const stripeCustomerId = getStripeCustomerId(subscription.customer)
+
+      if (stripeCustomerId) {
+        checkoutSubscriptionByCustomer.delete(stripeCustomerId)
+      }
 
       if (subscription.cancel_at_period_end) {
         logger.info(
@@ -508,6 +556,12 @@ export const processStripeWebhookEvent = async ({
 
     case "customer.subscription.deleted": {
       const subscription = event.data.object as Stripe.Subscription
+      const stripeCustomerId = getStripeCustomerId(subscription.customer)
+
+      if (stripeCustomerId) {
+        checkoutSubscriptionByCustomer.delete(stripeCustomerId)
+      }
+
       await handleSubscriptionEnded(container, subscription.id, logger)
       break
     }
