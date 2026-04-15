@@ -1,9 +1,9 @@
+import { Button, Container } from "@medusajs/ui"
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import SubscriptionsList from "@modules/account/components/subscriptions-list"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import { Button } from "@medusajs/ui"
 import {
   CustomerSubscription,
   getCustomerSubscriptions,
@@ -58,7 +58,7 @@ export default async function SubscriptionsPage({
   }
 
   return (
-    <div className="w-full" data-testid="subscriptions-page-wrapper">
+    <Container className="w-full" data-testid="subscriptions-page-wrapper">
       <div className="mb-8 flex flex-col gap-y-4">
         <h1 className="text-2xl-semi">Subscriptions</h1>
         <p className="text-base-regular">
@@ -88,6 +88,6 @@ export default async function SubscriptionsPage({
         </div>
       )}
       <SubscriptionsList subscriptions={subscriptions} />
-    </div>
+    </Container>
   )
 }

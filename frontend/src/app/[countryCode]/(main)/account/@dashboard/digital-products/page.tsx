@@ -1,3 +1,4 @@
+import { Container } from "@medusajs/ui"
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 
@@ -17,7 +18,7 @@ export default async function DigitalProductsPage() {
   }
 
   return (
-    <div className="w-full" data-testid="digital-products-page-wrapper">
+    <Container className="w-full" data-testid="digital-products-page-wrapper">
       <div className="mb-8 flex flex-col gap-y-4">
         <h1 className="text-2xl-semi">Digital Products</h1>
         <p className="text-base-regular">
@@ -25,6 +26,6 @@ export default async function DigitalProductsPage() {
         </p>
       </div>
       <DigitalProductsList digitalProducts={digitalProducts} />
-    </div>
+    </Container>
   )
 }

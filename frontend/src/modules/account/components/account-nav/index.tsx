@@ -108,7 +108,7 @@ const AccountNav = ({
                     data-testid="digital-products-link"
                   >
                     <div className="flex items-center gap-x-2">
-                      <Photo />
+                      <Photo size={20} />
                       <span>Digital Products</span>
                     </div>
                     <ChevronDown className="transform -rotate-90" />
@@ -122,7 +122,7 @@ const AccountNav = ({
                     data-testid="logout-button"
                   >
                     <div className="flex items-center gap-x-2">
-                      <ArrowRightOnRectangle />
+                      <ArrowRightOnRectangle size={20} />
                       <span>Log out</span>
                     </div>
                     <ChevronDown className="transform -rotate-90" />
