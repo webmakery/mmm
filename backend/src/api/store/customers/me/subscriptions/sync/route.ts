@@ -41,25 +41,6 @@ const mapStripeStatusToSubscriptionStatus = (
   return SubscriptionStatus.ACTIVE
 }
 
-const getStripeSubscriptionSyncFields = (stripeSubscription: Stripe.Subscription) => {
-  const localStatus =
-    stripeSubscription.status === "canceled"
-      ? SubscriptionStatus.CANCELED
-      : mapStripeStatusToSubscriptionStatus(stripeSubscription.status)
-
-  return {
-    status: localStatus,
-    stripe_status: stripeSubscription.status,
-    cancel_at_period_end: !!stripeSubscription.cancel_at_period_end,
-    canceled_at: stripeSubscription.canceled_at
-      ? new Date(stripeSubscription.canceled_at * 1000)
-      : null,
-    current_period_end: stripeSubscription.current_period_end
-      ? new Date(stripeSubscription.current_period_end * 1000)
-      : null,
-  }
-}
-
 export const POST = async (
   req: AuthenticatedMedusaRequest<z.infer<typeof PostStoreSyncSubscriptionSchema>>,
   res: MedusaResponse
@@ -152,34 +133,17 @@ export const POST = async (
 
   const { data: existingSubscriptions } = await query.graph({
     entity: "subscription",
-    fields: ["id", "status", "stripe_subscription_id", "stripe_status"],
+    fields: ["id", "stripe_subscription_id"],
     filters: {
       stripe_subscription_id: [stripeSubscriptionId],
     },
   })
 
-  const syncFields = getStripeSubscriptionSyncFields(stripeSubscription)
-  const subscriptionModuleService: SubscriptionModuleService = req.scope.resolve(
-    SUBSCRIPTION_MODULE
-  )
-
   if (existingSubscriptions.length) {
-    await subscriptionModuleService.updateSubscriptions({
-      id: existingSubscriptions[0].id,
-      ...syncFields,
-    })
-
-    console.info(
-      `[subscription-sync] stripe_subscription_id=${stripeSubscription.id} stripe_status=${stripeSubscription.status} cancel_at_period_end=${syncFields.cancel_at_period_end} canceled_at=${syncFields.canceled_at?.toISOString() || "null"} local_persisted_status=${syncFields.status}`
-    )
-
     await ensureCustomerSubscriptionLink(existingSubscriptions[0].id)
 
     res.json({
-      subscription: {
-        ...existingSubscriptions[0],
-        ...syncFields,
-      },
+      subscription: existingSubscriptions[0],
     })
     return
   }
@@ -201,10 +165,13 @@ export const POST = async (
 
   const period = recurring.interval_count
 
+  const subscriptionModuleService: SubscriptionModuleService =
+    req.scope.resolve(SUBSCRIPTION_MODULE)
+
   const createdSubscription = await subscriptionModuleService.createSubscriptions({
     interval,
     period,
-    ...syncFields,
+    status: mapStripeStatusToSubscriptionStatus(stripeSubscription.status),
     subscription_date: new Date(stripeSubscription.start_date * 1000),
     metadata: {
       checkout_session_id: checkoutSession.id,
@@ -222,10 +189,6 @@ export const POST = async (
         ? firstSubscriptionItem.price.product
         : firstSubscriptionItem?.price?.product?.id,
   })
-
-  console.info(
-    `[subscription-sync] stripe_subscription_id=${stripeSubscription.id} stripe_status=${stripeSubscription.status} cancel_at_period_end=${syncFields.cancel_at_period_end} canceled_at=${syncFields.canceled_at?.toISOString() || "null"} local_persisted_status=${syncFields.status}`
-  )
 
   await ensureCustomerSubscriptionLink(createdSubscription[0].id)
 
