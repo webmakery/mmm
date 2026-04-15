@@ -6,6 +6,7 @@ import {
 } from "@medusajs/framework/http"
 import { createFindParams } from "@medusajs/medusa/api/utils/validators"
 import multer from "multer"
+import { z } from "zod"
 import { UpsertProductBuilderSchema } from "./admin/products/[id]/builder/route"
 import { GetComplementaryProductsSchema } from "./admin/products/complementary/route"
 import { PostInvoiceConfgSchema } from "./admin/invoice-config/route"
@@ -21,6 +22,19 @@ const upload = multer({ storage: multer.memoryStorage() })
 
 export default defineMiddlewares({
   routes: [
+    {
+      matcher: "/product-feed",
+      methods: ["GET"],
+      middlewares: [
+        validateAndTransformQuery(
+          z.object({
+            currency_code: z.string(),
+            country_code: z.string(),
+          }),
+          {}
+        ),
+      ],
+    },
     {
       matcher: "/admin/subscriptions",
       methods: ["GET"],
