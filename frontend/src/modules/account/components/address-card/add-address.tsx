@@ -64,7 +64,7 @@ const AddAddress = ({
         <form action={formAction}>
           <Modal.Body>
             <div className="flex flex-col gap-y-2">
-              <div className="grid grid-cols-2 gap-x-2">
+              <div className="grid grid-cols-1 gap-y-2 small:grid-cols-2 small:gap-x-2 small:gap-y-0">
                 <Input
                   label="First name"
                   name="first_name"
@@ -99,7 +99,7 @@ const AddAddress = ({
                 autoComplete="address-line2"
                 data-testid="address-2-input"
               />
-              <div className="grid grid-cols-[144px_1fr] gap-x-2">
+              <div className="grid grid-cols-1 gap-y-2 small:grid-cols-[144px_1fr] small:gap-x-2 small:gap-y-0">
                 <Input
                   label="Postal code"
                   name="postal_code"
