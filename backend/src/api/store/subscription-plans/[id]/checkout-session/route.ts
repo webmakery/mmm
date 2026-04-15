@@ -1,4 +1,7 @@
-import { MedusaRequest, MedusaResponse } from "@medusajs/framework"
+import {
+  AuthenticatedMedusaRequest,
+  MedusaResponse,
+} from "@medusajs/framework"
 import {
   ContainerRegistrationKeys,
   MedusaError,
@@ -6,12 +9,17 @@ import {
 import Stripe from "stripe"
 
 export const POST = async (
-  req: MedusaRequest,
+  req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) => {
-  const actorId = (
-    req as MedusaRequest & { auth_context?: { actor_id?: string } }
-  ).auth_context?.actor_id
+  const actorId = req.auth_context.actor_id
+
+  if (!actorId) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_ALLOWED,
+      "You must be authenticated to subscribe to a plan."
+    )
+  }
 
   const stripeApiKey = process.env.STRIPE_API_KEY
 
@@ -49,25 +57,30 @@ export const POST = async (
     )
   }
 
-  const customer = actorId
-    ? (
-        await query.graph({
-          entity: "customer",
-          fields: [
-            "id",
-            "email",
-            "first_name",
-            "last_name",
-            "subscriptions.stripe_customer_id",
-          ],
-          filters: {
-            id: [actorId],
-          },
-        })
-      ).data[0]
-    : undefined
+  const {
+    data: [customer],
+  } = await query.graph({
+    entity: "customer",
+    fields: [
+      "id",
+      "email",
+      "first_name",
+      "last_name",
+      "subscriptions.stripe_customer_id",
+    ],
+    filters: {
+      id: [actorId],
+    },
+  })
 
-  const stripeCustomerId = customer?.subscriptions?.find(
+  if (!customer?.email) {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      "Customer email is required to start Stripe checkout."
+    )
+  }
+
+  const stripeCustomerId = customer.subscriptions?.find(
     (subscription) =>
       typeof (subscription as Record<string, unknown> | null)?.stripe_customer_id ===
         "string" &&
@@ -139,10 +152,10 @@ export const POST = async (
       },
     ],
     customer: stripeCustomerId || undefined,
-    customer_email: stripeCustomerId ? undefined : customer?.email,
+    customer_email: stripeCustomerId ? undefined : customer.email,
     metadata: {
-      customer_id: customer?.id || "",
-      customer_email: customer?.email || "",
+      customer_id: customer.id,
+      customer_email: customer.email,
       subscription_plan_id: subscriptionPlan.id,
       stripe_price_id: subscriptionPlan.stripe_price_id,
       stripe_product_id: subscriptionPlan.stripe_product_id,
