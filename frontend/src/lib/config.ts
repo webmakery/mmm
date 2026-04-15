@@ -8,32 +8,52 @@ if (process.env.MEDUSA_BACKEND_URL) {
   MEDUSA_BACKEND_URL = process.env.MEDUSA_BACKEND_URL
 }
 
-export const sdk = new Medusa({
-  baseUrl: MEDUSA_BACKEND_URL,
-  debug: process.env.NODE_ENV === "development",
-  publishableKey: process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY,
-})
+const createBaseMedusaClient = () =>
+  new Medusa({
+    baseUrl: MEDUSA_BACKEND_URL,
+    debug: process.env.NODE_ENV === "development",
+    publishableKey: process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY,
+  })
 
-const originalFetch = sdk.client.fetch.bind(sdk.client)
+const withLocaleHeader = <T extends Medusa>(client: T): T => {
+  const originalFetch = client.client.fetch.bind(client.client)
 
-sdk.client.fetch = async <T>(
-  input: FetchInput,
-  init?: FetchArgs
-): Promise<T> => {
-  const headers = init?.headers ?? {}
-  let localeHeader: Record<string, string | null> | undefined
-  try {
-    localeHeader = await getLocaleHeader()
-    headers["x-medusa-locale"] ??= localeHeader["x-medusa-locale"]
-  } catch {}
+  client.client.fetch = async <R>(
+    input: FetchInput,
+    init?: FetchArgs
+  ): Promise<R> => {
+    const headers = init?.headers ?? {}
+    let localeHeader: Record<string, string | null> | undefined
 
-  const newHeaders = {
-    ...localeHeader,
-    ...headers,
+    try {
+      localeHeader = await getLocaleHeader()
+      headers["x-medusa-locale"] ??= localeHeader["x-medusa-locale"]
+    } catch {}
+
+    return originalFetch(input, {
+      ...init,
+      headers: {
+        ...localeHeader,
+        ...headers,
+      },
+    })
   }
-  init = {
-    ...init,
-    headers: newHeaders,
-  }
-  return originalFetch(input, init)
+
+  return client
 }
+
+/**
+ * Public store client (publishable API key only).
+ * Never attach customer auth headers here by default.
+ */
+export const publicSdk = withLocaleHeader(createBaseMedusaClient())
+
+/**
+ * Authenticated client factory (publishable API key + optional bearer token).
+ * We intentionally create a fresh instance per request to avoid cross-request
+ * header leakage from mutable SDK auth state.
+ */
+export const createAuthenticatedSdk = () => withLocaleHeader(createBaseMedusaClient())
+
+// Backwards-compatible alias used by existing data modules.
+export const sdk = publicSdk

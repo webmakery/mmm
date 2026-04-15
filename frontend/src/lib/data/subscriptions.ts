@@ -1,9 +1,12 @@
 "use server"
 
-import { sdk } from "@lib/config"
-import { getAuthHeaders, getCacheOptions } from "@lib/data/cookies"
+import { getCacheOptions } from "@lib/data/cookies"
 import medusaError from "@lib/util/medusa-error"
 import { redirect } from "next/navigation"
+import {
+  getAuthenticatedStoreClient,
+  getPublicStoreClient,
+} from "./medusa-store-client"
 
 export type CustomerSubscription = {
   id: string
@@ -18,20 +21,22 @@ export type CustomerSubscription = {
 }
 
 export const getCustomerSubscriptions = async () => {
-  const headers = {
-    ...(await getAuthHeaders()),
+  const authenticatedClient = await getAuthenticatedStoreClient()
+
+  if (!authenticatedClient) {
+    return []
   }
 
   const next = {
     ...(await getCacheOptions("subscriptions")),
   }
 
-  return sdk.client
+  return authenticatedClient.client
     .fetch<{ subscriptions: CustomerSubscription[] }>(
       "/store/customers/me/subscriptions",
       {
         method: "GET",
-        headers,
+        headers: authenticatedClient.headers,
         next,
         cache: "no-cache",
       }
@@ -41,14 +46,16 @@ export const getCustomerSubscriptions = async () => {
 }
 
 export const requestSubscriptionPortalUrl = async () => {
-  const headers = {
-    ...(await getAuthHeaders()),
+  const authenticatedClient = await getAuthenticatedStoreClient()
+
+  if (!authenticatedClient) {
+    throw new Error("Authentication required")
   }
 
-  return sdk.client
+  return authenticatedClient.client
     .fetch<{ url: string }>("/store/customers/me/subscriptions/portal", {
       method: "POST",
-      headers,
+      headers: authenticatedClient.headers,
     })
     .then(({ url }) => url)
     .catch((err) => medusaError(err))
@@ -60,17 +67,29 @@ export const manageSubscription = async () => {
   redirect(url)
 }
 
-
 export const syncSubscriptionFromCheckoutSession = async (sessionId: string) => {
-  const authHeaders = await getAuthHeaders()
-  const headers = Object.keys(authHeaders).length ? authHeaders : undefined
+  const authenticatedClient = await getAuthenticatedStoreClient()
 
-  return sdk.client
+  if (authenticatedClient) {
+    return authenticatedClient.client
+      .fetch<{ subscription: CustomerSubscription }>(
+        "/store/subscriptions/sync",
+        {
+          method: "POST",
+          headers: authenticatedClient.headers,
+          body: {
+            session_id: sessionId,
+          },
+        }
+      )
+      .catch((err) => medusaError(err))
+  }
+
+  return getPublicStoreClient()
     .fetch<{ subscription: CustomerSubscription }>(
       "/store/subscriptions/sync",
       {
         method: "POST",
-        headers,
         body: {
           session_id: sessionId,
         },

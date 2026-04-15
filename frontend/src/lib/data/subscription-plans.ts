@@ -1,10 +1,12 @@
 "use server"
 
-import { sdk } from "@lib/config"
-import { getAuthHeaders } from "@lib/data/cookies"
 import medusaError from "@lib/util/medusa-error"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import {
+  getAuthenticatedStoreClient,
+  getPublicStoreClient,
+} from "./medusa-store-client"
 
 export type StoreSubscriptionPlan = {
   id: string
@@ -17,7 +19,7 @@ export type StoreSubscriptionPlan = {
 }
 
 export const listSubscriptionPlans = async () => {
-  return sdk.client
+  return getPublicStoreClient()
     .fetch<{ subscription_plans: StoreSubscriptionPlan[] }>(
       "/store/subscription-plans",
       {
@@ -30,18 +32,25 @@ export const listSubscriptionPlans = async () => {
 }
 
 export const requestPlanCheckoutUrl = async (planId: string) => {
-  const authHeaders = await getAuthHeaders()
-  const requestHeaders =
-    Object.keys(authHeaders).length > 0 ? authHeaders : undefined
+  const authenticatedClient = await getAuthenticatedStoreClient()
 
-  return sdk.client
-    .fetch<{ url: string }>(
-      `/store/subscription-plans/${planId}/checkout-session`,
-      {
-        method: "POST",
-        headers: requestHeaders,
-      }
-    )
+  if (authenticatedClient) {
+    return authenticatedClient.client
+      .fetch<{ url: string }>(
+        `/store/subscription-plans/${planId}/checkout-session`,
+        {
+          method: "POST",
+          headers: authenticatedClient.headers,
+        }
+      )
+      .then(({ url }) => url)
+      .catch((err) => medusaError(err))
+  }
+
+  return getPublicStoreClient()
+    .fetch<{ url: string }>(`/store/subscription-plans/${planId}/checkout-session`, {
+      method: "POST",
+    })
     .then(({ url }) => url)
     .catch((err) => medusaError(err))
 }

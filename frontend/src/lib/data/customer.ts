@@ -1,6 +1,6 @@
 "use server"
 
-import { sdk } from "@lib/config"
+import { createAuthenticatedSdk, sdk } from "@lib/config"
 import medusaError from "@lib/util/medusa-error"
 import { HttpTypes } from "@medusajs/types"
 import { revalidateTag } from "next/cache"
@@ -19,7 +19,7 @@ export const retrieveCustomer =
   async (): Promise<HttpTypes.StoreCustomer | null> => {
     const authHeaders = await getAuthHeaders()
 
-    if (!authHeaders) return null
+    if (!Object.keys(authHeaders).length) return null
 
     const headers = {
       ...authHeaders,
@@ -69,7 +69,9 @@ export async function signup(_currentState: unknown, formData: FormData) {
   }
 
   try {
-    const token = await sdk.auth.register("customer", "emailpass", {
+    const authSdk = createAuthenticatedSdk()
+
+    const token = await authSdk.auth.register("customer", "emailpass", {
       email: customerForm.email,
       password: password,
     })
@@ -86,7 +88,7 @@ export async function signup(_currentState: unknown, formData: FormData) {
       headers
     )
 
-    const loginToken = await sdk.auth.login("customer", "emailpass", {
+    const loginToken = await authSdk.auth.login("customer", "emailpass", {
       email: customerForm.email,
       password,
     })
@@ -109,7 +111,9 @@ export async function login(_currentState: unknown, formData: FormData) {
   const password = formData.get("password") as string
 
   try {
-    await sdk.auth
+    const authSdk = createAuthenticatedSdk()
+
+    await authSdk.auth
       .login("customer", "emailpass", { email, password })
       .then(async (token) => {
         await setAuthToken(token as string)
@@ -128,7 +132,9 @@ export async function login(_currentState: unknown, formData: FormData) {
 }
 
 export async function signout(countryCode: string) {
-  await sdk.auth.logout()
+  const authSdk = createAuthenticatedSdk()
+
+  await authSdk.auth.logout()
 
   await removeAuthToken()
 
