@@ -24,7 +24,7 @@ export default function TransferRequestForm() {
 
   return (
     <div className="flex flex-col gap-y-4 w-full">
-      <div className="grid sm:grid-cols-2 items-center gap-x-8 gap-y-4 w-full">
+      <div className="grid small:grid-cols-2 items-center gap-x-8 gap-y-4 w-full">
         <div className="flex flex-col gap-y-1">
           <Heading level="h3" className="text-lg text-neutral-950">
             Order transfers

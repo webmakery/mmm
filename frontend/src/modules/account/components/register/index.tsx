@@ -34,7 +34,7 @@ const Register = ({ setCurrentView }: Props) => {
   const [message, formAction] = useActionState(signup, null)
 
   return (
-    <div className="m-4 flex w-full max-w-[280px] flex-col items-center" data-testid="register-page">
+    <div className="m-4 flex w-full max-w-[360px] flex-col items-center" data-testid="register-page">
       <div className="mb-4 flex flex-col items-center">
         <Heading>Create your account</Heading>
         <Text size="small" className="text-ui-fg-subtle text-center">
