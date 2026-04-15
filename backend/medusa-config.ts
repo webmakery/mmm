@@ -27,6 +27,9 @@ module.exports = defineConfig({
       resolve: "./src/modules/subscription-plan",
     },
     {
+      resolve: "./src/modules/subscription-infrastructure",
+    },
+    {
       resolve: "@medusajs/fulfillment",
       options: {
         providers: [

@@ -6,6 +6,7 @@ import {
 } from "@medusajs/framework/http"
 import { createFindParams } from "@medusajs/medusa/api/utils/validators"
 import multer from "multer"
+import bodyParser from "body-parser"
 import { z } from "zod"
 import { UpsertProductBuilderSchema } from "./admin/products/[id]/builder/route"
 import { GetComplementaryProductsSchema } from "./admin/products/complementary/route"
@@ -26,6 +27,11 @@ const upload = multer({ storage: multer.memoryStorage() })
 
 export default defineMiddlewares({
   routes: [
+    {
+      matcher: "/hooks/stripe",
+      methods: ["POST"],
+      middlewares: [bodyParser.raw({ type: "application/json" })],
+    },
     {
       matcher: "/product-feed",
       methods: ["GET"],
