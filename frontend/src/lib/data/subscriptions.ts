@@ -8,6 +8,10 @@ import { redirect } from "next/navigation"
 export type CustomerSubscription = {
   id: string
   status: string
+  stripe_status?: string | null
+  cancel_at_period_end?: boolean | null
+  canceled_at?: string | null
+  current_period_end?: string | null
   interval?: string | null
   period?: number | null
   subscription_date?: string | null

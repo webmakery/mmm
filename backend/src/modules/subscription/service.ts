@@ -28,6 +28,10 @@ class SubscriptionModuleService extends MedusaService({
 
         return await super.createSubscriptions({
           ...subscription,
+          stripe_status: subscription.stripe_status ?? null,
+          cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+          canceled_at: subscription.canceled_at ?? null,
+          current_period_end: subscription.current_period_end ?? null,
           subscription_date: subscriptionDate,
           last_order_date: subscriptionDate,
           next_order_date: this.getNextOrderDate({
