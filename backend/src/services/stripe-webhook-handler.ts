@@ -123,6 +123,10 @@ const ensureInfrastructureRecord = async ({
   const planMap = parsePlanMapping()
   const config = planMap[stripePriceId]
 
+  logger.info(
+    `[stripe-webhook] resolved plan mapping stripe_price_id=${stripePriceId} server_type=${config?.server_type || "n/a"} image=${config?.image || "n/a"} location=${config?.location || "n/a"}`
+  )
+
   if (!config) {
     throw new Error(`No Hetzner plan mapping for Stripe price '${stripePriceId}'`)
   }
@@ -201,9 +205,13 @@ const handleInvoicePaid = async (
   const stripeSubscriptionId = getStripeSubscriptionIdFromInvoice(invoice)
 
   if (!stripeSubscriptionId) {
-    logger.warn(`[stripe-webhook] invoice.paid ${event.id} has no subscription id`)
+    logger.warn(`[stripe-webhook] ${event.type} ${event.id} has no subscription id`)
     return
   }
+
+  logger.info(
+    `[stripe-webhook] resolved Stripe subscription ID subscription_id=${stripeSubscriptionId} event_type=${event.type} event_id=${event.id}`
+  )
 
   const query = container.resolve<any>(ContainerRegistrationKeys.QUERY)
   const infraService = container.resolve<SubscriptionInfrastructureModuleService>(
@@ -218,6 +226,10 @@ const handleInvoicePaid = async (
     )
     return
   }
+
+  logger.info(
+    `[stripe-webhook] resolved Medusa order ID order_id=${resolved.orderId} subscription_id=${stripeSubscriptionId}`
+  )
 
   const infrastructure = await ensureInfrastructureRecord({
     infraService,
@@ -311,6 +323,11 @@ export const processStripeWebhookEvent = async ({
     }
 
     case "invoice.paid": {
+      await handleInvoicePaid(container, event, event.data.object as Stripe.Invoice, logger)
+      break
+    }
+
+    case "invoice.payment_succeeded": {
       await handleInvoicePaid(container, event, event.data.object as Stripe.Invoice, logger)
       break
     }

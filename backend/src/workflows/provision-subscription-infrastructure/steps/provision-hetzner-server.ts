@@ -35,7 +35,7 @@ const provisionHetznerServerStep = createStep(
 
     try {
       logger.info(
-        `[infra] Hetzner createServer call infrastructure_id=${infrastructure.id} name=${infrastructure.hetzner_server_name}`
+        `[infra] Hetzner createServer request infrastructure_id=${infrastructure.id} name=${infrastructure.hetzner_server_name} server_type=${infrastructure.hetzner_server_type} image=${infrastructure.hetzner_image} location=${infrastructure.hetzner_region}`
       )
 
       const result = await hetzner.createServer({
@@ -60,6 +60,10 @@ const provisionHetznerServerStep = createStep(
         status: "active",
         last_error: null,
       })
+
+      logger.info(
+        `[infra] created Hetzner server ID server_id=${result.id} infrastructure_id=${infrastructure.id}`
+      )
 
       logger.info(
         `[infra] Provisioned Hetzner server ${result.id} for order ${infrastructure.order_id} and subscription ${infrastructure.stripe_subscription_id}`
