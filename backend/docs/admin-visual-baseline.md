@@ -156,3 +156,68 @@ Before frontend implementation begins:
 4. Work starts only after FE + QA acknowledge the mapping and rejection gate in Section 4.
 
 **Handoff artifact:** this file (`backend/docs/admin-visual-baseline.md`).
+
+---
+
+## 6) QA checklist (pass/fail criteria, required per mapped page + state)
+
+Use this checklist for every mapped frontend target page, comparing against its admin source from Sections 1–2.
+
+| # | Check | Pass criteria | Fail criteria |
+|---|---|---|---|
+| 1 | Reuse only existing UI | No new styles, variants, or components were introduced unless absolutely unavoidable and explicitly approved by FE + QA + Design. | Any new style/variant/component introduced without unavoidable need + explicit approval. |
+| 2 | Visual token parity | Typography, spacing, colors, radii, and shadows match admin source behavior and existing tokens. | Any mismatch in type scale, spacing rhythm, color usage, borders/radius, or elevation/shadows. |
+| 3 | State parity | Hover, focus, disabled, error, and loading states match admin source for equivalent controls and views. | Any state behavior or appearance differs from admin source. |
+| 4 | User-visible text correctness | No internal keys are shown to users (for example translation keys like `app.users.title`). | Any internal key or non-user-facing identifier is rendered in visible UI. |
+
+### QA verdict rule
+- **PASS:** all checklist rows pass for the page/state under review.
+- **FAIL (merge-blocking):** one or more checklist rows fail.
+
+---
+
+## 7) Side-by-side screenshot review (required evidence)
+
+For each mapped page and required state, QA must attach side-by-side screenshots:
+
+- Left: **Admin source** (`/backend` mapped source page/state)
+- Right: **Frontend target** (`/frontend` implementation of same page/state)
+
+Required states (when applicable to the page):
+- default/resting
+- hover
+- focus
+- disabled
+- error
+- loading
+- empty
+- populated/data-present
+- responsive mobile + desktop breakpoints
+
+If a state is not applicable, mark `N/A` with a one-line reason in the review record.
+
+No page is considered reviewed without screenshot evidence.
+
+---
+
+## 8) Signoff requirements before release (required per page)
+
+Each mapped page requires explicit approval from all three roles:
+
+1. **FE signoff** (implementation parity confirmed)
+2. **QA signoff** (checklist + screenshot review complete)
+3. **Design signoff** (visual parity with admin source confirmed)
+
+Release eligibility is granted only when FE + QA + Design signoffs are all present for every in-scope page.
+
+---
+
+## 9) Merge gate policy
+
+Pull request merge is blocked if any of the following is true:
+
+- Any QA checklist item in Section 6 fails for any reviewed page/state.
+- Side-by-side screenshots from Section 7 are missing or incomplete.
+- FE, QA, or Design signoff from Section 8 is missing for any in-scope page.
+
+This merge gate is mandatory and overrides schedule pressure.
