@@ -219,6 +219,13 @@ export default defineMiddlewares({
         validateAndTransformBody(PostStoreSyncSubscriptionSchema),
       ],
     },
+    {
+      matcher: "/store/subscriptions/sync",
+      methods: ["POST"],
+      middlewares: [
+        validateAndTransformBody(PostStoreSyncSubscriptionSchema),
+      ],
+    },
 
     {
       matcher: "/store/customers/me/subscriptions/portal",

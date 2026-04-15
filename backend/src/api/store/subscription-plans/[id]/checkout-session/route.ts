@@ -133,27 +133,39 @@ export const POST = async (
     ? `${successUrl}&session_id={CHECKOUT_SESSION_ID}`
     : `${successUrl}?session_id={CHECKOUT_SESSION_ID}`
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    success_url: successUrlWithSessionId,
-    cancel_url: cancelUrl,
-    line_items: [
-      {
-        price: subscriptionPlan.stripe_price_id,
-        quantity: 1,
+  let checkoutSession: Stripe.Checkout.Session
+
+  try {
+    checkoutSession = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      success_url: successUrlWithSessionId,
+      cancel_url: cancelUrl,
+      line_items: [
+        {
+          price: subscriptionPlan.stripe_price_id,
+          quantity: 1,
+        },
+      ],
+      customer: stripeCustomerId || undefined,
+      customer_email: stripeCustomerId ? undefined : customer?.email || undefined,
+      metadata: {
+        ...(customer?.id ? { customer_id: customer.id } : {}),
+        ...(customer?.email ? { customer_email: customer.email } : {}),
+        subscription_plan_id: subscriptionPlan.id,
+        stripe_price_id: subscriptionPlan.stripe_price_id,
+        stripe_product_id: subscriptionPlan.stripe_product_id,
       },
-    ],
-    customer: stripeCustomerId || undefined,
-    customer_email: stripeCustomerId ? undefined : customer?.email || undefined,
-    customer_creation: customer ? undefined : "always",
-    metadata: {
-      ...(customer?.id ? { customer_id: customer.id } : {}),
-      ...(customer?.email ? { customer_email: customer.email } : {}),
-      subscription_plan_id: subscriptionPlan.id,
-      stripe_price_id: subscriptionPlan.stripe_price_id,
-      stripe_product_id: subscriptionPlan.stripe_product_id,
-    },
-  })
+    })
+  } catch (error) {
+    req.scope.resolve(ContainerRegistrationKeys.LOGGER).error(
+      `Unable to create Stripe checkout session for subscription plan ${subscriptionPlan.id}`,
+      error
+    )
+    throw new MedusaError(
+      MedusaError.Types.UNEXPECTED_STATE,
+      "Unable to start subscription checkout right now. Please try again."
+    )
+  }
 
   if (!checkoutSession.url) {
     throw new MedusaError(

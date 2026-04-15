@@ -67,7 +67,7 @@ export const syncSubscriptionFromCheckoutSession = async (sessionId: string) => 
 
   return sdk.client
     .fetch<{ subscription: CustomerSubscription }>(
-      "/store/customers/me/subscriptions/sync",
+      "/store/subscriptions/sync",
       {
         method: "POST",
         headers,
