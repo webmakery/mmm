@@ -38,10 +38,27 @@ export const POST = async (
   }
 
   const stripe = new Stripe(stripeApiKey)
+  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER)
 
-  const checkoutSession = await stripe.checkout.sessions.retrieve(req.validatedBody.session_id, {
-    expand: ["subscription", "customer"],
-  })
+  let checkoutSession: Stripe.Checkout.Session
+
+  try {
+    checkoutSession = await stripe.checkout.sessions.retrieve(
+      req.validatedBody.session_id,
+      {
+        expand: ["subscription", "customer"],
+      }
+    )
+  } catch (error) {
+    logger.error(
+      `Unable to retrieve Stripe checkout session ${req.validatedBody.session_id}`,
+      error
+    )
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      "We could not verify this checkout session. Please refresh and try again."
+    )
+  }
 
   if (checkoutSession.mode !== "subscription") {
     throw new MedusaError(
@@ -103,19 +120,51 @@ export const POST = async (
       return existingCustomers[0].id
     }
 
-    const customerResult = await createCustomersWorkflow(req.scope).run({
-      input: {
-        customersData: [
-          {
-            email: checkoutEmail,
-            first_name: checkoutSession.customer_details?.name?.split(" ").slice(0, -1).join(" ") || undefined,
-            last_name: checkoutSession.customer_details?.name?.split(" ").slice(-1).join(" ") || undefined,
-            phone: checkoutSession.customer_details?.phone || undefined,
-            has_account: false,
-          },
-        ],
-      },
-    })
+    const firstName =
+      checkoutSession.customer_details?.name?.split(" ").slice(0, -1).join(" ") ||
+      undefined
+    const lastName =
+      checkoutSession.customer_details?.name?.split(" ").slice(-1).join(" ") ||
+      undefined
+
+    let customerResult: { result?: Array<{ id?: string }> }
+
+    try {
+      customerResult = await createCustomersWorkflow(req.scope).run({
+        input: {
+          customersData: [
+            {
+              email: checkoutEmail,
+              first_name: firstName,
+              last_name: lastName,
+              phone: checkoutSession.customer_details?.phone || undefined,
+              has_account: false,
+            },
+          ],
+        },
+      })
+    } catch (error) {
+      logger.warn(
+        `Customer creation during subscription sync failed for ${checkoutEmail}, retrying lookup. ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      )
+
+      const { data: retryCustomers } = await query.graph({
+        entity: "customer",
+        fields: ["id"],
+        filters: { email: [checkoutEmail] },
+      })
+
+      if (retryCustomers.length) {
+        return retryCustomers[0].id
+      }
+
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        "Unable to complete account setup for this subscription right now."
+      )
+    }
 
     const createdCustomer = customerResult.result?.[0]
     if (!createdCustomer?.id) {
@@ -154,18 +203,19 @@ export const POST = async (
 
   const { data: existingSubscriptions } = await query.graph({
     entity: "subscription",
-    fields: ["id", "stripe_subscription_id"],
+    fields: ["id", "stripe_subscription_id", "status", "metadata"],
     filters: {
       stripe_subscription_id: [stripeSubscriptionId],
     },
   })
 
-  if (existingSubscriptions.length) {
-    await ensureCustomerSubscriptionLink(existingSubscriptions[0].id)
+  const existingByStripeSubscription = existingSubscriptions[0]
+  if (existingByStripeSubscription) {
+    await ensureCustomerSubscriptionLink(existingByStripeSubscription.id)
 
     res.json({
       subscription: {
-        ...existingSubscriptions[0],
+        ...existingByStripeSubscription,
         status: mapStripeStatusToDisplayStatus(stripeSubscription.status),
       },
     })

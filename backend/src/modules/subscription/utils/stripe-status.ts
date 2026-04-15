@@ -54,13 +54,22 @@ export const mapStripeStatusToDisplayStatus = (
 export const mapStripeStatusToInternalStatus = (
   status: Stripe.Subscription.Status
 ): SubscriptionStatus => {
+  if (status === "active" || status === "trialing") {
+    return SubscriptionStatus.ACTIVE
+  }
+
   if (status === "canceled" || status === "incomplete_expired") {
     return SubscriptionStatus.CANCELED
   }
 
-  if (status === "past_due" || status === "unpaid" || status === "incomplete") {
+  if (
+    status === "past_due" ||
+    status === "unpaid" ||
+    status === "incomplete" ||
+    status === "paused"
+  ) {
     return SubscriptionStatus.FAILED
   }
 
-  return SubscriptionStatus.ACTIVE
+  return SubscriptionStatus.FAILED
 }
