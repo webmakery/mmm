@@ -159,6 +159,44 @@ Before frontend implementation begins:
 
 ---
 
+## 5.1) Rollout phasing (required order)
+
+Implementation and release scope must be split into these phases:
+
+1. **Phase 1: Login/Signup**
+   - Includes auth entry and account creation equivalents mapped in Section 1A–1B.
+2. **Phase 2: Dashboard shell + core widgets**
+   - Includes shell/header/sidebar/content frame and core reusable list/form widgets from Section 1C.
+3. **Phase 3: Remaining dashboard pages/states**
+   - Includes all remaining mapped account/dashboard routes plus required states in Sections 6–7.
+
+No later phase may be declared complete while earlier phase parity/signoff requirements remain incomplete.
+
+---
+
+## 5.2) Design-adjustment policy (out of scope by default)
+
+Design adjustments are **out of scope** for frontend parity implementation unless both conditions are met:
+
+1. The adjustment is first applied to the mapped backend-admin source pattern.
+2. The same adjustment is then mirrored in frontend targets that map to that source.
+
+Requests to “improve” or “tweak” frontend visuals without an upstream admin-source change are rejected by default.
+
+---
+
+## 5.3) PR mapping traceability (required per PR)
+
+Every implementation PR must explicitly reference the relevant **admin source mapping entry** (Section 1 or Section 2), including:
+
+- frontend route(s) in scope
+- mapped backend-admin source file(s)
+- rollout phase (from Section 5.1)
+
+PRs missing this mapping traceability are merge-blocked.
+
+---
+
 ## 6) QA checklist (pass/fail criteria, required per mapped page + state)
 
 Use this checklist for every mapped frontend target page, comparing against its admin source from Sections 1–2.
@@ -197,6 +235,24 @@ Required states (when applicable to the page):
 If a state is not applicable, mark `N/A` with a one-line reason in the review record.
 
 No page is considered reviewed without screenshot evidence.
+
+---
+
+## 7.1) Deviation log (required and release-blocking)
+
+Maintain a living deviation log for all parity work. Each entry must include:
+
+- mapped frontend target
+- mapped backend-admin source
+- deviation description
+- status (`open`, `approved`, `fixed`)
+- owner and target resolution date
+- approval reference (required if status is `approved`)
+
+Release is blocked if any deviation remains `open`. Before release, every deviation must be either:
+
+1. **Explicitly approved** by FE + QA + Design, or
+2. **Fixed** and re-validated through Sections 6–7 evidence.
 
 ---
 
