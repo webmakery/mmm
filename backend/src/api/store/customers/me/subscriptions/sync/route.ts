@@ -8,12 +8,12 @@ import {
 } from "@medusajs/framework/utils"
 import { z } from "zod"
 import Stripe from "stripe"
-import SubscriptionModuleService from "../../../../../modules/subscription/service"
-import { SUBSCRIPTION_MODULE } from "../../../../../modules/subscription"
+import SubscriptionModuleService from "../../../../../../modules/subscription/service"
+import { SUBSCRIPTION_MODULE } from "../../../../../../modules/subscription"
 import {
   SubscriptionInterval,
   SubscriptionStatus,
-} from "../../../../../modules/subscription/types"
+} from "../../../../../../modules/subscription/types"
 
 export const PostStoreSyncSubscriptionSchema = z.object({
   session_id: z.string().min(1),
