@@ -5,7 +5,9 @@ import Participant from "./models/participant"
 import Message from "./models/message"
 import MessageAttachment from "./models/message-attachment"
 import WhatsappProvider from "./providers/whatsapp/provider"
-import { IngestWhatsappWebhookResult, SendConversationReplyInput } from "./types"
+import MetaProvider from "./providers/meta/provider"
+import { ChannelWebhookResult, InboxChannel } from "./providers/types"
+import { IngestWebhookResult, SendInboxMessageInput } from "./types"
 
 class InboxModuleService extends MedusaService({
   ChannelAccount,
@@ -15,15 +17,17 @@ class InboxModuleService extends MedusaService({
   MessageAttachment,
 }) {
   private whatsappProvider_: WhatsappProvider
+  private metaProvider_: MetaProvider
 
   constructor(...args: any[]) {
     super(...args)
     this.whatsappProvider_ = new WhatsappProvider()
+    this.metaProvider_ = new MetaProvider()
   }
 
-  private async getOrCreateChannelAccount(accountId: string) {
+  private async getOrCreateChannelAccount(input: { channel: InboxChannel; externalAccountId: string }) {
     const [existing] = await this.listChannelAccounts({
-      external_account_id: accountId,
+      external_account_id: input.externalAccountId,
     })
 
     if (existing) {
@@ -31,44 +35,59 @@ class InboxModuleService extends MedusaService({
     }
 
     return this.createChannelAccounts({
-      provider: "whatsapp",
-      external_account_id: accountId,
+      provider: input.channel,
+      external_account_id: input.externalAccountId,
     })
   }
 
   private async getOrCreateConversation(input: {
+    channel: InboxChannel
     accountRefId: string
     customerIdentifier: string
+    customerPhone?: string | null
     customerDisplayName?: string | null
-    providerThreadId?: string | null
+    customerHandle?: string | null
+    externalThreadId?: string | null
+    externalUserId?: string | null
+    pageId?: string | null
+    instagramAccountId?: string | null
     tenantId?: string | null
   }) {
     const [existing] = await this.listConversations({
+      channel: input.channel,
       channel_account_id: input.accountRefId,
-      customer_phone: input.customerIdentifier,
+      customer_identifier: input.customerIdentifier,
       ...(input.tenantId ? { tenant_id: input.tenantId } : {}),
     })
 
     if (existing) {
-      if (input.customerDisplayName && existing.customer_name !== input.customerDisplayName) {
-        await this.updateConversations({
-          id: existing.id,
-          customer_name: input.customerDisplayName,
-        })
-      }
+      await this.updateConversations({
+        id: existing.id,
+        customer_name: input.customerDisplayName || existing.customer_name,
+        customer_phone: input.customerPhone || existing.customer_phone,
+        customer_handle: input.customerHandle || existing.customer_handle,
+        external_thread_id: input.externalThreadId || existing.external_thread_id,
+        external_user_id: input.externalUserId || existing.external_user_id,
+        page_id: input.pageId || existing.page_id,
+        instagram_account_id: input.instagramAccountId || existing.instagram_account_id,
+      })
 
       return existing
     }
 
     const conversation = await this.createConversations({
-      provider: "whatsapp",
-      channel: "whatsapp",
+      provider: input.channel,
+      channel: input.channel,
       tenant_id: input.tenantId || null,
       channel_account_id: input.accountRefId,
       customer_identifier: input.customerIdentifier,
-      customer_phone: input.customerIdentifier,
+      customer_phone: input.customerPhone || input.customerIdentifier,
       customer_name: input.customerDisplayName || null,
-      external_thread_id: input.providerThreadId || null,
+      customer_handle: input.customerHandle || null,
+      external_thread_id: input.externalThreadId || null,
+      external_user_id: input.externalUserId || null,
+      page_id: input.pageId || null,
+      instagram_account_id: input.instagramAccountId || null,
       status: "open",
       unread_count: 0,
       last_message_at: null,
@@ -79,7 +98,7 @@ class InboxModuleService extends MedusaService({
       conversation_id: conversation.id,
       role: "customer",
       external_id: input.customerIdentifier,
-      display_name: input.customerDisplayName || null,
+      display_name: input.customerDisplayName || input.customerHandle || null,
     })
 
     return conversation
@@ -112,16 +131,14 @@ class InboxModuleService extends MedusaService({
     await this.updateConversations(updates)
   }
 
-  async ingestWhatsappWebhook(payload: Record<string, unknown>): Promise<IngestWhatsappWebhookResult> {
-    const parsed = this.whatsappProvider_.parseWebhookPayload(payload)
-
+  private async ingestWebhookPayload(payload: Record<string, unknown>, channelResult: ChannelWebhookResult): Promise<IngestWebhookResult> {
     let inboundMessagesStored = 0
     let statusEventsStored = 0
     let duplicatesSkipped = 0
 
-    for (const inboundMessage of parsed.inboundMessages) {
+    for (const inboundMessage of channelResult.inboundMessages) {
       const [duplicate] = await this.listMessages({
-        whatsapp_message_id: inboundMessage.providerMessageId,
+        external_message_id: inboundMessage.externalMessageId,
       })
 
       if (duplicate) {
@@ -129,27 +146,46 @@ class InboxModuleService extends MedusaService({
         continue
       }
 
-      const channelAccount = await this.getOrCreateChannelAccount(inboundMessage.accountId)
+      const accountExternalId =
+        inboundMessage.accountId ||
+        inboundMessage.pageId ||
+        inboundMessage.instagramAccountId ||
+        inboundMessage.externalThreadId ||
+        inboundMessage.externalUserId
+
+      const channelAccount = await this.getOrCreateChannelAccount({
+        channel: inboundMessage.channel,
+        externalAccountId: accountExternalId,
+      })
+
       const conversation = await this.getOrCreateConversation({
+        channel: inboundMessage.channel,
         accountRefId: channelAccount.id,
-        customerIdentifier: inboundMessage.customerIdentifier,
-        customerDisplayName: inboundMessage.customerDisplayName,
+        customerIdentifier: inboundMessage.externalUserId,
+        customerPhone: inboundMessage.customerPhone,
+        customerDisplayName: inboundMessage.customerName,
+        customerHandle: inboundMessage.customerHandle,
+        externalThreadId: inboundMessage.externalThreadId,
+        externalUserId: inboundMessage.externalUserId,
+        pageId: inboundMessage.pageId,
+        instagramAccountId: inboundMessage.instagramAccountId,
       })
 
       const [customerParticipant] = await this.listParticipants({
         conversation_id: conversation.id,
-        external_id: inboundMessage.customerIdentifier,
+        external_id: inboundMessage.externalUserId,
       })
 
       await this.createMessages({
-        provider: "whatsapp",
-        whatsapp_message_id: inboundMessage.providerMessageId,
-        external_message_id: inboundMessage.providerMessageId,
+        provider: inboundMessage.channel,
+        channel: inboundMessage.channel,
+        whatsapp_message_id: inboundMessage.channel === "whatsapp" ? inboundMessage.externalMessageId : null,
+        external_message_id: inboundMessage.externalMessageId,
         direction: "inbound",
         status: "received",
-        message_type: inboundMessage.messageType,
-        text: inboundMessage.content || null,
-        content: inboundMessage.content || null,
+        message_type: inboundMessage.text ? "text" : "unsupported",
+        text: inboundMessage.text || null,
+        content: inboundMessage.text || null,
         received_at: inboundMessage.timestamp || new Date(),
         raw_payload: inboundMessage.rawPayload,
         conversation_id: conversation.id,
@@ -159,14 +195,14 @@ class InboxModuleService extends MedusaService({
 
       await this.syncConversationState({
         conversationId: conversation.id,
-        text: inboundMessage.content,
+        text: inboundMessage.text,
         timestamp: inboundMessage.timestamp || new Date(),
         incrementUnread: true,
       })
       inboundMessagesStored += 1
     }
 
-    for (const statusEvent of parsed.statusEvents) {
+    for (const statusEvent of channelResult.statusEvents) {
       const [duplicate] = await this.listMessages({
         external_event_id: statusEvent.eventId,
       })
@@ -177,44 +213,79 @@ class InboxModuleService extends MedusaService({
       }
 
       const [existingOutbound] = await this.listMessages({
-        whatsapp_message_id: statusEvent.providerMessageId,
+        external_message_id: statusEvent.externalMessageId,
       })
 
-      if (existingOutbound) {
-        await this.updateMessages({
-          id: existingOutbound.id,
-          status: statusEvent.status,
-          provider_status: statusEvent.status,
-          error_message: statusEvent.errorMessage || null,
-          raw_payload: statusEvent.rawPayload,
-          external_event_id: statusEvent.eventId,
-        })
-
-        if (statusEvent.timestamp) {
-          await this.syncConversationState({
-            conversationId: existingOutbound.conversation_id,
-            timestamp: statusEvent.timestamp,
-          })
-        }
-
-        statusEventsStored += 1
+      if (!existingOutbound) {
+        duplicatesSkipped += 1
         continue
       }
 
-      duplicatesSkipped += 1
+      await this.updateMessages({
+        id: existingOutbound.id,
+        status: statusEvent.status,
+        provider_status: statusEvent.status,
+        error_message: statusEvent.errorMessage || null,
+        raw_payload: statusEvent.rawPayload,
+        external_event_id: statusEvent.eventId,
+      })
+
+      if (statusEvent.timestamp) {
+        await this.syncConversationState({
+          conversationId: existingOutbound.conversation_id,
+          timestamp: statusEvent.timestamp,
+        })
+      }
+
+      statusEventsStored += 1
     }
 
     return {
       inboundMessagesStored,
       statusEventsStored,
       duplicatesSkipped,
+      received: true,
+      payload,
     }
   }
 
-  async sendConversationReply(input: SendConversationReplyInput) {
+  async ingestWhatsappWebhook(payload: Record<string, unknown>): Promise<IngestWebhookResult> {
+    const parsed = this.whatsappProvider_.parseWebhookPayload(payload)
+    return this.ingestWebhookPayload(payload, parsed)
+  }
+
+  async ingestMessengerWebhook(payload: Record<string, unknown>): Promise<IngestWebhookResult> {
+    const parsed = this.metaProvider_.parseMessengerWebhookPayload(payload)
+    return this.ingestWebhookPayload(payload, parsed)
+  }
+
+  async ingestInstagramWebhook(payload: Record<string, unknown>): Promise<IngestWebhookResult> {
+    const parsed = this.metaProvider_.parseInstagramWebhookPayload(payload)
+    return this.ingestWebhookPayload(payload, parsed)
+  }
+
+  async sendWhatsAppMessage(input: SendInboxMessageInput) {
+    return this.sendInboxMessage({ ...input, channel: "whatsapp" })
+  }
+
+  async sendMessengerMessage(input: SendInboxMessageInput) {
+    return this.sendInboxMessage({ ...input, channel: "messenger" })
+  }
+
+  async sendInstagramMessage(input: SendInboxMessageInput) {
+    return this.sendInboxMessage({ ...input, channel: "instagram" })
+  }
+
+  async sendInboxMessage(input: SendInboxMessageInput) {
     const conversation = await this.retrieveConversation(input.conversationId, {
       relations: ["channel_account"],
     })
+
+    const channel = input.channel || (conversation.channel as InboxChannel)
+
+    if (channel !== conversation.channel) {
+      throw new Error("Conversation channel mismatch")
+    }
 
     const [customerParticipant] = await this.listParticipants({
       conversation_id: input.conversationId,
@@ -225,16 +296,38 @@ class InboxModuleService extends MedusaService({
       throw new Error("Conversation does not have a customer participant")
     }
 
-    const providerResponse = await this.whatsappProvider_.sendReply({
-      accountId: process.env.WHATSAPP_PHONE_NUMBER_ID || conversation.channel_account.external_account_id,
-      to: conversation.customer_phone,
-      text: input.text,
-    })
+    const to = conversation.external_user_id || conversation.customer_phone || conversation.customer_identifier
+
+    let providerResponse
+
+    if (channel === "whatsapp") {
+      providerResponse = await this.whatsappProvider_.sendMessage({
+        channel,
+        accountId: process.env.WHATSAPP_PHONE_NUMBER_ID || conversation.channel_account.external_account_id,
+        to,
+        text: input.text,
+      })
+    } else if (channel === "messenger") {
+      providerResponse = await this.metaProvider_.sendMessengerMessage({
+        channel,
+        pageId: conversation.page_id || conversation.channel_account.external_account_id,
+        to,
+        text: input.text,
+      })
+    } else {
+      providerResponse = await this.metaProvider_.sendInstagramMessage({
+        channel,
+        instagramAccountId: conversation.instagram_account_id || conversation.channel_account.external_account_id,
+        to,
+        text: input.text,
+      })
+    }
 
     const message = await this.createMessages({
-      provider: "whatsapp",
-      whatsapp_message_id: providerResponse.providerMessageId,
-      external_message_id: providerResponse.providerMessageId,
+      provider: channel,
+      channel,
+      whatsapp_message_id: channel === "whatsapp" ? providerResponse.externalMessageId : null,
+      external_message_id: providerResponse.externalMessageId,
       direction: "outbound",
       message_type: "text",
       status: "sent",
@@ -257,6 +350,10 @@ class InboxModuleService extends MedusaService({
       message,
       provider_response: providerResponse.rawResponse,
     }
+  }
+
+  async sendConversationReply(input: { conversationId: string; text: string }) {
+    return this.sendInboxMessage(input)
   }
 
   async markConversationAsRead(conversationId: string) {

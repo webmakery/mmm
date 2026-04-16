@@ -5,10 +5,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FormEvent, useEffect, useMemo, useState } from "react"
 import { sdk } from "../../lib/sdk"
 
+type Channel = "whatsapp" | "messenger" | "instagram"
+
 type Conversation = {
   id: string
+  channel: Channel
   customer_phone: string
   customer_name?: string | null
+  customer_handle?: string | null
   last_message_preview?: string | null
   last_message_at?: string | null
   unread_count: number
@@ -17,14 +21,23 @@ type Conversation = {
 
 type Message = {
   id: string
+  channel: Channel
   direction: "inbound" | "outbound" | "system"
   text?: string | null
   content?: string | null
   status: "received" | "sent" | "delivered" | "read" | "failed" | "pending"
+  external_message_id?: string | null
   sent_at?: string | null
   received_at?: string | null
   created_at: string
 }
+
+const channelOptions: Array<{ label: string; value: "all" | Channel }> = [
+  { label: "All", value: "all" },
+  { label: "WhatsApp", value: "whatsapp" },
+  { label: "Messenger", value: "messenger" },
+  { label: "Instagram", value: "instagram" },
+]
 
 const formatConversationTime = (value?: string | null) => {
   if (!value) {
@@ -65,6 +78,7 @@ const getStatusColor = (status: Message["status"]) => {
 const InboxPage = () => {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
+  const [channel, setChannel] = useState<"all" | Channel>("all")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [composer, setComposer] = useState("")
 
@@ -72,11 +86,12 @@ const InboxPage = () => {
     conversations: Conversation[]
     count: number
   }>({
-    queryKey: ["inbox-conversations", search],
+    queryKey: ["inbox-conversations", search, channel],
     queryFn: () =>
       sdk.client.fetch("/admin/inbox/conversations", {
         query: {
           q: search || undefined,
+          channel: channel === "all" ? undefined : channel,
           limit: 50,
           offset: 0,
         },
@@ -109,11 +124,13 @@ const InboxPage = () => {
     const selectedConversation = conversations.find((conversation) => conversation.id === selectedId)
 
     if (selectedConversation?.unread_count) {
-      sdk.client.fetch(`/admin/inbox/conversations/${selectedId}/read`, {
-        method: "POST",
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["inbox-conversations"] })
-      })
+      sdk.client
+        .fetch(`/admin/inbox/conversations/${selectedId}/read`, {
+          method: "POST",
+        })
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["inbox-conversations"] })
+        })
     }
   }, [conversations, queryClient, selectedId])
 
@@ -161,10 +178,23 @@ const InboxPage = () => {
           </div>
           <div className="px-6 pb-4">
             <Input
-              placeholder="Search by name, phone, or message"
+              placeholder="Search by name, handle, phone, or message"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
+          </div>
+          <div className="flex gap-2 px-6 pb-4">
+            {channelOptions.map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                variant={channel === option.value ? "secondary" : "transparent"}
+                size="small"
+                onClick={() => setChannel(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
           </div>
 
           <div className="flex-1 overflow-auto">
@@ -188,9 +218,12 @@ const InboxPage = () => {
                     onClick={() => setSelectedId(conversation.id)}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <Text weight={isSelected ? "plus" : "regular"}>
-                        {conversation.customer_name || conversation.customer_phone}
-                      </Text>
+                      <div className="flex items-center gap-2">
+                        <Text weight={isSelected ? "plus" : "regular"}>
+                          {conversation.customer_name || conversation.customer_phone}
+                        </Text>
+                        <Badge size="2xsmall">{conversation.channel}</Badge>
+                      </div>
                       <Text size="xsmall" className="text-ui-fg-subtle">
                         {formatConversationTime(conversation.last_message_at)}
                       </Text>
@@ -216,10 +249,18 @@ const InboxPage = () => {
           ) : (
             <>
               <div className="border-b px-6 py-4">
-                <Heading level="h2">{selectedConversation.customer_name || selectedConversation.customer_phone}</Heading>
+                <div className="flex items-center gap-2">
+                  <Heading level="h2">{selectedConversation.customer_name || selectedConversation.customer_phone}</Heading>
+                  <Badge size="2xsmall">{selectedConversation.channel}</Badge>
+                </div>
                 <Text size="small" className="text-ui-fg-subtle">
                   {selectedConversation.customer_phone}
                 </Text>
+                {selectedConversation.customer_handle ? (
+                  <Text size="small" className="text-ui-fg-subtle">
+                    {selectedConversation.customer_handle}
+                  </Text>
+                ) : null}
               </div>
 
               <div className="flex flex-1 flex-col gap-3 overflow-auto px-6 py-4">

@@ -1,10 +1,15 @@
-export type IngestWhatsappWebhookResult = {
+import { InboxChannel } from "./providers/types"
+
+export type IngestWebhookResult = {
   inboundMessagesStored: number
   statusEventsStored: number
   duplicatesSkipped: number
+  received: boolean
+  payload: Record<string, unknown>
 }
 
-export type SendConversationReplyInput = {
+export type SendInboxMessageInput = {
+  channel?: InboxChannel
   conversationId: string
   text: string
 }

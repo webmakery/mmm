@@ -1,47 +1,49 @@
-export type NormalizedInboundMessage = {
-  provider: "whatsapp"
-  providerMessageId: string
-  accountId: string
-  customerIdentifier: string
-  customerDisplayName?: string | null
+export type InboxChannel = "whatsapp" | "messenger" | "instagram"
+
+export type NormalizedWebhookMessage = {
+  channel: InboxChannel
+  externalThreadId?: string | null
+  externalUserId: string
+  externalMessageId: string
+  customerName?: string | null
+  customerHandle?: string | null
+  customerPhone?: string | null
+  text?: string | null
   timestamp?: Date | null
-  content?: string | null
-  messageType: "text" | "unsupported"
   rawPayload: Record<string, unknown>
+  accountId?: string | null
+  pageId?: string | null
+  instagramAccountId?: string | null
 }
 
-export type NormalizedStatusEvent = {
-  provider: "whatsapp"
+export type NormalizedWebhookStatusEvent = {
+  channel: InboxChannel
+  externalMessageId: string
   eventId: string
-  providerMessageId: string
-  accountId: string
   status: "sent" | "delivered" | "read" | "failed"
   timestamp?: Date | null
   errorMessage?: string | null
   rawPayload: Record<string, unknown>
 }
 
-export type ProviderWebhookResult = {
-  inboundMessages: NormalizedInboundMessage[]
-  statusEvents: NormalizedStatusEvent[]
+export type ChannelWebhookResult = {
+  inboundMessages: NormalizedWebhookMessage[]
+  statusEvents: NormalizedWebhookStatusEvent[]
   rawPayload: Record<string, unknown>
 }
 
-export type SendReplyInput = {
-  accountId: string
+export type SendMessageInput = {
+  channel: InboxChannel
+  accountId?: string
+  pageId?: string
+  instagramAccountId?: string
   to: string
   text: string
   contextMessageId?: string
 }
 
-export type SendReplyResult = {
-  provider: "whatsapp"
-  providerMessageId: string
+export type SendMessageResult = {
+  channel: InboxChannel
+  externalMessageId: string
   rawResponse: Record<string, unknown>
-}
-
-export interface InboxProviderAdapter {
-  provider: "whatsapp"
-  parseWebhookPayload(payload: Record<string, unknown>): ProviderWebhookResult
-  sendReply(input: SendReplyInput): Promise<SendReplyResult>
 }
