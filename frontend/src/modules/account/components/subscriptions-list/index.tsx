@@ -101,9 +101,12 @@ const SubscriptionsList = ({
   return (
     <ul className="flex flex-col w-full" data-testid="subscriptions-list">
       {uniqueSubscriptions.map((subscription) => {
-        const hasActiveServer =
-          !!subscription.infrastructure_status &&
-          !["deleted", "deleting"].includes(subscription.infrastructure_status)
+        const infrastructureStatus = subscription.infrastructure_status
+        const hasInfrastructureStatus = typeof infrastructureStatus === "string" && infrastructureStatus.length > 0
+        const isDeletedInfrastructure =
+          infrastructureStatus === "deleted" || infrastructureStatus === "deleting"
+        const hasActiveServer = hasInfrastructureStatus && !isDeletedInfrastructure
+        const showServerIp = hasActiveServer && !!subscription.server_ip
 
         return (
           <li
@@ -123,13 +126,13 @@ const SubscriptionsList = ({
                 {subscription.server_ram_gb ? (
                   <Badge color="grey">{subscription.server_ram_gb} GB RAM</Badge>
                 ) : null}
-                {subscription.server_ip ? (
+                {showServerIp ? (
                   <Badge color="grey">IP: {subscription.server_ip}</Badge>
-                ) : (
+                ) : hasInfrastructureStatus ? (
                   <Badge color="grey">
-                    {hasActiveServer ? "No active server IP" : "Server deleted"}
+                    {isDeletedInfrastructure ? "Server deleted" : "No active server IP"}
                   </Badge>
-                )}
+                ) : null}
                 {subscription.server_region ? <Badge color="grey">{subscription.server_region}</Badge> : null}
                 {subscription.server_type ? <Badge color="grey">{subscription.server_type}</Badge> : null}
               </div>
