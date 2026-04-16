@@ -1,7 +1,6 @@
 import { model } from "@medusajs/framework/utils"
 import ChannelAccount from "./channel-account"
 import { InboxProvider } from "./inbox-provider"
-import { ConversationChannel } from "./conversation"
 import Conversation from "./conversation"
 import Participant from "./participant"
 import MessageAttachment from "./message-attachment"
@@ -13,7 +12,7 @@ export const MessageStatus = ["pending", "sent", "delivered", "read", "failed", 
 const Message = model.define("message", {
   id: model.id().primaryKey(),
   provider: model.enum(InboxProvider).default("whatsapp"),
-  channel: model.enum(ConversationChannel).default("whatsapp"),
+  channel: model.enum(InboxProvider).default("whatsapp"),
   whatsapp_message_id: model.text().unique().nullable(),
   external_message_id: model.text().unique().nullable(),
   external_event_id: model.text().unique().nullable(),

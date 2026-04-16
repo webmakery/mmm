@@ -5,13 +5,11 @@ import Participant from "./participant"
 import Message from "./message"
 
 export const ConversationStatus = ["open", "closed", "archived"] as const
-export const ConversationChannel = ["whatsapp", "messenger", "instagram"] as const
-
 const Conversation = model.define("conversation", {
   id: model.id().primaryKey(),
   tenant_id: model.text().index().nullable(),
   provider: model.enum(InboxProvider).default("whatsapp"),
-  channel: model.enum(ConversationChannel).default("whatsapp"),
+  channel: model.enum(InboxProvider).default("whatsapp"),
   external_thread_id: model.text().nullable(),
   external_user_id: model.text().nullable(),
   customer_identifier: model.text().index(),
