@@ -9,7 +9,7 @@ export const ConversationChannel = ["whatsapp"] as const
 
 const Conversation = model.define("conversation", {
   id: model.id().primaryKey(),
-  tenant_id: model.text().nullable().index(),
+  tenant_id: model.text().index().nullable(),
   provider: model.enum(InboxProvider).default("whatsapp"),
   channel: model.enum(ConversationChannel).default("whatsapp"),
   external_thread_id: model.text().nullable(),
