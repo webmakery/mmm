@@ -45,6 +45,12 @@ export const POST = async (
     return res.status(404).json({ message: "Infrastructure not found" })
   }
 
+  if (subscriptionInfra.status === "deleted") {
+    return res.status(409).json({
+      message: "Provisioning cannot be retried because this server was deleted.",
+    })
+  }
+
   const result = await retryInfrastructureProvisioning({
     container: req.scope as any,
     infrastructureId: subscriptionInfra.id,
