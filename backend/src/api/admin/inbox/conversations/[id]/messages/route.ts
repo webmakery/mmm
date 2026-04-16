@@ -22,10 +22,12 @@ export async function GET(
     entity: "message",
     fields: [
       "id",
+      "channel",
       "direction",
       "text",
       "content",
       "status",
+      "external_message_id",
       "whatsapp_message_id",
       "sent_at",
       "received_at",
@@ -58,7 +60,7 @@ export async function POST(
 ) {
   const inboxService = req.scope.resolve<InboxModuleService>(INBOX_MODULE)
 
-  const response = await inboxService.sendConversationReply({
+  const response = await inboxService.sendInboxMessage({
     conversationId: req.params.id,
     text: req.validatedBody.text,
   })

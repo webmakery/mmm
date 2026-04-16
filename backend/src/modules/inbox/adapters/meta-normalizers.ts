@@ -1,0 +1,161 @@
+import { ChannelWebhookResult, NormalizedWebhookMessage, NormalizedWebhookStatusEvent } from "../providers/types"
+
+const toDate = (value?: string | number): Date | null => {
+  if (typeof value === "number") {
+    return new Date(value * 1000)
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value)
+
+    if (!Number.isNaN(parsed)) {
+      return new Date(parsed * 1000)
+    }
+  }
+
+  return null
+}
+
+const getEntryChanges = (payload: Record<string, unknown>) => {
+  const entries = Array.isArray(payload.entry) ? payload.entry : []
+
+  return entries.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return []
+    }
+
+    const changes = Array.isArray((entry as Record<string, unknown>).changes)
+      ? ((entry as Record<string, unknown>).changes as Array<Record<string, unknown>>)
+      : []
+
+    return changes
+      .map((change) => change?.value)
+      .filter((value): value is Record<string, unknown> => Boolean(value && typeof value === "object"))
+  })
+}
+
+export const normalizeWhatsAppWebhookEvent = (payload: Record<string, unknown>): ChannelWebhookResult => {
+  const inboundMessages: NormalizedWebhookMessage[] = []
+  const statusEvents: NormalizedWebhookStatusEvent[] = []
+
+  for (const value of getEntryChanges(payload)) {
+    const metadata = (value.metadata || {}) as Record<string, unknown>
+    const contacts = Array.isArray(value.contacts) ? (value.contacts as Array<Record<string, unknown>>) : []
+    const messages = Array.isArray(value.messages) ? (value.messages as Array<Record<string, unknown>>) : []
+    const statuses = Array.isArray(value.statuses) ? (value.statuses as Array<Record<string, unknown>>) : []
+
+    const accountId = String(metadata.phone_number_id || "")
+
+    for (const message of messages) {
+      const from = String(message.from || "")
+      const externalMessageId = String(message.id || "")
+
+      if (!from || !externalMessageId) {
+        continue
+      }
+
+      const contact = contacts.find((item) => String(item.wa_id || "") === from)
+      const profile = (contact?.profile || {}) as Record<string, unknown>
+      const text = (message.text || {}) as Record<string, unknown>
+
+      inboundMessages.push({
+        channel: "whatsapp",
+        externalUserId: from,
+        externalThreadId: from,
+        externalMessageId,
+        customerName: typeof profile.name === "string" ? profile.name : null,
+        customerPhone: from,
+        text: typeof text.body === "string" ? text.body : null,
+        timestamp: toDate(message.timestamp as string | undefined),
+        rawPayload: message,
+        accountId: accountId || null,
+      })
+    }
+
+    for (const status of statuses) {
+      const externalMessageId = String(status.id || "")
+      const statusName = String(status.status || "")
+      const eventId = `${externalMessageId}:${statusName}:${String(status.timestamp || "")}`
+
+      if (!externalMessageId || !["sent", "delivered", "read", "failed"].includes(statusName)) {
+        continue
+      }
+
+      const errors = Array.isArray(status.errors) ? (status.errors as Array<Record<string, unknown>>) : []
+
+      statusEvents.push({
+        channel: "whatsapp",
+        externalMessageId,
+        eventId,
+        status: statusName as "sent" | "delivered" | "read" | "failed",
+        timestamp: toDate(status.timestamp as string | undefined),
+        errorMessage: typeof errors[0]?.message === "string" ? errors[0].message : null,
+        rawPayload: status,
+      })
+    }
+  }
+
+  return {
+    inboundMessages,
+    statusEvents,
+    rawPayload: payload,
+  }
+}
+
+const normalizeMetaMessagingWebhookEvent = (
+  payload: Record<string, unknown>,
+  channel: "messenger" | "instagram"
+): ChannelWebhookResult => {
+  const inboundMessages: NormalizedWebhookMessage[] = []
+
+  const entries = Array.isArray(payload.entry) ? payload.entry : []
+
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object") {
+      continue
+    }
+
+    const entryObj = entry as Record<string, unknown>
+    const entryId = String(entryObj.id || "")
+    const messaging = Array.isArray(entryObj.messaging) ? (entryObj.messaging as Array<Record<string, unknown>>) : []
+
+    for (const item of messaging) {
+      const sender = (item.sender || {}) as Record<string, unknown>
+      const recipient = (item.recipient || {}) as Record<string, unknown>
+      const message = (item.message || {}) as Record<string, unknown>
+
+      const externalUserId = String(sender.id || "")
+      const externalThreadId = String(recipient.id || "") || externalUserId
+      const externalMessageId = String(message.mid || "")
+
+      if (!externalUserId || !externalMessageId) {
+        continue
+      }
+
+      inboundMessages.push({
+        channel,
+        externalThreadId,
+        externalUserId,
+        externalMessageId,
+        customerHandle: externalUserId,
+        text: typeof message.text === "string" ? message.text : null,
+        timestamp: toDate(item.timestamp as number | undefined),
+        rawPayload: item,
+        pageId: channel === "messenger" ? (entryId || String(recipient.id || "") || null) : null,
+        instagramAccountId: channel === "instagram" ? (entryId || String(recipient.id || "") || null) : null,
+      })
+    }
+  }
+
+  return {
+    inboundMessages,
+    statusEvents: [],
+    rawPayload: payload,
+  }
+}
+
+export const normalizeMessengerWebhookEvent = (payload: Record<string, unknown>): ChannelWebhookResult =>
+  normalizeMetaMessagingWebhookEvent(payload, "messenger")
+
+export const normalizeInstagramWebhookEvent = (payload: Record<string, unknown>): ChannelWebhookResult =>
+  normalizeMetaMessagingWebhookEvent(payload, "instagram")

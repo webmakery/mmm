@@ -13,7 +13,7 @@ export async function POST(
 ) {
   const inboxService = req.scope.resolve<InboxModuleService>(INBOX_MODULE)
 
-  const response = await inboxService.sendConversationReply({
+  const response = await inboxService.sendInboxMessage({
     conversationId: req.params.id,
     text: req.validatedBody.text,
   })

@@ -1,1 +1,1 @@
-export const InboxProvider = ["whatsapp"] as const
+export const InboxProvider = ["whatsapp", "messenger", "instagram"] as const
