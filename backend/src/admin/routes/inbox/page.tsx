@@ -3,6 +3,7 @@ import { ChatBubbleLeftRight, PaperPlane } from "@medusajs/icons"
 import { Badge, Button, Container, Heading, Input, StatusBadge, Text, Textarea } from "@medusajs/ui"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FormEvent, useEffect, useMemo, useState } from "react"
+import { RiInstagramFill, RiMessengerFill, RiWhatsappFill } from "react-icons/ri"
 import { sdk } from "../../lib/sdk"
 
 type Channel = "whatsapp" | "messenger" | "instagram"
@@ -39,7 +40,7 @@ const channelOptions: Array<{ label: string; value: "all" | Channel }> = [
   { label: "Instagram", value: "instagram" },
 ]
 
-const formatConversationTime = (value?: string | null) => {
+const formatDateTime = (value?: string | null) => {
   if (!value) {
     return ""
   }
@@ -59,7 +60,28 @@ const formatConversationTime = (value?: string | null) => {
 
 const formatMessageTime = (message: Message) => {
   const value = message.received_at || message.sent_at || message.created_at
-  return formatConversationTime(value)
+  return formatDateTime(value)
+}
+
+const channelMeta: Record<
+  Channel,
+  { label: string; icon: typeof RiWhatsappFill; className: string }
+> = {
+  whatsapp: {
+    label: "WhatsApp",
+    icon: RiWhatsappFill,
+    className: "text-[#25D366]",
+  },
+  messenger: {
+    label: "Messenger",
+    icon: RiMessengerFill,
+    className: "text-[#0084FF]",
+  },
+  instagram: {
+    label: "Instagram",
+    icon: RiInstagramFill,
+    className: "text-[#E4405F]",
+  },
 }
 
 const getStatusColor = (status: Message["status"]) => {
@@ -170,9 +192,9 @@ const InboxPage = () => {
   }
 
   return (
-    <Container className="p-0">
-      <div className="grid grid-cols-1 divide-y md:grid-cols-[320px_1fr] md:divide-x md:divide-y-0">
-        <div className="flex min-h-[640px] flex-col">
+    <Container className="h-[calc(100vh-9rem)] min-h-[640px] p-0">
+      <div className="grid h-full min-h-0 grid-cols-1 divide-y md:grid-cols-[320px_1fr] md:divide-x md:divide-y-0">
+        <div className="flex min-h-0 flex-col">
           <div className="flex items-center justify-between px-6 py-4">
             <Heading>Inbox</Heading>
           </div>
@@ -197,7 +219,7 @@ const InboxPage = () => {
             ))}
           </div>
 
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {isLoadingConversations ? (
               <Text size="small" className="px-6 py-4 text-ui-fg-subtle">
                 Loading conversations...
@@ -214,22 +236,30 @@ const InboxPage = () => {
                   <button
                     key={conversation.id}
                     type="button"
-                    className="flex w-full flex-col gap-1 border-t px-6 py-4 text-left"
+                    className="flex w-full flex-col gap-1 border-t px-6 py-2.5 text-left"
                     onClick={() => setSelectedId(conversation.id)}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Text weight={isSelected ? "plus" : "regular"}>
                           {conversation.customer_name || conversation.customer_phone}
                         </Text>
-                        <Badge size="2xsmall">{conversation.channel}</Badge>
+                        <Badge size="2xsmall" className="inline-flex items-center gap-1">
+                          {(() => {
+                            const Icon = channelMeta[conversation.channel].icon
+
+                            return (
+                              <>
+                                <Icon className={`h-3 w-3 ${channelMeta[conversation.channel].className}`} />
+                                <span>{channelMeta[conversation.channel].label}</span>
+                              </>
+                            )
+                          })()}
+                        </Badge>
                       </div>
-                      <Text size="xsmall" className="text-ui-fg-subtle">
-                        {formatConversationTime(conversation.last_message_at)}
-                      </Text>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <Text size="small" className="text-ui-fg-subtle">
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <Text size="small" className="truncate text-ui-fg-subtle">
                         {conversation.last_message_preview || "No messages yet"}
                       </Text>
                       {conversation.unread_count > 0 ? <Badge size="2xsmall">{conversation.unread_count}</Badge> : null}
@@ -241,17 +271,28 @@ const InboxPage = () => {
           </div>
         </div>
 
-        <div className="flex min-h-[640px] flex-col">
+        <div className="flex min-h-0 flex-col">
           {!selectedConversation ? (
-            <div className="flex flex-1 items-center justify-center px-6">
+            <div className="flex flex-1 min-h-0 items-center justify-center px-6">
               <Text className="text-ui-fg-subtle">{isLoadingConversation ? "Loading..." : "Select a conversation"}</Text>
             </div>
           ) : (
-            <>
+            <div className="flex min-h-0 flex-1 flex-col">
               <div className="border-b px-6 py-4">
                 <div className="flex items-center gap-2">
                   <Heading level="h2">{selectedConversation.customer_name || selectedConversation.customer_phone}</Heading>
-                  <Badge size="2xsmall">{selectedConversation.channel}</Badge>
+                  <Badge size="2xsmall" className="inline-flex items-center gap-1">
+                    {(() => {
+                      const Icon = channelMeta[selectedConversation.channel].icon
+
+                      return (
+                        <>
+                          <Icon className={`h-3 w-3 ${channelMeta[selectedConversation.channel].className}`} />
+                          <span>{channelMeta[selectedConversation.channel].label}</span>
+                        </>
+                      )
+                    })()}
+                  </Badge>
                 </div>
                 <Text size="small" className="text-ui-fg-subtle">
                   {selectedConversation.customer_phone}
@@ -263,7 +304,7 @@ const InboxPage = () => {
                 ) : null}
               </div>
 
-              <div className="flex flex-1 flex-col gap-3 overflow-auto px-6 py-4">
+              <div className="flex flex-1 min-h-0 flex-col gap-3 overflow-y-auto px-6 py-4">
                 {messages.length === 0 ? (
                   <Text size="small" className="text-ui-fg-subtle">
                     No messages in this conversation yet.
@@ -306,7 +347,7 @@ const InboxPage = () => {
                   </div>
                 </div>
               </form>
-            </>
+            </div>
           )}
         </div>
       </div>
