@@ -41,6 +41,7 @@ export default defineMiddlewares({
       ],
     },
     {
+      methods: ["GET"],
       matcher: "/store/customers/me/quotes*",
       middlewares: [
         authenticate("customer", ["bearer", "session"]),
@@ -48,6 +49,7 @@ export default defineMiddlewares({
       ],
     },
     {
+      methods: ["GET"],
       matcher: "/admin/quotes*",
       middlewares: [
         validateAndTransformQuery(
