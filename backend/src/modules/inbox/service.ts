@@ -14,6 +14,14 @@ class InboxModuleService extends MedusaService({
   Message,
   MessageAttachment,
 }) {
+  private static readonly statusPriority_: Record<string, number> = {
+    pending: 0,
+    sent: 1,
+    delivered: 2,
+    read: 3,
+    failed: 4,
+  }
+
   private whatsappProvider_: WhatsappProvider
 
   constructor(...args: any[]) {
@@ -82,6 +90,31 @@ class InboxModuleService extends MedusaService({
     })
   }
 
+  private getStatusPriority(status?: string | null): number {
+    if (!status) {
+      return -1
+    }
+
+    return InboxModuleService.statusPriority_[status] ?? -1
+  }
+
+  private getLatestStatusTimestamp(message: Record<string, any>): Date | null {
+    const metadata = (message.metadata || {}) as Record<string, unknown>
+    const rawTimestamp = metadata.last_status_event_at
+
+    if (typeof rawTimestamp !== "string") {
+      return null
+    }
+
+    const parsed = new Date(rawTimestamp)
+
+    if (Number.isNaN(parsed.getTime())) {
+      return null
+    }
+
+    return parsed
+  }
+
   async ingestWhatsappWebhook(payload: Record<string, unknown>): Promise<IngestWhatsappWebhookResult> {
     const parsed = this.whatsappProvider_.parseWebhookPayload(payload)
 
@@ -144,6 +177,47 @@ class InboxModuleService extends MedusaService({
       })
 
       if (existingOutbound) {
+        const currentStatus =
+          typeof existingOutbound.status === "string" ? existingOutbound.status : existingOutbound.provider_status
+        const currentStatusPriority = this.getStatusPriority(currentStatus)
+        const incomingStatusPriority = this.getStatusPriority(statusEvent.status)
+        const latestStatusTimestamp = this.getLatestStatusTimestamp(existingOutbound as Record<string, any>)
+        const incomingStatusTimestamp = statusEvent.timestamp || null
+
+        if (existingOutbound.external_event_id === statusEvent.eventId) {
+          duplicatesSkipped += 1
+          continue
+        }
+
+        if (
+          latestStatusTimestamp &&
+          incomingStatusTimestamp &&
+          incomingStatusTimestamp.getTime() < latestStatusTimestamp.getTime()
+        ) {
+          duplicatesSkipped += 1
+          continue
+        }
+
+        if (incomingStatusPriority < currentStatusPriority) {
+          duplicatesSkipped += 1
+          continue
+        }
+
+        if (
+          incomingStatusPriority === currentStatusPriority &&
+          latestStatusTimestamp &&
+          incomingStatusTimestamp &&
+          incomingStatusTimestamp.getTime() <= latestStatusTimestamp.getTime()
+        ) {
+          duplicatesSkipped += 1
+          continue
+        }
+
+        const nextMetadata = {
+          ...((existingOutbound.metadata || {}) as Record<string, unknown>),
+          last_status_event_at: (incomingStatusTimestamp || latestStatusTimestamp || new Date()).toISOString(),
+        }
+
         await this.updateMessages({
           id: existingOutbound.id,
           status: statusEvent.status,
@@ -151,6 +225,7 @@ class InboxModuleService extends MedusaService({
           error_message: statusEvent.errorMessage || null,
           raw_payload: statusEvent.rawPayload,
           external_event_id: statusEvent.eventId,
+          metadata: nextMetadata,
         })
 
         await this.updateConversationTimestamp(existingOutbound.conversation_id, statusEvent.timestamp)

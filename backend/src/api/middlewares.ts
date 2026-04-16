@@ -39,7 +39,7 @@ export default defineMiddlewares({
     {
       matcher: "/webhooks/whatsapp",
       methods: ["POST"],
-      middlewares: [bodyParser.json({ type: "application/json" })],
+      middlewares: [bodyParser.raw({ type: "application/json" })],
     },
     {
       matcher: "/product-feed",
