@@ -53,7 +53,22 @@ module.exports = defineConfig({
             id: "local",
             options: {
               name: "Local Notification Provider",
+              channels: ["feed"],
+            },
+          },
+          {
+            resolve: "@perseidesjs/notification-nodemailer/providers/nodemailer",
+            id: "nodemailer",
+            options: {
               channels: ["email"],
+              from: process.env.SMTP_FROM,
+              host: process.env.SMTP_HOST,
+              port: Number(process.env.SMTP_PORT || 587),
+              secure: Number(process.env.SMTP_PORT || 587) === 465,
+              auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
+              },
             },
           },
         ],
