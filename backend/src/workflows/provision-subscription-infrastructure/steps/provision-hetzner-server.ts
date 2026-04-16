@@ -8,6 +8,31 @@ type ProvisionStepInput = {
   infrastructure_id: string
 }
 
+export const sanitizeHetznerLabelSegment = (value: string, fallback: string) => {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^[^a-z0-9]+/, "")
+    .replace(/[^a-z0-9]+$/, "")
+    .slice(0, 63)
+
+  return normalized || fallback
+}
+
+export const buildHetznerLabels = (infrastructure: {
+  order_id?: string | null
+  stripe_subscription_id?: string | null
+  customer_id?: string | null
+}) => ({
+  managed_by: "medusa",
+  order_id: sanitizeHetznerLabelSegment(infrastructure.order_id || "na", "na"),
+  subscription_id: sanitizeHetznerLabelSegment(
+    infrastructure.stripe_subscription_id || "na",
+    "na"
+  ),
+  customer_id: sanitizeHetznerLabelSegment(infrastructure.customer_id || "na", "na"),
+})
+
 const provisionHetznerServerStep = createStep(
   "provision-hetzner-server",
   async ({ infrastructure_id }: ProvisionStepInput, { container }) => {
@@ -54,12 +79,7 @@ const provisionHetznerServerStep = createStep(
         serverType: infrastructure.hetzner_server_type,
         image: infrastructure.hetzner_image,
         location: infrastructure.hetzner_region,
-        labels: {
-          managed_by: "medusa",
-          order_id: infrastructure.order_id || "n/a",
-          subscription_id: infrastructure.stripe_subscription_id,
-          customer_id: infrastructure.customer_id,
-        },
+        labels: buildHetznerLabels(infrastructure),
         userData:
           process.env.HETZNER_SERVER_USER_DATA ||
           "#cloud-config\n# TODO: add bootstrap logic\n",
