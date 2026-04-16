@@ -10,7 +10,7 @@ const provisionSubscriptionInfrastructureWorkflow = createWorkflow(
   "provision-subscription-infrastructure",
   (input: WorkflowInput) => {
     acquireLockStep({
-      key: `infra-provision-${input.infrastructure_id}`,
+      key: input.infrastructure_id,
       timeout: 2,
       ttl: 60,
     })
@@ -20,7 +20,7 @@ const provisionSubscriptionInfrastructureWorkflow = createWorkflow(
     })
 
     releaseLockStep({
-      key: `infra-provision-${input.infrastructure_id}`,
+      key: input.infrastructure_id,
     })
 
     return new WorkflowResponse(result)
