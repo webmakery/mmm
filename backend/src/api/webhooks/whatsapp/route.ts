@@ -36,13 +36,24 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(400).json({ message: "Missing x-hub-signature-256 header." })
   }
 
-  const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}))
-  const expectedSignature = `sha256=${crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex")}`
   const providedSignature = signatureHeader.trim()
 
-  const signaturesMatch =
-    providedSignature.length === expectedSignature.length &&
-    crypto.timingSafeEqual(Buffer.from(providedSignature), Buffer.from(expectedSignature))
+  if (!providedSignature.startsWith("sha256=")) {
+    return res.status(400).json({ message: "Invalid x-hub-signature-256 header format." })
+  }
+
+  if (!Buffer.isBuffer(req.body)) {
+    return res.status(400).json({ message: "Expected raw request body for signature verification." })
+  }
+
+  const rawBody = req.body
+  const expectedSignature = `sha256=${crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex")}`
+
+  if (providedSignature.length !== expectedSignature.length) {
+    return res.status(401).json({ message: "Invalid WhatsApp webhook signature." })
+  }
+
+  const signaturesMatch = crypto.timingSafeEqual(Buffer.from(providedSignature), Buffer.from(expectedSignature))
 
   if (!signaturesMatch) {
     return res.status(401).json({ message: "Invalid WhatsApp webhook signature." })

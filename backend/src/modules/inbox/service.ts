@@ -115,6 +115,24 @@ class InboxModuleService extends MedusaService({
     return parsed
   }
 
+  private getProcessedStatusEventIds(message: Record<string, any>): string[] {
+    const metadata = (message.metadata || {}) as Record<string, unknown>
+    const candidate = metadata.status_event_ids
+
+    if (!Array.isArray(candidate)) {
+      return []
+    }
+
+    return candidate.filter((item): item is string => typeof item === "string" && item.length > 0)
+  }
+
+  private buildNextStatusEventIds(existingIds: string[], incomingEventId: string): string[] {
+    const deduped = new Set<string>(existingIds)
+    deduped.add(incomingEventId)
+
+    return Array.from(deduped).slice(-20)
+  }
+
   async ingestWhatsappWebhook(payload: Record<string, unknown>): Promise<IngestWhatsappWebhookResult> {
     const parsed = this.whatsappProvider_.parseWebhookPayload(payload)
 
@@ -182,9 +200,13 @@ class InboxModuleService extends MedusaService({
         const currentStatusPriority = this.getStatusPriority(currentStatus)
         const incomingStatusPriority = this.getStatusPriority(statusEvent.status)
         const latestStatusTimestamp = this.getLatestStatusTimestamp(existingOutbound as Record<string, any>)
+        const processedStatusEventIds = this.getProcessedStatusEventIds(existingOutbound as Record<string, any>)
         const incomingStatusTimestamp = statusEvent.timestamp || null
 
-        if (existingOutbound.external_event_id === statusEvent.eventId) {
+        if (
+          existingOutbound.external_event_id === statusEvent.eventId ||
+          processedStatusEventIds.includes(statusEvent.eventId)
+        ) {
           duplicatesSkipped += 1
           continue
         }
@@ -216,6 +238,7 @@ class InboxModuleService extends MedusaService({
         const nextMetadata = {
           ...((existingOutbound.metadata || {}) as Record<string, unknown>),
           last_status_event_at: (incomingStatusTimestamp || latestStatusTimestamp || new Date()).toISOString(),
+          status_event_ids: this.buildNextStatusEventIds(processedStatusEventIds, statusEvent.eventId),
         }
 
         await this.updateMessages({
