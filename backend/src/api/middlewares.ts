@@ -24,7 +24,10 @@ import { PostAdminRetryInfrastructureSchema } from "./admin/subscriptions/[id]/i
 import { CreateQuote, GetQuoteParams } from "./store/validators"
 import { listAdminQuoteQueryConfig } from "./admin/quotes/query-config"
 import { AdminGetQuoteParams } from "./admin/quotes/validators"
-import { listStoreQuoteQueryConfig } from "./store/customers/me/quotes/query-config"
+import {
+  listStoreQuoteQueryConfig,
+  retrieveStoreQuoteQueryConfig,
+} from "./store/customers/me/quotes/query-config"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -38,6 +41,15 @@ export default defineMiddlewares({
       middlewares: [
         authenticate("customer", ["bearer", "session"]),
         validateAndTransformBody(CreateQuote),
+        validateAndTransformQuery(GetQuoteParams, retrieveStoreQuoteQueryConfig),
+      ],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/customers/me/quotes*",
+      middlewares: [
+        authenticate("customer", ["bearer", "session"]),
+        validateAndTransformQuery(GetQuoteParams, retrieveStoreQuoteQueryConfig),
       ],
     },
     {
