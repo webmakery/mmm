@@ -2,7 +2,6 @@ import { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import SubscriptionsList from "@modules/account/components/subscriptions-list"
-import SubscriptionFinalizingState from "@modules/account/components/subscription-finalizing-state"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { Button } from "@medusajs/ui"
 import {
@@ -55,10 +54,6 @@ export default async function SubscriptionsPage({
   const subscriptions = await getCustomerSubscriptions().catch(() => null)
 
   if (!subscriptions) {
-    if (typeof checkoutSessionId === "string" && checkoutSessionId) {
-      return <SubscriptionFinalizingState />
-    }
-
     notFound()
   }
 
