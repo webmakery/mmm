@@ -21,6 +21,10 @@ import { GetStoreReviewsSchema } from "./store/products/[id]/reviews/route"
 import { PostStoreReviewSchema } from "./store/reviews/route"
 import { PostStoreSyncSubscriptionSchema } from "./store/customers/me/subscriptions/sync/route"
 import { PostAdminRetryInfrastructureSchema } from "./admin/subscriptions/[id]/infrastructure/retry/route"
+import { CreateQuote, GetQuoteParams } from "./store/validators"
+import { listAdminQuoteQueryConfig } from "./admin/quotes/query-config"
+import { AdminGetQuoteParams } from "./admin/quotes/validators"
+import { listStoreQuoteQueryConfig } from "./store/customers/me/quotes/query-config"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -28,6 +32,30 @@ const upload = multer({ storage: multer.memoryStorage() })
 
 export default defineMiddlewares({
   routes: [
+    {
+      methods: ["POST"],
+      matcher: "/store/customers/me/quotes",
+      middlewares: [
+        authenticate("customer", ["bearer", "session"]),
+        validateAndTransformBody(CreateQuote),
+      ],
+    },
+    {
+      matcher: "/store/customers/me/quotes*",
+      middlewares: [
+        authenticate("customer", ["bearer", "session"]),
+        validateAndTransformQuery(GetQuoteParams, listStoreQuoteQueryConfig),
+      ],
+    },
+    {
+      matcher: "/admin/quotes*",
+      middlewares: [
+        validateAndTransformQuery(
+          AdminGetQuoteParams,
+          listAdminQuoteQueryConfig
+        ),
+      ],
+    },
     {
       matcher: "/hooks/stripe",
       methods: ["POST"],

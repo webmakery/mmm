@@ -1,3 +1,11 @@
+import type {
+  AdminCustomer,
+  AdminOrder,
+  FindParams,
+  PaginatedResponse,
+  StoreCart,
+} from "@medusajs/framework/types"
+
 export type ProductBuilderBase = {
   id: string
   product_id: string
@@ -178,3 +186,27 @@ export type SubscriptionInfrastructureData = {
   created_at: string
   updated_at: string
 }
+
+export type AdminQuote = {
+  id: string
+  status: string
+  draft_order_id: string
+  order_change_id: string
+  cart_id: string
+  customer_id: string
+  created_at: string
+  updated_at: string
+  draft_order: AdminOrder
+  cart: StoreCart
+  customer: AdminCustomer
+}
+
+export interface QuoteQueryParams extends FindParams {}
+
+export type AdminQuoteResponse = {
+  quote: AdminQuote
+}
+
+export type AdminQuotesResponse = PaginatedResponse<{
+  quotes: AdminQuote[]
+}>
