@@ -11,9 +11,11 @@ type Channel = "whatsapp" | "messenger" | "instagram"
 type Conversation = {
   id: string
   channel: Channel
+  customer_identifier: string
   customer_phone: string
   customer_name?: string | null
   customer_handle?: string | null
+  external_user_id?: string | null
   last_message_preview?: string | null
   last_message_at?: string | null
   unread_count: number
@@ -24,6 +26,7 @@ type Message = {
   id: string
   channel: Channel
   direction: "inbound" | "outbound" | "system"
+  message_type: "text" | "status" | "unsupported" | "private_note"
   text?: string | null
   content?: string | null
   status: "received" | "sent" | "delivered" | "read" | "failed" | "pending"
@@ -31,6 +34,12 @@ type Message = {
   sent_at?: string | null
   received_at?: string | null
   created_at: string
+  participant?: {
+    id: string
+    role: "customer" | "agent" | "system"
+    display_name?: string | null
+    external_id?: string | null
+  } | null
 }
 
 const channelOptions: Array<{ label: string; value: "all" | Channel }> = [
@@ -103,6 +112,7 @@ const InboxPage = () => {
   const [channel, setChannel] = useState<"all" | Channel>("all")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [composer, setComposer] = useState("")
+  const [composerMode, setComposerMode] = useState<"message" | "private_note">("message")
 
   const { data: listData, isLoading: isLoadingConversations } = useQuery<{
     conversations: Conversation[]
@@ -128,6 +138,11 @@ const InboxPage = () => {
       setSelectedId(conversations[0].id)
     }
   }, [conversations, selectedId])
+
+  useEffect(() => {
+    setComposerMode("message")
+    setComposer("")
+  }, [selectedId])
 
   const { data: conversationData, isLoading: isLoadingConversation } = useQuery<{
     conversation: Conversation & { messages: Message[] }
@@ -166,6 +181,7 @@ const InboxPage = () => {
         method: "POST",
         body: {
           text,
+          type: composerMode,
         },
       })
     },
@@ -189,6 +205,28 @@ const InboxPage = () => {
     }
 
     sendMutation.mutate(text)
+  }
+
+  const getConversationTitle = (conversation: Conversation) =>
+    conversation.customer_name ||
+    conversation.customer_handle ||
+    conversation.customer_phone ||
+    conversation.customer_identifier ||
+    "Customer"
+
+  const getConversationSubtitle = (conversation: Conversation) => {
+    const fallbackIdentity =
+      conversation.customer_handle || conversation.customer_phone || conversation.customer_identifier || conversation.external_user_id
+
+    if (conversation.customer_name && fallbackIdentity && fallbackIdentity !== conversation.customer_name) {
+      return fallbackIdentity
+    }
+
+    if (!conversation.customer_name && !conversation.customer_handle && !conversation.customer_phone) {
+      return conversation.external_user_id || conversation.customer_identifier
+    }
+
+    return null
   }
 
   return (
@@ -241,9 +279,7 @@ const InboxPage = () => {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
-                        <Text weight={isSelected ? "plus" : "regular"}>
-                          {conversation.customer_name || conversation.customer_phone}
-                        </Text>
+                        <Text weight={isSelected ? "plus" : "regular"}>{getConversationTitle(conversation)}</Text>
                         <Badge size="2xsmall" className="inline-flex items-center gap-1">
                           {(() => {
                             const Icon = channelMeta[conversation.channel].icon
@@ -280,7 +316,7 @@ const InboxPage = () => {
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="border-b px-6 py-4">
                 <div className="flex items-center gap-2">
-                  <Heading level="h2">{selectedConversation.customer_name || selectedConversation.customer_phone}</Heading>
+                  <Heading level="h2">{getConversationTitle(selectedConversation)}</Heading>
                   <Badge size="2xsmall" className="inline-flex items-center gap-1">
                     {(() => {
                       const Icon = channelMeta[selectedConversation.channel].icon
@@ -294,17 +330,14 @@ const InboxPage = () => {
                     })()}
                   </Badge>
                 </div>
-                <Text size="small" className="text-ui-fg-subtle">
-                  {selectedConversation.customer_phone}
-                </Text>
-                {selectedConversation.customer_handle ? (
+                {getConversationSubtitle(selectedConversation) ? (
                   <Text size="small" className="text-ui-fg-subtle">
-                    {selectedConversation.customer_handle}
+                    {getConversationSubtitle(selectedConversation)}
                   </Text>
                 ) : null}
               </div>
 
-              <div className="flex flex-1 min-h-0 flex-col gap-3 overflow-y-auto px-6 py-4">
+              <div className="flex flex-1 min-h-0 flex-col gap-2 overflow-y-auto px-4 py-3">
                 {messages.length === 0 ? (
                   <Text size="small" className="text-ui-fg-subtle">
                     No messages in this conversation yet.
@@ -312,16 +345,37 @@ const InboxPage = () => {
                 ) : (
                   messages.map((message) => {
                     const isOutbound = message.direction === "outbound"
+                    const isPrivateNote = message.message_type === "private_note"
+                    const noteAuthor = message.participant?.display_name || message.participant?.external_id || "Admin"
 
                     return (
-                      <div key={message.id} className={`flex ${isOutbound ? "justify-end" : "justify-start"}`}>
-                        <div className="max-w-[75%] rounded-lg border bg-ui-bg-base px-3 py-2">
+                      <div
+                        key={message.id}
+                        className={`flex ${isPrivateNote ? "justify-center" : isOutbound ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`rounded-md border px-3 py-2 ${
+                            isPrivateNote
+                              ? "w-full max-w-[86%] border-ui-border-base bg-ui-bg-subtle"
+                              : isOutbound
+                                ? "max-w-[78%] border-ui-border-base bg-ui-bg-base"
+                                : "max-w-[78%] border-ui-border-strong bg-ui-bg-field"
+                          }`}
+                        >
                           <Text size="small">{message.text || message.content || ""}</Text>
-                          <div className="mt-1 flex items-center gap-2">
+                          <div className="mt-1 flex items-center gap-1.5">
+                            {isPrivateNote ? <Badge size="2xsmall">Private note</Badge> : null}
+                            {isPrivateNote ? (
+                              <Text size="xsmall" className="text-ui-fg-subtle">
+                                {noteAuthor}
+                              </Text>
+                            ) : null}
                             <Text size="xsmall" className="text-ui-fg-subtle">
                               {formatMessageTime(message)}
                             </Text>
-                            {isOutbound ? <StatusBadge color={getStatusColor(message.status)}>{message.status}</StatusBadge> : null}
+                            {isOutbound && !isPrivateNote ? (
+                              <StatusBadge color={getStatusColor(message.status)}>{message.status}</StatusBadge>
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -332,9 +386,27 @@ const InboxPage = () => {
 
               <form onSubmit={onSubmit} className="border-t p-4">
                 <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="small"
+                      variant={composerMode === "message" ? "secondary" : "transparent"}
+                      onClick={() => setComposerMode("message")}
+                    >
+                      Reply
+                    </Button>
+                    <Button
+                      type="button"
+                      size="small"
+                      variant={composerMode === "private_note" ? "secondary" : "transparent"}
+                      onClick={() => setComposerMode("private_note")}
+                    >
+                      Add note
+                    </Button>
+                  </div>
                   <Textarea
-                    rows={3}
-                    placeholder="Type your message"
+                    rows={2}
+                    placeholder={composerMode === "private_note" ? "Type an internal note" : "Type your message"}
                     value={composer}
                     onChange={(event) => setComposer(event.target.value)}
                     disabled={sendMutation.isPending}
@@ -342,7 +414,7 @@ const InboxPage = () => {
                   <div className="flex justify-end">
                     <Button type="submit" isLoading={sendMutation.isPending} disabled={!composer.trim() || sendMutation.isPending}>
                       <PaperPlane />
-                      Send
+                      {composerMode === "private_note" ? "Save note" : "Send"}
                     </Button>
                   </div>
                 </div>

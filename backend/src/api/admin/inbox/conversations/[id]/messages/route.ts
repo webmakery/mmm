@@ -10,6 +10,7 @@ export const GetAdminInboxConversationMessagesSchema = z.object({
 
 export const PostAdminInboxConversationMessageSchema = z.object({
   text: z.string().trim().min(1),
+  type: z.enum(["message", "private_note"]).default("message"),
 })
 
 export async function GET(
@@ -24,6 +25,7 @@ export async function GET(
       "id",
       "channel",
       "direction",
+      "message_type",
       "text",
       "content",
       "status",
@@ -31,6 +33,10 @@ export async function GET(
       "whatsapp_message_id",
       "sent_at",
       "received_at",
+      "participant.id",
+      "participant.role",
+      "participant.display_name",
+      "participant.external_id",
       "created_at",
       "updated_at",
     ],
@@ -59,11 +65,17 @@ export async function POST(
   res: MedusaResponse
 ) {
   const inboxService = req.scope.resolve<InboxModuleService>(INBOX_MODULE)
-
-  const response = await inboxService.sendInboxMessage({
-    conversationId: req.params.id,
-    text: req.validatedBody.text,
-  })
+  const response =
+    req.validatedBody.type === "private_note"
+      ? await inboxService.createPrivateNote({
+          conversationId: req.params.id,
+          text: req.validatedBody.text,
+          actorId: req.auth_context?.actor_id,
+        })
+      : await inboxService.sendInboxMessage({
+          conversationId: req.params.id,
+          text: req.validatedBody.text,
+        })
 
   res.status(200).json({
     message: response.message,
