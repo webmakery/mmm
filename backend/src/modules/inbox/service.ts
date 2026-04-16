@@ -6,6 +6,7 @@ import Message from "./models/message"
 import MessageAttachment from "./models/message-attachment"
 import WhatsappProvider from "./providers/whatsapp/provider"
 import MetaProvider from "./providers/meta/provider"
+import GmailProvider, { GmailConnection } from "./providers/gmail/provider"
 import { ChannelWebhookResult, InboxChannel } from "./providers/types"
 import { CreatePrivateNoteInput, IngestWebhookResult, SendInboxMessageInput } from "./types"
 
@@ -18,15 +19,18 @@ class InboxModuleService extends MedusaService({
 }) {
   private whatsappProvider_: WhatsappProvider
   private metaProvider_: MetaProvider
+  private gmailProvider_: GmailProvider
 
   constructor(...args: any[]) {
     super(...args)
     this.whatsappProvider_ = new WhatsappProvider()
     this.metaProvider_ = new MetaProvider()
+    this.gmailProvider_ = new GmailProvider()
   }
 
   private async getOrCreateChannelAccount(input: { channel: InboxChannel; externalAccountId: string }) {
     const [existing] = await this.listChannelAccounts({
+      provider: input.channel,
       external_account_id: input.externalAccountId,
     })
 
@@ -38,6 +42,83 @@ class InboxModuleService extends MedusaService({
       provider: input.channel,
       external_account_id: input.externalAccountId,
     })
+  }
+
+  private parseGmailConnection(account: { metadata?: Record<string, unknown> | null }): GmailConnection | null {
+    const metadata = (account.metadata || {}) as Record<string, unknown>
+    const gmail = metadata.gmail as Record<string, unknown> | undefined
+
+    if (!gmail) {
+      return null
+    }
+
+    const emailAddress = typeof gmail.email_address === "string" ? gmail.email_address : ""
+    const accessToken = typeof gmail.access_token === "string" ? gmail.access_token : ""
+    const refreshToken = typeof gmail.refresh_token === "string" ? gmail.refresh_token : ""
+    const expiryDate = typeof gmail.expiry_date === "string" ? gmail.expiry_date : ""
+    const scope = typeof gmail.scope === "string" ? gmail.scope : undefined
+
+    if (!emailAddress || !accessToken || !expiryDate) {
+      return null
+    }
+
+    return {
+      emailAddress,
+      accessToken,
+      refreshToken,
+      expiryDate,
+      scope,
+    }
+  }
+
+  private async saveGmailConnection(input: { channelAccountId: string; connection: GmailConnection }) {
+    const channelAccount = await this.retrieveChannelAccount(input.channelAccountId)
+    const metadata = ((channelAccount.metadata || {}) as Record<string, unknown>) || {}
+
+    await this.updateChannelAccounts({
+      id: input.channelAccountId,
+      metadata: {
+        ...metadata,
+        gmail: {
+          email_address: input.connection.emailAddress,
+          access_token: input.connection.accessToken,
+          refresh_token: input.connection.refreshToken,
+          expiry_date: input.connection.expiryDate,
+          scope: input.connection.scope,
+        },
+      },
+    })
+  }
+
+  private async getGmailAccountOrThrow(input?: { accountEmail?: string }) {
+    const accounts = await this.listChannelAccounts({
+      provider: "email",
+    })
+
+    const matched =
+      accounts.find((account) => {
+        if (!input?.accountEmail) {
+          return true
+        }
+
+        const connection = this.parseGmailConnection(account)
+        return connection?.emailAddress === input.accountEmail.toLowerCase()
+      }) || null
+
+    if (!matched) {
+      throw new Error("No connected Gmail inbox account found. Complete OAuth connect first.")
+    }
+
+    const connection = this.parseGmailConnection(matched)
+
+    if (!connection) {
+      throw new Error("Connected Gmail account is missing token metadata.")
+    }
+
+    return {
+      channelAccount: matched,
+      connection,
+    }
   }
 
   private async getOrCreateConversation(input: {
@@ -56,7 +137,13 @@ class InboxModuleService extends MedusaService({
     const [existing] = await this.listConversations({
       channel: input.channel,
       channel_account_id: input.accountRefId,
-      customer_identifier: input.customerIdentifier,
+      ...(input.channel === "email" && input.externalThreadId
+        ? {
+            external_thread_id: input.externalThreadId,
+          }
+        : {
+            customer_identifier: input.customerIdentifier,
+          }),
       ...(input.tenantId ? { tenant_id: input.tenantId } : {}),
     })
 
@@ -264,6 +351,144 @@ class InboxModuleService extends MedusaService({
     return this.ingestWebhookPayload(payload, parsed)
   }
 
+  getGmailAuthorizationUrl(input: { state: string }) {
+    return {
+      url: this.gmailProvider_.getAuthorizationUrl(input.state),
+    }
+  }
+
+  async connectGmailAccount(input: { code: string }) {
+    const connection = await this.gmailProvider_.exchangeCodeForTokens(input.code)
+
+    const account = await this.getOrCreateChannelAccount({
+      channel: "email",
+      externalAccountId: connection.emailAddress,
+    })
+
+    await this.updateChannelAccounts({
+      id: account.id,
+      provider: "email",
+      external_account_id: connection.emailAddress,
+      display_name: connection.emailAddress,
+    })
+
+    await this.saveGmailConnection({
+      channelAccountId: account.id,
+      connection,
+    })
+
+    return {
+      connected: true,
+      email: connection.emailAddress,
+      channel_account_id: account.id,
+    }
+  }
+
+  async syncGmailInbox(input?: { accountEmail?: string; limit?: number }) {
+    const { channelAccount, connection } = await this.getGmailAccountOrThrow({
+      accountEmail: input?.accountEmail,
+    })
+
+    const refreshedConnection = await this.gmailProvider_.refreshAccessToken(connection)
+
+    await this.saveGmailConnection({
+      channelAccountId: channelAccount.id,
+      connection: refreshedConnection,
+    })
+
+    const threads = await this.gmailProvider_.listThreads(refreshedConnection, input?.limit || 20)
+
+    let inboundMessagesStored = 0
+    let duplicatesSkipped = 0
+
+    for (const threadRef of threads) {
+      const thread = await this.gmailProvider_.getThread(refreshedConnection, threadRef.id)
+      const threadMessages = thread.messages || []
+
+      for (const gmailMessage of threadMessages) {
+        const normalized = this.gmailProvider_.normalizeThreadMessage(thread, gmailMessage)
+        const [duplicate] = await this.listMessages({
+          external_message_id: normalized.externalMessageId,
+        })
+
+        if (duplicate) {
+          duplicatesSkipped += 1
+          continue
+        }
+
+        const conversation = await this.getOrCreateConversation({
+          channel: "email",
+          accountRefId: channelAccount.id,
+          customerIdentifier: normalized.senderEmail || "unknown",
+          customerPhone: normalized.senderEmail || "unknown",
+          customerDisplayName: normalized.senderName || normalized.senderEmail,
+          customerHandle: normalized.senderEmail,
+          externalThreadId: normalized.externalThreadId,
+          externalUserId: normalized.senderEmail,
+        })
+
+        const [customerParticipant] = await this.listParticipants({
+          conversation_id: conversation.id,
+          external_id: normalized.senderEmail || "unknown",
+        })
+
+        const participant =
+          customerParticipant ||
+          (await this.createParticipants({
+            conversation_id: conversation.id,
+            role: "customer",
+            external_id: normalized.senderEmail || "unknown",
+            display_name: normalized.senderName || normalized.senderEmail || "Unknown sender",
+          }))
+
+        await this.updateConversations({
+          id: conversation.id,
+          subject: normalized.subject || conversation.subject,
+        })
+
+        await this.createMessages({
+          provider: "email",
+          channel: "email",
+          whatsapp_message_id: null,
+          external_message_id: normalized.externalMessageId,
+          direction: "inbound",
+          status: "received",
+          message_type: normalized.body || normalized.snippet ? "text" : "unsupported",
+          text: normalized.body || normalized.snippet,
+          content: normalized.body || normalized.snippet,
+          received_at: normalized.timestamp,
+          raw_payload: normalized.rawPayload,
+          metadata: {
+            gmail_headers: normalized.headers,
+            snippet: normalized.snippet,
+            subject: normalized.subject,
+            from: normalized.senderEmail,
+          },
+          conversation_id: conversation.id,
+          participant_id: participant.id,
+          channel_account_id: channelAccount.id,
+        })
+
+        await this.syncConversationState({
+          conversationId: conversation.id,
+          text: normalized.snippet || normalized.body,
+          timestamp: normalized.timestamp,
+          incrementUnread: true,
+        })
+
+        inboundMessagesStored += 1
+      }
+    }
+
+    return {
+      channel: "email",
+      account: refreshedConnection.emailAddress,
+      threads_scanned: threads.length,
+      inbound_messages_stored: inboundMessagesStored,
+      duplicates_skipped: duplicatesSkipped,
+    }
+  }
+
   async sendWhatsAppMessage(input: SendInboxMessageInput) {
     return this.sendInboxMessage({ ...input, channel: "whatsapp" })
   }
@@ -314,11 +539,50 @@ class InboxModuleService extends MedusaService({
         to,
         text: input.text,
       })
-    } else {
+    } else if (channel === "instagram") {
       providerResponse = await this.metaProvider_.sendInstagramMessage({
         channel,
         instagramAccountId: conversation.instagram_account_id || conversation.channel_account.external_account_id,
         to,
+        text: input.text,
+      })
+    } else {
+      const connection = this.parseGmailConnection(conversation.channel_account)
+
+      if (!connection) {
+        throw new Error("Missing Gmail OAuth credentials for this inbox account.")
+      }
+
+      const refreshedConnection = await this.gmailProvider_.refreshAccessToken(connection)
+
+      await this.saveGmailConnection({
+        channelAccountId: conversation.channel_account_id,
+        connection: refreshedConnection,
+      })
+
+      const conversationMessages = await this.listMessages({
+        conversation_id: conversation.id,
+      })
+      const latestMessage = [...conversationMessages].sort((a, b) => {
+        const aTime = new Date(a.received_at || a.sent_at || a.created_at).getTime()
+        const bTime = new Date(b.received_at || b.sent_at || b.created_at).getTime()
+        return bTime - aTime
+      })[0]
+      const messageMetadata = (latestMessage?.metadata || {}) as Record<string, unknown>
+      const gmailHeaders = (messageMetadata.gmail_headers || {}) as Record<string, string>
+      const threadId = conversation.external_thread_id
+
+      if (!threadId) {
+        throw new Error("Email conversation is missing Gmail thread id.")
+      }
+
+      providerResponse = await this.gmailProvider_.sendReply({
+        connection: refreshedConnection,
+        to,
+        threadId,
+        subject: conversation.subject || (typeof messageMetadata.subject === "string" ? messageMetadata.subject : null),
+        inReplyTo: gmailHeaders["message-id"] || null,
+        references: gmailHeaders.references || gmailHeaders["message-id"] || null,
         text: input.text,
       })
     }

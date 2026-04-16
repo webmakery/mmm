@@ -37,6 +37,7 @@ export async function GET(
       "participant.role",
       "participant.display_name",
       "participant.external_id",
+      "metadata",
       "created_at",
       "updated_at",
     ],

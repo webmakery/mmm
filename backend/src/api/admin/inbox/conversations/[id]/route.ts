@@ -12,6 +12,7 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
       "customer_identifier",
       "customer_name",
       "customer_handle",
+      "subject",
       "external_user_id",
       "last_message_preview",
       "last_message_at",
@@ -36,6 +37,7 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
       "messages.participant.role",
       "messages.participant.display_name",
       "messages.participant.external_id",
+      "messages.metadata",
     ],
     filters: {
       id: req.params.id,
