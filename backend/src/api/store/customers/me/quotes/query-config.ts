@@ -1,7 +1,7 @@
 export const quoteFields = [
   "id",
   "status",
-  "*customer",
+  "customer.*",
   "cart.id",
   "draft_order.id",
   "draft_order.currency_code",
@@ -32,13 +32,13 @@ export const quoteFields = [
   "draft_order.original_shipping_total",
   "draft_order.created_at",
   "draft_order.updated_at",
-  "*draft_order.items",
-  "*draft_order.items.tax_lines",
-  "*draft_order.items.adjustments",
-  "*draft_order.items.variant",
-  "*draft_order.items.detail",
-  "*draft_order.payment_collections",
-  "*order_change.actions",
+  "draft_order.items.*",
+  "draft_order.items.tax_lines.*",
+  "draft_order.items.adjustments.*",
+  "draft_order.items.variant.*",
+  "draft_order.items.detail.*",
+  "draft_order.payment_collections.*",
+  "order_change.actions.*",
 ];
 
 export const retrieveStoreQuoteQueryConfig = {
