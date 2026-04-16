@@ -44,7 +44,7 @@ export const createRequestForQuoteWorkflow = createWorkflow(
 
     const { data: customers } = useQueryGraphStep({
       entity: "customer",
-      fields: ["id", "customer"],
+      fields: ["id", "email"],
       filters: { id: input.customer_id },
       options: {
         throwIfKeyNotFound: true
