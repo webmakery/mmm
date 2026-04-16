@@ -1,14 +1,24 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { ClockSolid } from "@medusajs/icons"
-import { Container, Heading, Badge, createDataTableColumnHelper, useDataTable, DataTablePaginationState, DataTable } from "@medusajs/ui"
+import {
+  Container,
+  Heading,
+  StatusBadge,
+  createDataTableColumnHelper,
+  useDataTable,
+  DataTablePaginationState,
+  DataTable,
+} from "@medusajs/ui"
 import { useMemo, useState } from "react"
 import { SubscriptionData, SubscriptionStatus } from "../../types"
 import { useQuery } from "@tanstack/react-query"
 import { sdk } from "../../lib/sdk"
 import { useNavigate } from "react-router-dom"
 
-const getBadgeColor = (status: SubscriptionStatus) => {
-  switch(status) {
+const PAGE_SIZE = 15
+
+const getStatusColor = (status: SubscriptionStatus) => {
+  switch (status) {
     case SubscriptionStatus.CANCELED:
       return "orange"
     case SubscriptionStatus.FAILED:
@@ -20,9 +30,22 @@ const getBadgeColor = (status: SubscriptionStatus) => {
   }
 }
 
-const getStatusTitle = (status: SubscriptionStatus) => {
-  return status.charAt(0).toUpperCase() + 
-    status.substring(1)
+const getStatusLabel = (status: SubscriptionStatus) => {
+  return status.charAt(0).toUpperCase() + status.substring(1)
+}
+
+const formatDate = (date: string | null | undefined) => {
+  if (!date) {
+    return "-"
+  }
+
+  const parsedDate = new Date(date)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "-"
+  }
+
+  return parsedDate.toLocaleString()
 }
 
 const columnHelper = createDataTableColumnHelper<SubscriptionData>()
@@ -35,52 +58,56 @@ const columns = [
     header: "Main Order",
   }),
   columnHelper.accessor("customer.email", {
-    header: "Customer"
+    header: "Customer",
   }),
   columnHelper.accessor("subscription_date", {
     header: "Subscription Date",
     cell: ({ getValue }) => {
-      return getValue().toLocaleString()
-    }
+      return formatDate(getValue())
+    },
   }),
   columnHelper.accessor("expiration_date", {
     header: "Expiry Date",
     cell: ({ getValue }) => {
-      return getValue().toLocaleString()
-    }
+      return formatDate(getValue())
+    },
   }),
   columnHelper.accessor("status", {
     header: "Status",
     cell: ({ getValue }) => {
       return (
-        <Badge color={getBadgeColor(getValue())}>
-          {getStatusTitle(getValue())}
-        </Badge>
+        <StatusBadge color={getStatusColor(getValue())}>
+          {getStatusLabel(getValue())}
+        </StatusBadge>
       )
-    }
+    },
   }),
 ]
 
 const SubscriptionsPage = () => {
   const navigate = useNavigate()
   const [pagination, setPagination] = useState<DataTablePaginationState>({
-    pageSize: 4,
+    pageSize: PAGE_SIZE,
     pageIndex: 0,
   })
 
-  const query = useMemo(() => {
-    return new URLSearchParams({
-      limit: `${pagination.pageSize}`,
-      offset: `${pagination.pageIndex * pagination.pageSize}`,
-    })
+  const offset = useMemo(() => {
+    return pagination.pageIndex * pagination.pageSize
   }, [pagination])
 
   const { data, isLoading } = useQuery<{
-    subscriptions: SubscriptionData[],
+    subscriptions: SubscriptionData[]
     count: number
   }>({
-    queryFn: () => sdk.client.fetch(`/admin/subscriptions?${query.toString()}`),
-    queryKey: ["subscriptions", query.toString()],
+    queryFn: () =>
+      sdk.client.fetch(`/admin/subscriptions`, {
+        query: {
+          limit: pagination.pageSize,
+          offset,
+          order: "-created_at",
+        },
+      }),
+    queryKey: ["subscriptions", pagination.pageSize, offset],
   })
 
   const table = useDataTable({
@@ -93,20 +120,18 @@ const SubscriptionsPage = () => {
       state: pagination,
       onPaginationChange: setPagination,
     },
-    onRowClick(event, row) {
+    onRowClick(_event, row) {
       navigate(`/subscriptions/${row.id}`)
     },
   })
 
-
   return (
-    <Container>
+    <Container className="divide-y p-0">
       <DataTable instance={table}>
-        <DataTable.Toolbar>
-          <Heading level="h1">Subscriptions</Heading>
+        <DataTable.Toolbar className="px-6 py-4">
+          <Heading>Subscriptions</Heading>
         </DataTable.Toolbar>
-				<DataTable.Table />
-        {/** This component will render the pagination controls **/}
+        <DataTable.Table />
         <DataTable.Pagination />
       </DataTable>
     </Container>
