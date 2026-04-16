@@ -4,7 +4,7 @@ import Stripe from "stripe"
 import { SUBSCRIPTION_INFRASTRUCTURE_MODULE } from "../modules/subscription-infrastructure"
 import SubscriptionInfrastructureModuleService from "../modules/subscription-infrastructure/service"
 import deleteSubscriptionInfrastructureWorkflow from "../workflows/delete-subscription-infrastructure"
-import provisionSubscriptionInfrastructureWorkflow from "../workflows/provision-subscription-infrastructure"
+import { retryInfrastructureProvisioning } from "./subscription-infrastructure-provisioning"
 
 type HetznerPlanConfig = {
   server_type: string
@@ -60,20 +60,17 @@ const getCheckoutSubscriptionHint = (stripeCustomerId: string, nowMs: number) =>
   return hint.subscriptionId
 }
 
-const shouldSkipProvisioning = (status: string | null | undefined) =>
-  ["active", "provisioning", "deleting", "deleted"].includes(String(status || ""))
-
 const triggerProvisioningIfNeeded = async ({
   container,
   infrastructure,
   logger,
 }: {
   container: ResolveContainer
-  infrastructure: { id: string; status?: string | null; stripe_price_id?: string | null }
+  infrastructure: { id: string; status?: unknown; stripe_price_id?: unknown }
   logger: Logger
 }) => {
   logger.info(
-    `[stripe-webhook] plan mapping preflight infrastructure_id=${infrastructure.id} stripe_price_id=${infrastructure.stripe_price_id || "n/a"} available=${!!(infrastructure.stripe_price_id && parsePlanMapping()[infrastructure.stripe_price_id])}`
+      `[stripe-webhook] plan mapping preflight infrastructure_id=${infrastructure.id} stripe_price_id=${String(infrastructure.stripe_price_id || "n/a")} available=${!!(infrastructure.stripe_price_id && parsePlanMapping()[String(infrastructure.stripe_price_id)])}`
   )
 
   if (!infrastructure.stripe_price_id) {
@@ -83,19 +80,11 @@ const triggerProvisioningIfNeeded = async ({
     return
   }
 
-  if (shouldSkipProvisioning(infrastructure.status)) {
-    logger.info(
-      `[stripe-webhook] Skipping provisioning for infrastructure ${infrastructure.id} with status ${infrastructure.status}`
-    )
-    return
-  }
-
-  logger.info(`[stripe-webhook] provisioning workflow start infrastructure_id=${infrastructure.id}`)
-
-  await provisionSubscriptionInfrastructureWorkflow(container as any).run({
-    input: {
-      infrastructure_id: infrastructure.id,
-    },
+  await retryInfrastructureProvisioning({
+    container,
+    infrastructureId: infrastructure.id,
+    triggeredBy: "webhook",
+    logger,
   })
 }
 

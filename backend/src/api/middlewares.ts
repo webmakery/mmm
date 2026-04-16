@@ -20,6 +20,7 @@ import { AddBuilderProductSchema } from "./store/carts/[id]/product-builder/rout
 import { GetStoreReviewsSchema } from "./store/products/[id]/reviews/route"
 import { PostStoreReviewSchema } from "./store/reviews/route"
 import { PostStoreSyncSubscriptionSchema } from "./store/customers/me/subscriptions/sync/route"
+import { PostAdminRetryInfrastructureSchema } from "./admin/subscriptions/[id]/infrastructure/retry/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -66,6 +67,11 @@ export default defineMiddlewares({
           isList: true,
         }),
       ],
+    },
+    {
+      matcher: "/admin/subscriptions/:id/infrastructure/retry",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminRetryInfrastructureSchema)],
     },
     {
       matcher: "/admin/subscription-plans",

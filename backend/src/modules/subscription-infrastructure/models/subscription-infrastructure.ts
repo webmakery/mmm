@@ -7,6 +7,7 @@ export const SubscriptionInfrastructureStatus = [
   "deleting",
   "deleted",
   "failed",
+  "cancelled",
 ] as const
 
 const SubscriptionInfrastructure = model.define("subscription_infrastructure", {
@@ -27,8 +28,14 @@ const SubscriptionInfrastructure = model.define("subscription_infrastructure", {
   hetzner_region: model.text(),
   hetzner_server_type: model.text(),
   hetzner_image: model.text(),
-  status: model.enum(SubscriptionInfrastructureStatus).default("pending"),
+  status: model.enum([...SubscriptionInfrastructureStatus]).default("pending"),
   last_error: model.text().nullable(),
+  provisioning_retry_count: model.number().default(0),
+  last_provisioning_started_at: model.dateTime().nullable(),
+  last_provisioning_finished_at: model.dateTime().nullable(),
+  failure_diagnostics: model.json().nullable(),
+  cancelled_at: model.dateTime().nullable(),
+  cancelled_by: model.text().nullable(),
 })
 
 export default SubscriptionInfrastructure

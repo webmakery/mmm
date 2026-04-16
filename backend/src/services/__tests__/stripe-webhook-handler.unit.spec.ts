@@ -1,12 +1,12 @@
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { SUBSCRIPTION_INFRASTRUCTURE_MODULE } from "../../modules/subscription-infrastructure"
 
-const provisionRunMock = jest.fn()
+const retryProvisioningMock = jest.fn(async () => ({ skipped: false }))
 const deleteRunMock = jest.fn()
 
-jest.mock("../../workflows/provision-subscription-infrastructure", () => ({
+jest.mock("../../services/subscription-infrastructure-provisioning", () => ({
   __esModule: true,
-  default: jest.fn(() => ({ run: provisionRunMock })),
+  retryInfrastructureProvisioning: retryProvisioningMock,
 }))
 
 jest.mock("../../workflows/delete-subscription-infrastructure", () => ({
@@ -151,7 +151,7 @@ describe("stripe webhook reprovisioning", () => {
       id: oldInfrastructure.id,
       status: "deleted",
     })
-    provisionRunMock.mockClear()
+    retryProvisioningMock.mockClear()
 
     jest.setSystemTime(new Date("2026-04-15T14:30:00.000Z"))
 
@@ -198,15 +198,17 @@ describe("stripe webhook reprovisioning", () => {
     )
 
     expect(newInfrastructure).toBeDefined()
-    expect(provisionRunMock).toHaveBeenCalledWith({
-      input: {
-        infrastructure_id: newInfrastructure.id,
-      },
+    expect(retryProvisioningMock).toHaveBeenCalledWith({
+      container: container as any,
+      infrastructureId: newInfrastructure.id,
+      triggeredBy: "webhook",
+      logger: logger as any,
     })
-    expect(provisionRunMock).not.toHaveBeenCalledWith({
-      input: {
-        infrastructure_id: oldInfrastructure.id,
-      },
+    expect(retryProvisioningMock).not.toHaveBeenCalledWith({
+      container: container as any,
+      infrastructureId: oldInfrastructure.id,
+      triggeredBy: "webhook",
+      logger: logger as any,
     })
 
     jest.useRealTimers()
@@ -246,7 +248,7 @@ describe("stripe webhook reprovisioning", () => {
 
     expect(first).toEqual({ duplicate: false })
     expect(second).toEqual({ duplicate: true })
-    expect(provisionRunMock).toHaveBeenCalledTimes(1)
+    expect(retryProvisioningMock).toHaveBeenCalledTimes(1)
     expect(infraService.infrastructures).toHaveLength(1)
   })
 })
