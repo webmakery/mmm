@@ -8,12 +8,21 @@ import { redirect } from "next/navigation"
 export type CustomerSubscription = {
   id: string
   status: string
+  display_status?: string | null
+  stripe_subscription_id?: string | null
   interval?: string | null
   period?: number | null
   subscription_date?: string | null
   last_order_date?: string | null
   next_order_date?: string | null
   expiration_date?: string | null
+  server_ip?: string | null
+  server_cpu?: number | null
+  server_ram_gb?: number | null
+  server_region?: string | null
+  server_type?: string | null
+  infrastructure_status?: string | null
+  hetzner_server_id?: string | null
   metadata?: Record<string, unknown> | null
 }
 

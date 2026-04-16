@@ -10,6 +10,9 @@ export type HetznerCreateServerConfig = {
 export type HetznerServerResponse = {
   id: number
   name: string
+  publicIpV4: string | null
+  cpuCores: number | null
+  ramGb: number | null
 }
 
 export class HetznerApiError extends Error {
@@ -69,6 +72,16 @@ export default class HetznerCloudService {
     return {
       id: Number(server.id),
       name: String(server.name),
+      publicIpV4:
+        (server.public_net as { ipv4?: { ip?: string | null } } | undefined)?.ipv4?.ip || null,
+      cpuCores:
+        typeof (server.server_type as { cores?: unknown } | undefined)?.cores === "number"
+          ? Number((server.server_type as { cores: number }).cores)
+          : null,
+      ramGb:
+        typeof (server.server_type as { memory?: unknown } | undefined)?.memory === "number"
+          ? Number((server.server_type as { memory: number }).memory)
+          : null,
     }
   }
 

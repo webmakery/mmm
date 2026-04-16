@@ -3,7 +3,7 @@ import {
   type CustomerSubscription,
 } from "@lib/data/subscriptions"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import { Button } from "@medusajs/ui"
+import { Badge, Button } from "@medusajs/ui"
 
 const getSubscriptionLabel = (subscription: CustomerSubscription) => {
   const itemTitle = subscription.metadata?.item_title
@@ -30,7 +30,34 @@ const getStatusLabel = (status?: string | null) => {
     return "Unknown"
   }
 
-  return status.charAt(0).toUpperCase() + status.slice(1)
+  if (status === "cancel_at_period_end") {
+    return "Cancel at period end"
+  }
+
+  return status
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+}
+
+const getStatusColor = (status?: string | null) => {
+  if (!status) {
+    return "grey" as const
+  }
+
+  if (status === "active") {
+    return "green" as const
+  }
+
+  if (status === "cancel_at_period_end" || status === "trialing") {
+    return "orange" as const
+  }
+
+  if (status === "canceled" || status === "past_due" || status === "incomplete" || status === "unpaid") {
+    return "red" as const
+  }
+
+  return "grey" as const
 }
 
 const SubscriptionsList = ({
@@ -38,7 +65,19 @@ const SubscriptionsList = ({
 }: {
   subscriptions: CustomerSubscription[]
 }) => {
-  if (!subscriptions.length) {
+  const uniqueSubscriptions = Array.from(
+    subscriptions.reduce((acc, subscription) => {
+      const dedupeKey = subscription.stripe_subscription_id || subscription.id
+
+      if (!acc.has(dedupeKey)) {
+        acc.set(dedupeKey, subscription)
+      }
+
+      return acc
+    }, new Map<string, CustomerSubscription>())
+  ).map(([, subscription]) => subscription)
+
+  if (!uniqueSubscriptions.length) {
     return (
       <div
         className="w-full flex flex-col items-center gap-y-4"
@@ -61,31 +100,52 @@ const SubscriptionsList = ({
 
   return (
     <ul className="flex flex-col w-full" data-testid="subscriptions-list">
-      {subscriptions.map((subscription) => (
-        <li
-          key={subscription.id}
-          className="flex flex-col small:flex-row small:items-center small:justify-between gap-y-2 border-b border-gray-200 py-4"
-          data-testid="subscription-item"
-        >
-          <div>
-            <p className="text-base-semi">
-              {getSubscriptionLabel(subscription)}
-            </p>
-            <p className="text-base-regular text-ui-fg-subtle">
-              Status: {getStatusLabel(subscription.status)}
-            </p>
-          </div>
-          <form action={manageSubscription}>
-            <Button
-              type="submit"
-              variant="secondary"
-              data-testid="manage-subscription-button"
-            >
-              Manage subscription
-            </Button>
-          </form>
-        </li>
-      ))}
+      {uniqueSubscriptions.map((subscription) => {
+        const hasActiveServer =
+          !!subscription.infrastructure_status &&
+          !["deleted", "deleting"].includes(subscription.infrastructure_status)
+
+        return (
+          <li
+            key={subscription.id}
+            className="flex flex-col small:flex-row small:items-center small:justify-between gap-y-2 border-b border-gray-200 py-4"
+            data-testid="subscription-item"
+          >
+            <div>
+              <p className="text-base-semi">
+                {getSubscriptionLabel(subscription)}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Badge color={getStatusColor(subscription.display_status || subscription.status)}>
+                  {getStatusLabel(subscription.display_status || subscription.status)}
+                </Badge>
+                {subscription.server_cpu ? <Badge color="grey">{subscription.server_cpu} vCPU</Badge> : null}
+                {subscription.server_ram_gb ? (
+                  <Badge color="grey">{subscription.server_ram_gb} GB RAM</Badge>
+                ) : null}
+                {subscription.server_ip ? (
+                  <Badge color="grey">IP: {subscription.server_ip}</Badge>
+                ) : (
+                  <Badge color="grey">
+                    {hasActiveServer ? "No active server IP" : "Server deleted"}
+                  </Badge>
+                )}
+                {subscription.server_region ? <Badge color="grey">{subscription.server_region}</Badge> : null}
+                {subscription.server_type ? <Badge color="grey">{subscription.server_type}</Badge> : null}
+              </div>
+            </div>
+            <form action={manageSubscription}>
+              <Button
+                type="submit"
+                variant="secondary"
+                data-testid="manage-subscription-button"
+              >
+                Manage subscription
+              </Button>
+            </form>
+          </li>
+        )
+      })}
     </ul>
   )
 }

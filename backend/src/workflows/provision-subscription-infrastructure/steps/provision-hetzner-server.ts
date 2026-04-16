@@ -61,6 +61,9 @@ const provisionHetznerServerStep = createStep(
       await infraService.updateSubscriptionInfrastructures({
         id: infrastructure.id,
         hetzner_server_id: String(result.id),
+        server_ip: result.publicIpV4,
+        server_cpu: result.cpuCores,
+        server_ram_gb: result.ramGb,
         status: "active",
         last_error: null,
       })
