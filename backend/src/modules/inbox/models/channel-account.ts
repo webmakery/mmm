@@ -2,7 +2,7 @@ import { model } from "@medusajs/framework/utils"
 import Conversation from "./conversation"
 import Message from "./message"
 
-export const InboxProvider = ["whatsapp"] as const
+import { InboxProvider } from "./inbox-provider"
 
 const ChannelAccount = model.define("channel_account", {
   id: model.id().primaryKey(),
