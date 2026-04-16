@@ -21,6 +21,9 @@ import { GetStoreReviewsSchema } from "./store/products/[id]/reviews/route"
 import { PostStoreReviewSchema } from "./store/reviews/route"
 import { PostStoreSyncSubscriptionSchema } from "./store/customers/me/subscriptions/sync/route"
 import { PostAdminRetryInfrastructureSchema } from "./admin/subscriptions/[id]/infrastructure/retry/route"
+import { GetAdminInboxConversationsSchema } from "./admin/inbox/conversations/route"
+import { GetAdminInboxConversationMessagesSchema } from "./admin/inbox/conversations/[id]/messages/route"
+import { PostAdminInboxConversationReplySchema } from "./admin/inbox/conversations/[id]/reply/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -32,6 +35,11 @@ export default defineMiddlewares({
       matcher: "/hooks/stripe",
       methods: ["POST"],
       middlewares: [bodyParser.raw({ type: "application/json" })],
+    },
+    {
+      matcher: "/webhooks/whatsapp",
+      methods: ["POST"],
+      middlewares: [bodyParser.json({ type: "application/json" })],
     },
     {
       matcher: "/product-feed",
@@ -72,6 +80,57 @@ export default defineMiddlewares({
       matcher: "/admin/subscriptions/:id/infrastructure/retry",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostAdminRetryInfrastructureSchema)],
+    },
+    {
+      matcher: "/admin/inbox/conversations",
+      methods: ["GET"],
+      middlewares: [
+        validateAndTransformQuery(GetAdminInboxConversationsSchema, {
+          isList: true,
+          defaults: [
+            "id",
+            "provider",
+            "status",
+            "customer_identifier",
+            "last_message_at",
+            "created_at",
+            "updated_at",
+            "channel_account.*",
+            "participants.*",
+          ],
+        }),
+      ],
+    },
+    {
+      matcher: "/admin/inbox/conversations/:id/messages",
+      methods: ["GET"],
+      middlewares: [
+        validateAndTransformQuery(GetAdminInboxConversationMessagesSchema, {
+          isList: true,
+          defaults: [
+            "id",
+            "provider",
+            "external_message_id",
+            "direction",
+            "message_type",
+            "status",
+            "provider_status",
+            "content",
+            "error_message",
+            "sent_at",
+            "received_at",
+            "created_at",
+            "updated_at",
+            "participant.*",
+            "attachments.*",
+          ],
+        }),
+      ],
+    },
+    {
+      matcher: "/admin/inbox/conversations/:id/reply",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminInboxConversationReplySchema)],
     },
     {
       matcher: "/admin/subscription-plans",
