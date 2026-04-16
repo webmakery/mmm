@@ -18,6 +18,9 @@ module.exports = defineConfig({
   },
   modules: [
     {
+      resolve: "./src/modules/quote",
+    },
+    {
       resolve: "./src/modules/digital-product",
     },
     {
