@@ -1,31 +1,69 @@
 import { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { createFindParams } from "@medusajs/medusa/api/utils/validators"
+import { z } from "@medusajs/framework/zod"
+import { INBOX_MODULE } from "../../../../../../modules/inbox"
+import InboxModuleService from "../../../../../../modules/inbox/service"
 
-export const GetAdminInboxConversationMessagesSchema = createFindParams()
+export const GetAdminInboxConversationMessagesSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+  offset: z.coerce.number().int().min(0).default(0),
+})
 
-export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
+export const PostAdminInboxConversationMessageSchema = z.object({
+  text: z.string().trim().min(1),
+})
+
+export async function GET(
+  req: AuthenticatedMedusaRequest<z.infer<typeof GetAdminInboxConversationMessagesSchema>>,
+  res: MedusaResponse
+) {
   const query = req.scope.resolve("query")
 
-  const {
-    data: messages,
-    metadata: { count, take, skip } = {
-      count: 0,
-      take: 50,
-      skip: 0,
-    },
-  } = await query.graph({
+  const { data: messages, metadata } = await query.graph({
     entity: "message",
-    ...req.queryConfig,
+    fields: [
+      "id",
+      "direction",
+      "text",
+      "content",
+      "status",
+      "whatsapp_message_id",
+      "sent_at",
+      "received_at",
+      "created_at",
+      "updated_at",
+    ],
     filters: {
-      ...(req.filterableFields || {}),
-      conversation_id: [req.params.id],
+      conversation_id: req.params.id,
+    },
+    pagination: {
+      skip: req.validatedQuery.offset,
+      take: req.validatedQuery.limit,
+      order: {
+        created_at: "ASC",
+      },
     },
   })
 
   res.json({
     messages,
-    count,
-    limit: take,
-    offset: skip,
+    count: metadata?.count ?? 0,
+    limit: metadata?.take ?? req.validatedQuery.limit,
+    offset: metadata?.skip ?? req.validatedQuery.offset,
+  })
+}
+
+export async function POST(
+  req: AuthenticatedMedusaRequest<z.infer<typeof PostAdminInboxConversationMessageSchema>>,
+  res: MedusaResponse
+) {
+  const inboxService = req.scope.resolve<InboxModuleService>(INBOX_MODULE)
+
+  const response = await inboxService.sendConversationReply({
+    conversationId: req.params.id,
+    text: req.validatedBody.text,
+  })
+
+  res.status(200).json({
+    message: response.message,
   })
 }

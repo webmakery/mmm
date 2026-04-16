@@ -17,7 +17,6 @@ class InboxModuleService extends MedusaService({
   private whatsappProvider_: WhatsappProvider
 
   constructor(...args: any[]) {
-    // @ts-expect-error generated class constructor signature
     super(...args)
     this.whatsappProvider_ = new WhatsappProvider()
   }
@@ -42,23 +41,38 @@ class InboxModuleService extends MedusaService({
     customerIdentifier: string
     customerDisplayName?: string | null
     providerThreadId?: string | null
+    tenantId?: string | null
   }) {
     const [existing] = await this.listConversations({
       channel_account_id: input.accountRefId,
-      customer_identifier: input.customerIdentifier,
+      customer_phone: input.customerIdentifier,
+      ...(input.tenantId ? { tenant_id: input.tenantId } : {}),
     })
 
     if (existing) {
+      if (input.customerDisplayName && existing.customer_name !== input.customerDisplayName) {
+        await this.updateConversations({
+          id: existing.id,
+          customer_name: input.customerDisplayName,
+        })
+      }
+
       return existing
     }
 
     const conversation = await this.createConversations({
       provider: "whatsapp",
+      channel: "whatsapp",
+      tenant_id: input.tenantId || null,
       channel_account_id: input.accountRefId,
       customer_identifier: input.customerIdentifier,
+      customer_phone: input.customerIdentifier,
+      customer_name: input.customerDisplayName || null,
       external_thread_id: input.providerThreadId || null,
       status: "open",
+      unread_count: 0,
       last_message_at: null,
+      last_message_preview: null,
     })
 
     await this.createParticipants({
@@ -71,15 +85,31 @@ class InboxModuleService extends MedusaService({
     return conversation
   }
 
-  private async updateConversationTimestamp(conversationId: string, timestamp?: Date | null) {
-    if (!timestamp) {
-      return
+  private async syncConversationState(input: {
+    conversationId: string
+    text?: string | null
+    timestamp?: Date | null
+    incrementUnread?: boolean
+    resetUnread?: boolean
+  }) {
+    const updates: Record<string, unknown> = {
+      id: input.conversationId,
     }
 
-    await this.updateConversations({
-      id: conversationId,
-      last_message_at: timestamp,
-    })
+    if (typeof input.text === "string") {
+      updates.last_message_preview = input.text.slice(0, 280)
+    }
+
+    if (input.timestamp) {
+      updates.last_message_at = input.timestamp
+    }
+
+    if (input.incrementUnread || input.resetUnread) {
+      const conversation = await this.retrieveConversation(input.conversationId)
+      updates.unread_count = input.resetUnread ? 0 : (conversation.unread_count || 0) + 1
+    }
+
+    await this.updateConversations(updates)
   }
 
   async ingestWhatsappWebhook(payload: Record<string, unknown>): Promise<IngestWhatsappWebhookResult> {
@@ -91,7 +121,7 @@ class InboxModuleService extends MedusaService({
 
     for (const inboundMessage of parsed.inboundMessages) {
       const [duplicate] = await this.listMessages({
-        external_message_id: inboundMessage.providerMessageId,
+        whatsapp_message_id: inboundMessage.providerMessageId,
       })
 
       if (duplicate) {
@@ -113,10 +143,12 @@ class InboxModuleService extends MedusaService({
 
       await this.createMessages({
         provider: "whatsapp",
+        whatsapp_message_id: inboundMessage.providerMessageId,
         external_message_id: inboundMessage.providerMessageId,
         direction: "inbound",
         status: "received",
         message_type: inboundMessage.messageType,
+        text: inboundMessage.content || null,
         content: inboundMessage.content || null,
         received_at: inboundMessage.timestamp || new Date(),
         raw_payload: inboundMessage.rawPayload,
@@ -125,7 +157,12 @@ class InboxModuleService extends MedusaService({
         channel_account_id: channelAccount.id,
       })
 
-      await this.updateConversationTimestamp(conversation.id, inboundMessage.timestamp || new Date())
+      await this.syncConversationState({
+        conversationId: conversation.id,
+        text: inboundMessage.content,
+        timestamp: inboundMessage.timestamp || new Date(),
+        incrementUnread: true,
+      })
       inboundMessagesStored += 1
     }
 
@@ -140,7 +177,7 @@ class InboxModuleService extends MedusaService({
       }
 
       const [existingOutbound] = await this.listMessages({
-        external_message_id: statusEvent.providerMessageId,
+        whatsapp_message_id: statusEvent.providerMessageId,
       })
 
       if (existingOutbound) {
@@ -153,7 +190,13 @@ class InboxModuleService extends MedusaService({
           external_event_id: statusEvent.eventId,
         })
 
-        await this.updateConversationTimestamp(existingOutbound.conversation_id, statusEvent.timestamp)
+        if (statusEvent.timestamp) {
+          await this.syncConversationState({
+            conversationId: existingOutbound.conversation_id,
+            timestamp: statusEvent.timestamp,
+          })
+        }
+
         statusEventsStored += 1
         continue
       }
@@ -183,18 +226,20 @@ class InboxModuleService extends MedusaService({
     }
 
     const providerResponse = await this.whatsappProvider_.sendReply({
-      accountId: conversation.channel_account.external_account_id,
-      to: customerParticipant.external_id,
+      accountId: process.env.WHATSAPP_PHONE_NUMBER_ID || conversation.channel_account.external_account_id,
+      to: conversation.customer_phone,
       text: input.text,
     })
 
     const message = await this.createMessages({
       provider: "whatsapp",
+      whatsapp_message_id: providerResponse.providerMessageId,
       external_message_id: providerResponse.providerMessageId,
       direction: "outbound",
       message_type: "text",
       status: "sent",
       sent_at: new Date(),
+      text: input.text,
       content: input.text,
       raw_payload: providerResponse.rawResponse,
       conversation_id: conversation.id,
@@ -202,12 +247,23 @@ class InboxModuleService extends MedusaService({
       participant_id: customerParticipant.id,
     })
 
-    await this.updateConversationTimestamp(conversation.id, new Date())
+    await this.syncConversationState({
+      conversationId: conversation.id,
+      text: input.text,
+      timestamp: new Date(),
+    })
 
     return {
       message,
       provider_response: providerResponse.rawResponse,
     }
+  }
+
+  async markConversationAsRead(conversationId: string) {
+    await this.updateConversations({
+      id: conversationId,
+      unread_count: 0,
+    })
   }
 }
 

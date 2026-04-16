@@ -22,8 +22,10 @@ import { PostStoreReviewSchema } from "./store/reviews/route"
 import { PostStoreSyncSubscriptionSchema } from "./store/customers/me/subscriptions/sync/route"
 import { PostAdminRetryInfrastructureSchema } from "./admin/subscriptions/[id]/infrastructure/retry/route"
 import { GetAdminInboxConversationsSchema } from "./admin/inbox/conversations/route"
-import { GetAdminInboxConversationMessagesSchema } from "./admin/inbox/conversations/[id]/messages/route"
-import { PostAdminInboxConversationReplySchema } from "./admin/inbox/conversations/[id]/reply/route"
+import {
+  GetAdminInboxConversationMessagesSchema,
+  PostAdminInboxConversationMessageSchema,
+} from "./admin/inbox/conversations/[id]/messages/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -104,33 +106,12 @@ export default defineMiddlewares({
     {
       matcher: "/admin/inbox/conversations/:id/messages",
       methods: ["GET"],
-      middlewares: [
-        validateAndTransformQuery(GetAdminInboxConversationMessagesSchema, {
-          isList: true,
-          defaults: [
-            "id",
-            "provider",
-            "external_message_id",
-            "direction",
-            "message_type",
-            "status",
-            "provider_status",
-            "content",
-            "error_message",
-            "sent_at",
-            "received_at",
-            "created_at",
-            "updated_at",
-            "participant.*",
-            "attachments.*",
-          ],
-        }),
-      ],
+      middlewares: [validateAndTransformQuery(GetAdminInboxConversationMessagesSchema, { isList: true })],
     },
     {
-      matcher: "/admin/inbox/conversations/:id/reply",
+      matcher: "/admin/inbox/conversations/:id/messages",
       methods: ["POST"],
-      middlewares: [validateAndTransformBody(PostAdminInboxConversationReplySchema)],
+      middlewares: [validateAndTransformBody(PostAdminInboxConversationMessageSchema)],
     },
     {
       matcher: "/admin/subscription-plans",

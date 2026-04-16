@@ -4,15 +4,22 @@ import { InboxProvider } from "./inbox-provider"
 import Participant from "./participant"
 import Message from "./message"
 
-export const ConversationStatus = ["open", "archived"] as const
+export const ConversationStatus = ["open", "closed", "archived"] as const
+export const ConversationChannel = ["whatsapp"] as const
 
 const Conversation = model.define("conversation", {
   id: model.id().primaryKey(),
+  tenant_id: model.text().nullable().index(),
   provider: model.enum(InboxProvider).default("whatsapp"),
+  channel: model.enum(ConversationChannel).default("whatsapp"),
   external_thread_id: model.text().nullable(),
   customer_identifier: model.text().index(),
+  customer_phone: model.text().index(),
+  customer_name: model.text().nullable(),
   subject: model.text().nullable(),
+  last_message_preview: model.text().nullable(),
   status: model.enum(ConversationStatus).default("open"),
+  unread_count: model.number().default(0),
   last_message_at: model.dateTime().nullable(),
   metadata: model.json().nullable(),
   channel_account: model.belongsTo(() => ChannelAccount, {
