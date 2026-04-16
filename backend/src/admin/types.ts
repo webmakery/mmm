@@ -130,3 +130,46 @@ export type DigitalProduct = {
     product_id: string
   }
 }
+
+
+export type SubscriptionInfrastructureAttempt = {
+  id: string
+  attempt_number: number
+  triggered_by: string
+  trigger_actor_id?: string | null
+  requested_server_type?: string | null
+  requested_location?: string | null
+  requested_image?: string | null
+  provider_server_id?: string | null
+  status: string
+  error_message?: string | null
+  diagnostics?: Record<string, unknown> | null
+  started_at: string
+  finished_at?: string | null
+  created_at: string
+}
+
+export type SubscriptionInfrastructureAuditLog = {
+  id: string
+  action: string
+  actor_id?: string | null
+  details?: Record<string, unknown> | null
+  created_at: string
+}
+
+export type SubscriptionInfrastructureData = {
+  id: string
+  status: string
+  last_error?: string | null
+  provisioning_retry_count?: number
+  hetzner_server_type: string
+  hetzner_image: string
+  hetzner_region: string
+  hetzner_server_id?: string | null
+  failure_diagnostics?: Record<string, unknown> | null
+  last_provisioning_started_at?: string | null
+  last_provisioning_finished_at?: string | null
+  cancelled_at?: string | null
+  created_at: string
+  updated_at: string
+}

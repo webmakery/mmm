@@ -18,6 +18,13 @@ const provisionHetznerServerStep = createStep(
 
     const infrastructure = await infraService.retrieveSubscriptionInfrastructure(infrastructure_id)
 
+    if (infrastructure.status === "provisioning") {
+      logger.info(
+        `[infra] Skipping provisioning. Infrastructure ${infrastructure.id} is already provisioning`
+      )
+      return new StepResponse({ skipped: true })
+    }
+
     if (infrastructure.hetzner_server_id && infrastructure.status === "active") {
       logger.info(
         `[infra] Skipping provisioning. Infrastructure ${infrastructure.id} already active on server ${infrastructure.hetzner_server_id}`
@@ -49,7 +56,7 @@ const provisionHetznerServerStep = createStep(
         location: infrastructure.hetzner_region,
         labels: {
           managed_by: "medusa",
-          order_id: infrastructure.order_id,
+          order_id: infrastructure.order_id || "n/a",
           subscription_id: infrastructure.stripe_subscription_id,
           customer_id: infrastructure.customer_id,
         },
@@ -66,6 +73,8 @@ const provisionHetznerServerStep = createStep(
         server_ram_gb: result.ramGb,
         status: "active",
         last_error: null,
+        failure_diagnostics: null,
+        last_provisioning_finished_at: new Date(),
       })
 
       logger.info(
@@ -84,6 +93,12 @@ const provisionHetznerServerStep = createStep(
         id: infrastructure.id,
         status: "failed",
         last_error: message,
+        failure_diagnostics: {
+          message,
+          name: e instanceof Error ? e.name : "Error",
+          stack: e instanceof Error ? e.stack : undefined,
+        },
+        last_provisioning_finished_at: new Date(),
       })
 
       logger.error(
