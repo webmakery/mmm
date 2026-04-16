@@ -1,5 +1,6 @@
 import { model } from "@medusajs/framework/utils"
-import ChannelAccount, { InboxProvider } from "./channel-account"
+import ChannelAccount from "./channel-account"
+import { InboxProvider } from "./inbox-provider"
 import Conversation from "./conversation"
 import Participant from "./participant"
 import MessageAttachment from "./message-attachment"
