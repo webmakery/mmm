@@ -5,6 +5,7 @@ import {
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { SUBSCRIPTION_INFRASTRUCTURE_MODULE } from "../../../../modules/subscription-infrastructure"
 import SubscriptionInfrastructureModuleService from "../../../../modules/subscription-infrastructure/service"
+import { SUBSCRIPTION_PLAN_MODULE } from "../../../../modules/subscription-plan"
 
 export const GET = async (
   req: AuthenticatedMedusaRequest,
@@ -14,6 +15,9 @@ export const GET = async (
   const infraService = req.scope.resolve<SubscriptionInfrastructureModuleService>(
     SUBSCRIPTION_INFRASTRUCTURE_MODULE
   )
+  const subscriptionPlanModuleService = req.scope.resolve(SUBSCRIPTION_PLAN_MODULE) as {
+    retrieveSubscriptionPlan: (id: string) => Promise<Record<string, unknown>>
+  }
 
   const {
     data: [subscription],
@@ -33,10 +37,18 @@ export const GET = async (
     stripe_subscription_id: subscription.stripe_subscription_id,
   })
 
+  const subscriptionPlanId = infrastructure?.subscription_plan_id
+  const subscriptionPlan = subscriptionPlanId
+    ? await subscriptionPlanModuleService
+        .retrieveSubscriptionPlan(String(subscriptionPlanId))
+        .catch(() => null)
+    : null
+
   if (!infrastructure) {
     return res.json({
       subscription,
       infrastructure: null,
+      subscription_plan: subscriptionPlan,
       attempt_history: [],
       admin_audit_trail: [],
     })
@@ -55,6 +67,7 @@ export const GET = async (
   res.json({
     subscription,
     infrastructure,
+    subscription_plan: subscriptionPlan,
     attempt_history,
     admin_audit_trail,
   })

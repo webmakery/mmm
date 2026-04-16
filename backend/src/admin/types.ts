@@ -159,13 +159,18 @@ export type SubscriptionInfrastructureAuditLog = {
 
 export type SubscriptionInfrastructureData = {
   id: string
+  order_id?: string | null
   status: string
   last_error?: string | null
   provisioning_retry_count?: number
+  subscription_plan_id?: string | null
   hetzner_server_type: string
   hetzner_image: string
   hetzner_region: string
   hetzner_server_id?: string | null
+  server_ip?: string | null
+  server_cpu?: number | null
+  server_ram_gb?: number | null
   failure_diagnostics?: Record<string, unknown> | null
   last_provisioning_started_at?: string | null
   last_provisioning_finished_at?: string | null

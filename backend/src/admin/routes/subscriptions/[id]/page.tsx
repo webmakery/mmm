@@ -17,6 +17,7 @@ import {
   SubscriptionInfrastructureAttempt,
   SubscriptionInfrastructureAuditLog,
   SubscriptionInfrastructureData,
+  SubscriptionPlanData,
 } from "../../../types"
 import { sdk } from "../../../lib/sdk"
 
@@ -37,6 +38,7 @@ const SubscriptionPage = () => {
   const { data, isLoading, refetch } = useQuery<{
     subscription: SubscriptionData
     infrastructure: SubscriptionInfrastructureData | null
+    subscription_plan: SubscriptionPlanData | null
     attempt_history: SubscriptionInfrastructureAttempt[]
     admin_audit_trail: SubscriptionInfrastructureAuditLog[]
   }>({
@@ -78,6 +80,36 @@ const SubscriptionPage = () => {
   })
 
   const infrastructure = data?.infrastructure
+  const subscriptionPlanMetadata = (data?.subscription_plan?.metadata ||
+    null) as Record<string, unknown> | null
+  const isDeletedInfrastructure = infrastructure?.status === "deleted"
+
+  const readMetadataField = (...candidates: string[]) => {
+    if (!subscriptionPlanMetadata) {
+      return null
+    }
+
+    const normalized = new Map(
+      Object.entries(subscriptionPlanMetadata).map(([key, value]) => [
+        key.toLowerCase().replace(/[_\s-]/g, ""),
+        value,
+      ])
+    )
+
+    for (const candidate of candidates) {
+      const value = normalized.get(candidate.toLowerCase().replace(/[_\s-]/g, ""))
+      if (value !== undefined && value !== null && value !== "") {
+        return String(value)
+      }
+    }
+
+    return null
+  }
+
+  const planDisk =
+    readMetadataField("disk", "disk_gb", "storage", "storage_gb", "ssd", "volume") || "-"
+  const planBandwidth =
+    readMetadataField("bandwidth", "transfer", "traffic", "network") || "-"
 
   const statusColor = useMemo(() => {
     switch (infrastructure?.status) {
@@ -125,6 +157,54 @@ const SubscriptionPage = () => {
             <Text>No infrastructure record found for this subscription.</Text>
           ) : (
             <>
+              <Heading level="h3">Purchased server summary</Heading>
+              <Table>
+                <Table.Body>
+                  <Table.Row>
+                    <Table.Cell>Customer email</Table.Cell>
+                    <Table.Cell>{data.subscription.customer?.email || "-"}</Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell>Order</Table.Cell>
+                    <Table.Cell>{infrastructure.order_id || "-"}</Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell>Server IP</Table.Cell>
+                    <Table.Cell>{infrastructure.server_ip || "-"}</Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell>vCPU</Table.Cell>
+                    <Table.Cell>{infrastructure.server_cpu || "-"}</Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell>RAM</Table.Cell>
+                    <Table.Cell>
+                      {infrastructure.server_ram_gb ? `${infrastructure.server_ram_gb} GB` : "-"}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell>Disk / storage</Table.Cell>
+                    <Table.Cell>{planDisk}</Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell>Server type</Table.Cell>
+                    <Table.Cell>{infrastructure.hetzner_server_type || "-"}</Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell>Region</Table.Cell>
+                    <Table.Cell>{infrastructure.hetzner_region || "-"}</Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell>Image</Table.Cell>
+                    <Table.Cell>{infrastructure.hetzner_image || "-"}</Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell>Bandwidth</Table.Cell>
+                    <Table.Cell>{planBandwidth}</Table.Cell>
+                  </Table.Row>
+                </Table.Body>
+              </Table>
+
               <Table>
                 <Table.Body>
                   <Table.Row>
@@ -181,39 +261,47 @@ const SubscriptionPage = () => {
               </Table>
 
               <Heading level="h3">Retry provisioning</Heading>
-              <Label>Override location</Label>
-              <Input
-                value={location}
-                onChange={(event) => setLocation(event.target.value)}
-                placeholder={infrastructure.hetzner_region}
-              />
-              <Label>Override server type</Label>
-              <Input
-                value={serverType}
-                onChange={(event) => setServerType(event.target.value)}
-                placeholder={infrastructure.hetzner_server_type}
-              />
-              <Label>Override image (optional)</Label>
-              <Input
-                value={image}
-                onChange={(event) => setImage(event.target.value)}
-                placeholder={infrastructure.hetzner_image}
-              />
-              <div className="flex items-center gap-x-2">
-                <Button
-                  onClick={() => retryMutation.mutate()}
-                  isLoading={retryMutation.isPending}
-                >
-                  Retry provisioning
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => cancelMutation.mutate()}
-                  isLoading={cancelMutation.isPending}
-                >
-                  Mark infrastructure cancelled
-                </Button>
-              </div>
+              {isDeletedInfrastructure ? (
+                <Text>
+                  Provisioning cannot be retried because this server was deleted.
+                </Text>
+              ) : (
+                <>
+                  <Label>Override location</Label>
+                  <Input
+                    value={location}
+                    onChange={(event) => setLocation(event.target.value)}
+                    placeholder={infrastructure.hetzner_region}
+                  />
+                  <Label>Override server type</Label>
+                  <Input
+                    value={serverType}
+                    onChange={(event) => setServerType(event.target.value)}
+                    placeholder={infrastructure.hetzner_server_type}
+                  />
+                  <Label>Override image (optional)</Label>
+                  <Input
+                    value={image}
+                    onChange={(event) => setImage(event.target.value)}
+                    placeholder={infrastructure.hetzner_image}
+                  />
+                  <div className="flex items-center gap-x-2">
+                    <Button
+                      onClick={() => retryMutation.mutate()}
+                      isLoading={retryMutation.isPending}
+                    >
+                      Retry provisioning
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => cancelMutation.mutate()}
+                      isLoading={cancelMutation.isPending}
+                    >
+                      Mark infrastructure cancelled
+                    </Button>
+                  </div>
+                </>
+              )}
 
               <Heading level="h3">Provisioning attempt history</Heading>
               <Table>
