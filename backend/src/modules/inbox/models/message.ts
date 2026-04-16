@@ -6,7 +6,7 @@ import Participant from "./participant"
 import MessageAttachment from "./message-attachment"
 
 export const MessageDirection = ["inbound", "outbound", "system"] as const
-export const MessageType = ["text", "status", "unsupported"] as const
+export const MessageType = ["text", "status", "unsupported", "private_note"] as const
 export const MessageStatus = ["pending", "sent", "delivered", "read", "failed", "received"] as const
 
 const Message = model.define("message", {

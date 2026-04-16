@@ -7,7 +7,7 @@ import MessageAttachment from "./models/message-attachment"
 import WhatsappProvider from "./providers/whatsapp/provider"
 import MetaProvider from "./providers/meta/provider"
 import { ChannelWebhookResult, InboxChannel } from "./providers/types"
-import { IngestWebhookResult, SendInboxMessageInput } from "./types"
+import { CreatePrivateNoteInput, IngestWebhookResult, SendInboxMessageInput } from "./types"
 
 class InboxModuleService extends MedusaService({
   ChannelAccount,
@@ -354,6 +354,48 @@ class InboxModuleService extends MedusaService({
 
   async sendConversationReply(input: { conversationId: string; text: string }) {
     return this.sendInboxMessage(input)
+  }
+
+  async createPrivateNote(input: CreatePrivateNoteInput) {
+    const conversation = await this.retrieveConversation(input.conversationId)
+
+    const actorExternalId = input.actorId || "admin"
+    const [existingParticipant] = await this.listParticipants({
+      conversation_id: input.conversationId,
+      role: "agent",
+      external_id: actorExternalId,
+    })
+
+    const participant =
+      existingParticipant ||
+      (await this.createParticipants({
+        conversation_id: input.conversationId,
+        role: "agent",
+        external_id: actorExternalId,
+        display_name: input.actorId ? "Admin" : "Internal",
+      }))
+
+    const message = await this.createMessages({
+      provider: conversation.channel as InboxChannel,
+      channel: conversation.channel as InboxChannel,
+      direction: "system",
+      message_type: "private_note",
+      status: "received",
+      text: input.text,
+      content: input.text,
+      sent_at: new Date(),
+      conversation_id: input.conversationId,
+      participant_id: participant.id,
+      channel_account_id: conversation.channel_account_id,
+    })
+
+    await this.syncConversationState({
+      conversationId: input.conversationId,
+      text: input.text,
+      timestamp: new Date(),
+    })
+
+    return { message }
   }
 
   async markConversationAsRead(conversationId: string) {

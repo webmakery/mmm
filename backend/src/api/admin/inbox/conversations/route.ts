@@ -37,9 +37,11 @@ export async function GET(
     fields: [
       "id",
       "channel",
+      "customer_identifier",
       "customer_phone",
       "customer_name",
       "customer_handle",
+      "external_user_id",
       "last_message_preview",
       "last_message_at",
       "unread_count",

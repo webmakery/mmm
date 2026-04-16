@@ -13,3 +13,9 @@ export type SendInboxMessageInput = {
   conversationId: string
   text: string
 }
+
+export type CreatePrivateNoteInput = {
+  conversationId: string
+  text: string
+  actorId?: string | null
+}
