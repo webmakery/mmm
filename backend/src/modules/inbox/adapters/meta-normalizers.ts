@@ -1,19 +1,31 @@
 import { ChannelWebhookResult, NormalizedWebhookMessage, NormalizedWebhookStatusEvent } from "../providers/types"
 
-const toDate = (value?: string | number): Date | null => {
-  if (typeof value === "number") {
-    return new Date(value * 1000)
+export const normalizeProviderTimestamp = (
+  value: number | string | Date | undefined,
+  unit: "ms" | "s" = "ms",
+  fallbackToNow = true
+): Date | null => {
+  if (value === undefined || value === null || value === "") {
+    return fallbackToNow ? new Date() : null
   }
 
-  if (typeof value === "string") {
-    const parsed = Number(value)
-
-    if (!Number.isNaN(parsed)) {
-      return new Date(parsed * 1000)
-    }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? (fallbackToNow ? new Date() : null) : value
   }
 
-  return null
+  const parsed = typeof value === "string" ? Number(value) : value
+
+  if (!Number.isFinite(parsed)) {
+    return fallbackToNow ? new Date() : null
+  }
+
+  const date = new Date(unit === "s" ? parsed * 1000 : parsed)
+
+  if (Number.isNaN(date.getTime())) {
+    return fallbackToNow ? new Date() : null
+  }
+
+  return date
 }
 
 const getEntryChanges = (payload: Record<string, unknown>) => {
@@ -66,7 +78,7 @@ export const normalizeWhatsAppWebhookEvent = (payload: Record<string, unknown>):
         customerName: typeof profile.name === "string" ? profile.name : null,
         customerPhone: from,
         text: typeof text.body === "string" ? text.body : null,
-        timestamp: toDate(message.timestamp as string | undefined),
+        timestamp: normalizeProviderTimestamp(message.timestamp as string | undefined, "s", false),
         rawPayload: message,
         accountId: accountId || null,
       })
@@ -88,7 +100,7 @@ export const normalizeWhatsAppWebhookEvent = (payload: Record<string, unknown>):
         externalMessageId,
         eventId,
         status: statusName as "sent" | "delivered" | "read" | "failed",
-        timestamp: toDate(status.timestamp as string | undefined),
+        timestamp: normalizeProviderTimestamp(status.timestamp as string | undefined, "s", false),
         errorMessage: typeof errors[0]?.message === "string" ? errors[0].message : null,
         rawPayload: status,
       })
@@ -139,7 +151,7 @@ const normalizeMetaMessagingWebhookEvent = (
         externalMessageId,
         customerHandle: externalUserId,
         text: typeof message.text === "string" ? message.text : null,
-        timestamp: toDate(item.timestamp as number | undefined),
+        timestamp: normalizeProviderTimestamp(item.timestamp as number | undefined, "ms", true),
         rawPayload: item,
         pageId: channel === "messenger" ? (entryId || String(recipient.id || "") || null) : null,
         instagramAccountId: channel === "instagram" ? (entryId || String(recipient.id || "") || null) : null,
