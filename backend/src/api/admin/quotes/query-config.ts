@@ -38,7 +38,6 @@ export const quoteFields = [
   "*draft_order.items.tax_lines",
   "*draft_order.items.adjustments",
   "*draft_order.items.variant",
-  "*draft_order.items.variant.product",
   "*draft_order.items.detail",
   "*order_change.actions",
 ];
