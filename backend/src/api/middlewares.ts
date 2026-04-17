@@ -26,9 +26,6 @@ import {
   GetAdminInboxConversationMessagesSchema,
   PostAdminInboxConversationMessageSchema,
 } from "./admin/inbox/conversations/[id]/messages/route"
-import { GetAdminInboxEmailOAuthSchema } from "./admin/inbox/email/oauth/route"
-import { PostAdminInboxEmailConnectSchema } from "./admin/inbox/email/connect/route"
-import { PostAdminInboxEmailSyncSchema } from "./admin/inbox/email/sync/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -115,21 +112,6 @@ export default defineMiddlewares({
       matcher: "/admin/inbox/conversations/:id/messages",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostAdminInboxConversationMessageSchema)],
-    },
-    {
-      matcher: "/admin/inbox/email/oauth",
-      methods: ["GET"],
-      middlewares: [validateAndTransformQuery(GetAdminInboxEmailOAuthSchema)],
-    },
-    {
-      matcher: "/admin/inbox/email/connect",
-      methods: ["POST"],
-      middlewares: [validateAndTransformBody(PostAdminInboxEmailConnectSchema)],
-    },
-    {
-      matcher: "/admin/inbox/email/sync",
-      methods: ["POST"],
-      middlewares: [validateAndTransformBody(PostAdminInboxEmailSyncSchema)],
     },
     {
       matcher: "/admin/subscription-plans",

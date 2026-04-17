@@ -3,10 +3,10 @@ import { ChatBubbleLeftRight, PaperPlane } from "@medusajs/icons"
 import { Badge, Button, Container, Heading, Input, StatusBadge, Text, Textarea } from "@medusajs/ui"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FormEvent, useEffect, useMemo, useState } from "react"
-import { RiInstagramFill, RiMailFill, RiMessengerFill, RiWhatsappFill } from "react-icons/ri"
+import { RiInstagramFill, RiMessengerFill, RiWhatsappFill } from "react-icons/ri"
 import { sdk } from "../../lib/sdk"
 
-type Channel = "whatsapp" | "messenger" | "instagram" | "email"
+type Channel = "whatsapp" | "messenger" | "instagram"
 
 type Conversation = {
   id: string
@@ -15,7 +15,6 @@ type Conversation = {
   customer_phone: string
   customer_name?: string | null
   customer_handle?: string | null
-  subject?: string | null
   external_user_id?: string | null
   last_message_preview?: string | null
   last_message_at?: string | null
@@ -41,12 +40,6 @@ type Message = {
     display_name?: string | null
     external_id?: string | null
   } | null
-  metadata?: {
-    subject?: string | null
-    snippet?: string | null
-    from?: string | null
-    gmail_headers?: Record<string, string>
-  } | null
 }
 
 const channelOptions: Array<{ label: string; value: "all" | Channel }> = [
@@ -54,7 +47,6 @@ const channelOptions: Array<{ label: string; value: "all" | Channel }> = [
   { label: "WhatsApp", value: "whatsapp" },
   { label: "Messenger", value: "messenger" },
   { label: "Instagram", value: "instagram" },
-  { label: "Email", value: "email" },
 ]
 
 const formatDateTime = (value?: string | null) => {
@@ -98,11 +90,6 @@ const channelMeta: Record<
     label: "Instagram",
     icon: RiInstagramFill,
     className: "text-[#E4405F]",
-  },
-  email: {
-    label: "Email",
-    icon: RiMailFill,
-    className: "text-ui-fg-subtle",
   },
 }
 
@@ -221,7 +208,6 @@ const InboxPage = () => {
   }
 
   const getConversationTitle = (conversation: Conversation) =>
-    (conversation.channel === "email" ? conversation.subject : null) ||
     conversation.customer_name ||
     conversation.customer_handle ||
     conversation.customer_phone ||
@@ -240,10 +226,6 @@ const InboxPage = () => {
       return conversation.external_user_id || conversation.customer_identifier
     }
 
-    if (conversation.channel === "email") {
-      return conversation.external_user_id || conversation.customer_handle || conversation.customer_identifier
-    }
-
     return null
   }
 
@@ -256,7 +238,7 @@ const InboxPage = () => {
           </div>
           <div className="px-6 pb-4">
             <Input
-              placeholder="Search by name, handle, email, subject, or message"
+              placeholder="Search by name, handle, phone, or message"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -311,13 +293,9 @@ const InboxPage = () => {
                           })()}
                         </Badge>
                       </div>
-                      <Text size="xsmall" className="text-ui-fg-subtle">
-                        {formatDateTime(conversation.last_message_at)}
-                      </Text>
                     </div>
                     <div className="flex min-w-0 items-center justify-between gap-2">
                       <Text size="small" className="truncate text-ui-fg-subtle">
-                        {conversation.subject ? `${conversation.subject} · ` : ""}
                         {conversation.last_message_preview || "No messages yet"}
                       </Text>
                       {conversation.unread_count > 0 ? <Badge size="2xsmall">{conversation.unread_count}</Badge> : null}
@@ -369,10 +347,6 @@ const InboxPage = () => {
                     const isOutbound = message.direction === "outbound"
                     const isPrivateNote = message.message_type === "private_note"
                     const noteAuthor = message.participant?.display_name || message.participant?.external_id || "Admin"
-                    const isEmail = message.channel === "email"
-                    const messageSubject = message.metadata?.subject || selectedConversation.subject
-                    const messageSnippet = message.metadata?.snippet
-                    const messageSender = message.metadata?.from || message.participant?.display_name || message.participant?.external_id
 
                     return (
                       <div
@@ -388,22 +362,7 @@ const InboxPage = () => {
                                 : "max-w-[78%] border-ui-border-strong bg-ui-bg-field"
                           }`}
                         >
-                          {isEmail && messageSubject ? (
-                            <Text size="small" weight="plus">
-                              {messageSubject}
-                            </Text>
-                          ) : null}
-                          {isEmail && messageSender ? (
-                            <Text size="xsmall" className="text-ui-fg-subtle">
-                              {messageSender}
-                            </Text>
-                          ) : null}
                           <Text size="small">{message.text || message.content || ""}</Text>
-                          {isEmail && messageSnippet && messageSnippet !== message.text ? (
-                            <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                              {messageSnippet}
-                            </Text>
-                          ) : null}
                           <div className="mt-1 flex items-center gap-1.5">
                             {isPrivateNote ? <Badge size="2xsmall">Private note</Badge> : null}
                             {isPrivateNote ? (

@@ -3,7 +3,7 @@ import { z } from "@medusajs/framework/zod"
 
 export const GetAdminInboxConversationsSchema = z.object({
   q: z.string().optional(),
-  channel: z.enum(["whatsapp", "messenger", "instagram", "email"]).optional(),
+  channel: z.enum(["whatsapp", "messenger", "instagram"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 })
@@ -28,8 +28,6 @@ export async function GET(
       { customer_name: { $ilike: `%${q}%` } },
       { customer_phone: { $ilike: `%${q}%` } },
       { customer_handle: { $ilike: `%${q}%` } },
-      { subject: { $ilike: `%${q}%` } },
-      { external_user_id: { $ilike: `%${q}%` } },
       { last_message_preview: { $ilike: `%${q}%` } },
     ]
   }
@@ -43,7 +41,6 @@ export async function GET(
       "customer_phone",
       "customer_name",
       "customer_handle",
-      "subject",
       "external_user_id",
       "last_message_preview",
       "last_message_at",
