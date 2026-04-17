@@ -8,9 +8,9 @@ import {
   SquaresPlus,
   XCircleSolid,
 } from "@medusajs/icons"
-import { Badge, Button, Container, Heading, Input, Select, StatusBadge, Text, Textarea, toast } from "@medusajs/ui"
+import { Badge, Button, Container, Heading, Input, Select, StatusBadge, Text, toast } from "@medusajs/ui"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { ComponentType, KeyboardEvent, useEffect, useMemo, useState } from "react"
+import { ComponentType, KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useState } from "react"
 import { sdk } from "../../../lib/sdk"
 
 type LeadActivity = {
@@ -111,12 +111,40 @@ const getInitials = (firstName?: string, lastName?: string) => {
 const isSameDay = (dateValue: Date, otherDate: Date) =>
   dateValue.getDate() === otherDate.getDate() && dateValue.getMonth() === otherDate.getMonth() && dateValue.getFullYear() === otherDate.getFullYear()
 
+const getRelativeTimeLabel = (value?: string) => {
+  if (!value) {
+    return "just now"
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return "just now"
+  }
+
+  const diffMs = Date.now() - date.getTime()
+  if (diffMs < 60 * 1000) {
+    return "just now"
+  }
+
+  const diffHours = Math.floor(diffMs / (60 * 60 * 1000))
+  if (diffHours < 24) {
+    return `${diffHours}h ago`
+  }
+
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000))
+  if (diffDays === 1) {
+    return "yesterday"
+  }
+
+  return `${diffDays} days ago`
+}
+
 const PipelineBoardPage = () => {
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null)
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
-  const [activityType, setActivityType] = useState("note")
   const [activityContent, setActivityContent] = useState("")
   const [followUpDate, setFollowUpDate] = useState("")
+  const [savedNotice, setSavedNotice] = useState("")
 
   const { data: stageData, refetch: refetchStages } = useQuery<{ stages: LeadStage[] }>({
     queryKey: ["lead-stages"],
@@ -156,6 +184,8 @@ const PipelineBoardPage = () => {
     onSuccess: () => {
       refetchLeads()
       refetchSelectedLead()
+      setSavedNotice("Saved ✓")
+      setTimeout(() => setSavedNotice(""), 1200)
     },
     onError: () => {
       toast.error("Failed to update lead")
@@ -163,20 +193,20 @@ const PipelineBoardPage = () => {
   })
 
   const addActivityMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (payload: { type: string; content: string; dueAt?: string; setFollowUp?: boolean }) =>
       sdk.client.fetch(`/admin/leads/${selectedLeadId}/activities`, {
         method: "POST",
         body: {
-          type: activityType,
-          content: activityContent,
-          due_at: followUpDate ? new Date(followUpDate).toISOString() : undefined,
-          set_as_next_follow_up: activityType === "task" && !!followUpDate,
+          type: payload.type,
+          content: payload.content,
+          due_at: payload.dueAt ? new Date(payload.dueAt).toISOString() : undefined,
+          set_as_next_follow_up: payload.setFollowUp || false,
         },
       }),
     onSuccess: () => {
       setActivityContent("")
-      setFollowUpDate("")
-      toast.success("Activity added")
+      setSavedNotice("Saved ✓")
+      setTimeout(() => setSavedNotice(""), 1200)
       refetchLeads()
       refetchSelectedLead()
     },
@@ -213,6 +243,29 @@ const PipelineBoardPage = () => {
   const selectedLeadIndex = leads.findIndex((lead) => lead.id === selectedLeadId)
   const canMovePrev = selectedLeadIndex > 0
   const canMoveNext = selectedLeadIndex !== -1 && selectedLeadIndex < leads.length - 1
+
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (!selectedLeadId) {
+        return
+      }
+
+      if (event.key === "ArrowUp" && canMovePrev) {
+        event.preventDefault()
+        setSelectedLeadId(leads[selectedLeadIndex - 1].id)
+      }
+
+      if (event.key === "ArrowDown" && canMoveNext) {
+        event.preventDefault()
+        setSelectedLeadId(leads[selectedLeadIndex + 1].id)
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+    return () => {
+      window.removeEventListener("keydown", onKeyDown)
+    }
+  }, [selectedLeadId, canMovePrev, canMoveNext, selectedLeadIndex, leads])
 
   const now = new Date()
   const todayFollowUps = leads.filter((lead) => {
@@ -328,7 +381,7 @@ const PipelineBoardPage = () => {
     return { label: `Follow-up ${followUpDate.toLocaleDateString()}`, color: "orange" as const }
   }
 
-  const onCardKeyDown = (event: KeyboardEvent<HTMLDivElement>, leadId: string) => {
+  const onCardKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>, leadId: string) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault()
       setSelectedLeadId(leadId)
@@ -622,84 +675,51 @@ const PipelineBoardPage = () => {
         >
           {selectedLead ? (
             <Container className="divide-y p-0">
-              <div className="space-y-3 px-6 py-4">
+              <div className="sticky top-0 z-10 space-y-3 bg-ui-bg-base px-6 py-4">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <Heading>{[selectedLead.first_name, selectedLead.last_name].filter(Boolean).join(" ") || "Unnamed lead"}</Heading>
-                    <Text size="small" className="text-ui-fg-subtle">
-                      {selectedLead.company || "No company"}
+                  <div className="grid min-w-0 flex-1 grid-cols-1 gap-2">
+                    <Input
+                      defaultValue={selectedLead.first_name}
+                      onBlur={(event) => {
+                        const nextValue = event.target.value.trim()
+                        if (nextValue && nextValue !== selectedLead.first_name) {
+                          updateLeadMutation.mutate({ leadId: selectedLead.id, body: { first_name: nextValue } })
+                        }
+                      }}
+                    />
+                    <Text size="xsmall" className="text-ui-fg-subtle">
+                      Click fields to edit inline
                     </Text>
                   </div>
-                  <Button size="small" variant="secondary" onClick={() => setSelectedLeadId(null)}>
-                    Close
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    {selectedLead.email ? (
+                      <Button size="small" variant="secondary" asChild>
+                        <a href={`mailto:${selectedLead.email}`}>Email</a>
+                      </Button>
+                    ) : null}
+                    {selectedLead.phone ? (
+                      <Button size="small" variant="secondary" asChild>
+                        <a href={`tel:${selectedLead.phone}`}>Call</a>
+                      </Button>
+                    ) : null}
+                    <Button
+                      size="small"
+                      variant="secondary"
+                      onClick={() => {
+                        if (activityContent.trim()) {
+                          addActivityMutation.mutate({ type: "note", content: activityContent.trim() })
+                        }
+                      }}
+                    >
+                      Note
+                    </Button>
+                    <Button size="small" variant="transparent" onClick={() => setSelectedLeadId(null)}>
+                      More
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge color={getStatusColor(selectedLead.status)}>{titleize(selectedLead.status)}</StatusBadge>
-                  <StatusBadge color={selectedLead.priority === "high" ? "red" : "grey"}>{titleize(selectedLead.priority || "medium")}</StatusBadge>
-                  {(selectedLead.metadata?.tags || [selectedLead.source ? titleize(selectedLead.source) : "Inbound", selectedLead.owner_user_id ? "Assigned" : "Unassigned"]).map(
-                    (tag) => (
-                      <Badge key={`${selectedLead.id}-${tag}`}>{tag}</Badge>
-                    )
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    defaultValue={selectedLead.first_name}
-                    onBlur={(event) => {
-                      const nextValue = event.target.value.trim()
-                      if (nextValue && nextValue !== selectedLead.first_name) {
-                        updateLeadMutation.mutate({
-                          leadId: selectedLead.id,
-                          body: { first_name: nextValue },
-                        })
-                      }
-                    }}
-                  />
-                  <Input
-                    defaultValue={selectedLead.last_name || ""}
-                    placeholder="Last name"
-                    onBlur={(event) => {
-                      const nextValue = event.target.value.trim()
-                      if (nextValue !== (selectedLead.last_name || "")) {
-                        updateLeadMutation.mutate({
-                          leadId: selectedLead.id,
-                          body: { last_name: nextValue || undefined },
-                        })
-                      }
-                    }}
-                  />
-                  <Input
-                    defaultValue={selectedLead.email || ""}
-                    placeholder="Email"
-                    onBlur={(event) => {
-                      const nextValue = event.target.value.trim()
-                      if (nextValue !== (selectedLead.email || "")) {
-                        updateLeadMutation.mutate({
-                          leadId: selectedLead.id,
-                          body: { email: nextValue || undefined },
-                        })
-                      }
-                    }}
-                  />
-                  <Input
-                    defaultValue={selectedLead.phone || ""}
-                    placeholder="Phone"
-                    onBlur={(event) => {
-                      const nextValue = event.target.value.trim()
-                      if (nextValue !== (selectedLead.phone || "")) {
-                        updateLeadMutation.mutate({
-                          leadId: selectedLead.id,
-                          body: { phone: nextValue || undefined },
-                        })
-                      }
-                    }}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
                   <Select
                     value={selectedLead.status || "new"}
                     onValueChange={(value) => updateLeadMutation.mutate({ leadId: selectedLead.id, body: { status: value } })}
@@ -715,6 +735,201 @@ const PipelineBoardPage = () => {
                       <Select.Item value="lost">Lost</Select.Item>
                     </Select.Content>
                   </Select>
+                  <StatusBadge color={selectedLead.priority === "high" ? "red" : selectedLead.priority === "low" ? "grey" : "orange"}>
+                    {selectedLead.priority === "high" ? "🔥 Hot" : selectedLead.priority === "low" ? "Low" : "Medium"}
+                  </StatusBadge>
+                  {savedNotice ? (
+                    <Text size="xsmall" className="text-ui-fg-subtle">
+                      {savedNotice}
+                    </Text>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-3 px-6 py-4">
+                <Heading level="h2">Next best action</Heading>
+                <Container className="space-y-2 px-3 py-3">
+                  <Text size="small" weight="plus">
+                    {getFollowUpState(selectedLead.next_follow_up_at).color === "red"
+                      ? "⚠️ Lead is overdue — follow up now"
+                      : selectedLead.priority === "high"
+                        ? "🔥 High chance to convert — act today"
+                        : "💡 Next step: follow up now"}
+                  </Text>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {selectedLead.phone ? (
+                      <Button size="small" variant="secondary" asChild>
+                        <a href={`tel:${selectedLead.phone}`}>Call now</a>
+                      </Button>
+                    ) : null}
+                    {selectedLead.email ? (
+                      <Button size="small" variant="secondary" asChild>
+                        <a href={`mailto:${selectedLead.email}`}>Send email</a>
+                      </Button>
+                    ) : null}
+                    <Button size="small" variant="secondary" onClick={() => handleSnooze(1)}>
+                      Snooze
+                    </Button>
+                  </div>
+                </Container>
+              </div>
+
+              <div className="space-y-3 px-6 py-4">
+                <div className="space-y-2">
+                  <Heading level="h2">Quick add activity</Heading>
+                  <Input
+                    value={activityContent}
+                    onChange={(event) => setActivityContent(event.target.value)}
+                    placeholder="Add note, log call, or update..."
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && activityContent.trim()) {
+                        addActivityMutation.mutate({ type: "note", content: activityContent.trim() })
+                      }
+                    }}
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="small" variant="secondary" onClick={() => activityContent.trim() && addActivityMutation.mutate({ type: "call", content: activityContent.trim() })}>
+                      Call
+                    </Button>
+                    <Button size="small" variant="secondary" onClick={() => activityContent.trim() && addActivityMutation.mutate({ type: "email", content: activityContent.trim() })}>
+                      Email
+                    </Button>
+                    <Button size="small" variant="secondary" onClick={() => activityContent.trim() && addActivityMutation.mutate({ type: "note", content: activityContent.trim() })}>
+                      Note
+                    </Button>
+                  </div>
+                </div>
+
+                <Heading level="h2">Activity timeline</Heading>
+                {selectedLead.activities?.length ? (
+                  [...selectedLead.activities]
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .map((activity) => (
+                      <Container key={activity.id} className="space-y-1 px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <StatusBadge color="grey">{titleize(activity.type)}</StatusBadge>
+                          <Text size="xsmall" className="text-ui-fg-subtle">
+                            {getRelativeTimeLabel(activity.created_at)}
+                          </Text>
+                        </div>
+                        <Text size="small">{activity.content}</Text>
+                        {activity.due_at ? (
+                          <Text size="xsmall" className="text-ui-fg-subtle">
+                            Due {new Date(activity.due_at).toLocaleString()}
+                          </Text>
+                        ) : null}
+                      </Container>
+                    ))
+                ) : (
+                  <Text size="small" className="text-ui-fg-subtle">
+                    No activity yet.
+                  </Text>
+                )}
+              </div>
+
+              <div className="space-y-3 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <Heading level="h2">Smart follow-up</Heading>
+                  <StatusBadge color={getFollowUpState(selectedLead.next_follow_up_at).color}>
+                    {getFollowUpState(selectedLead.next_follow_up_at).color === "red" ? "🔴 Overdue" : "🟢 Scheduled"}
+                  </StatusBadge>
+                </div>
+                <Input
+                  type="datetime-local"
+                  value={followUpDate}
+                  onChange={(event) => {
+                    const value = event.target.value
+                    setFollowUpDate(value)
+                    if (value) {
+                      updateLeadMutation.mutate({
+                        leadId: selectedLead.id,
+                        body: { next_follow_up_at: new Date(value).toISOString() },
+                      })
+                    }
+                  }}
+                  placeholder="Set follow-up"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge color="orange">Best time: 10–11 AM</StatusBadge>
+                  <Button size="small" variant="secondary" onClick={() => handleSnooze(1)}>
+                    Tomorrow
+                  </Button>
+                  <Button size="small" variant="secondary" onClick={() => handleSnooze(7)}>
+                    Next week
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3 px-6 py-4">
+                <Heading level="h2">Tags & metadata</Heading>
+                <div className="flex flex-wrap items-center gap-2">
+                  {(selectedLead.metadata?.tags || [selectedLead.source ? titleize(selectedLead.source) : "Inbound", selectedLead.priority === "high" ? "Hot" : "Follow-up"]).map((tag) => (
+                    <Badge key={`${selectedLead.id}-${tag}`}>{tag}</Badge>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    defaultValue={selectedLead.owner_user_id || ""}
+                    placeholder="Owner"
+                    onBlur={(event) => {
+                      const nextValue = event.target.value.trim()
+                      if (nextValue !== (selectedLead.owner_user_id || "")) {
+                        updateLeadMutation.mutate({ leadId: selectedLead.id, body: { owner_user_id: nextValue || undefined } })
+                      }
+                    }}
+                  />
+                  <Input
+                    defaultValue={selectedLead.source || ""}
+                    placeholder="Source"
+                    onBlur={(event) => {
+                      const nextValue = event.target.value.trim()
+                      if (nextValue !== (selectedLead.source || "")) {
+                        updateLeadMutation.mutate({ leadId: selectedLead.id, body: { source: nextValue || undefined } })
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 px-6 py-4">
+                <Heading level="h2">Contact info</Heading>
+                <div className="space-y-2">
+                  <Input
+                    defaultValue={selectedLead.email || ""}
+                    placeholder="Email"
+                    onBlur={(event) => {
+                      const nextValue = event.target.value.trim()
+                      if (nextValue !== (selectedLead.email || "")) {
+                        updateLeadMutation.mutate({ leadId: selectedLead.id, body: { email: nextValue || undefined } })
+                      }
+                    }}
+                  />
+                  <Input
+                    defaultValue={selectedLead.phone || ""}
+                    placeholder="Phone"
+                    onBlur={(event) => {
+                      const nextValue = event.target.value.trim()
+                      if (nextValue !== (selectedLead.phone || "")) {
+                        updateLeadMutation.mutate({ leadId: selectedLead.id, body: { phone: nextValue || undefined } })
+                      }
+                    }}
+                  />
+                  <Input
+                    defaultValue={selectedLead.company || ""}
+                    placeholder="Company"
+                    onBlur={(event) => {
+                      const nextValue = event.target.value.trim()
+                      if (nextValue !== (selectedLead.company || "")) {
+                        updateLeadMutation.mutate({ leadId: selectedLead.id, body: { company: nextValue || undefined } })
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 px-6 py-4">
+                <Heading level="h2">Stage control</Heading>
+                <div className="grid grid-cols-2 gap-2">
                   <Select
                     value={selectedLead.stage_id || ""}
                     onValueChange={(value) => {
@@ -734,119 +949,30 @@ const PipelineBoardPage = () => {
                       ))}
                     </Select.Content>
                   </Select>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {selectedLead.phone ? (
-                    <Button size="small" variant="secondary" asChild>
-                      <a href={`tel:${selectedLead.phone}`}>Call</a>
-                    </Button>
-                  ) : null}
-                  {selectedLead.email ? (
-                    <Button size="small" variant="secondary" asChild>
-                      <a href={`mailto:${selectedLead.email}`}>Email</a>
-                    </Button>
-                  ) : null}
-                  <Button size="small" variant="secondary" onClick={() => setActivityType("note")}>
-                    Add note
-                  </Button>
-                  <Button size="small" variant="secondary" onClick={() => handleSnooze(1)}>
-                    Snooze tomorrow
-                  </Button>
-                  <Button size="small" variant="secondary" onClick={() => handleSnooze(7)}>
-                    Snooze next week
+                  <Button size="small" variant="secondary" onClick={() => {
+                    const qualifiedStage = stages.find((stage) => stage.slug === "qualified")
+                    if (qualifiedStage) {
+                      moveMutation.mutate({ leadId: selectedLead.id, stageId: qualifiedStage.id })
+                    }
+                  }}>
+                    Move to Qualified
                   </Button>
                 </div>
+              </div>
 
+              <div className="space-y-3 px-6 py-4">
+                <Heading level="h2">Lead navigation</Heading>
                 <div className="grid grid-cols-2 gap-2">
                   <Button size="small" variant="transparent" disabled={!canMovePrev} onClick={() => canMovePrev && setSelectedLeadId(leads[selectedLeadIndex - 1].id)}>
-                    Previous lead
+                    ← Previous
                   </Button>
                   <Button size="small" variant="transparent" disabled={!canMoveNext} onClick={() => canMoveNext && setSelectedLeadId(leads[selectedLeadIndex + 1].id)}>
-                    Next lead
+                    Next →
                   </Button>
                 </div>
-              </div>
-
-              <div className="space-y-3 px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <Heading level="h2">Follow-up</Heading>
-                  <StatusBadge color={getFollowUpState(selectedLead.next_follow_up_at).color}>{getFollowUpState(selectedLead.next_follow_up_at).label}</StatusBadge>
-                </div>
-                <Input
-                  type="datetime-local"
-                  value={followUpDate}
-                  onChange={(event) => setFollowUpDate(event.target.value)}
-                  placeholder="Set follow-up"
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="small"
-                    onClick={() => {
-                      if (followUpDate) {
-                        updateLeadMutation.mutate({
-                          leadId: selectedLead.id,
-                          body: { next_follow_up_at: new Date(followUpDate).toISOString() },
-                        })
-                      }
-                    }}
-                    disabled={!followUpDate}
-                  >
-                    Save follow-up
-                  </Button>
-                  <StatusBadge color="orange">
-                    Best time: 10–11 AM
-                  </StatusBadge>
-                  {noActivityLeads.some((lead) => lead.id === selectedLead.id) ? <StatusBadge color="red">Reminder: no action in 5+ days</StatusBadge> : null}
-                </div>
-              </div>
-
-              <div className="space-y-3 px-6 py-4">
-                <Heading level="h2">Add activity</Heading>
-                <Select value={activityType} onValueChange={setActivityType}>
-                  <Select.Trigger>
-                    <Select.Value />
-                  </Select.Trigger>
-                  <Select.Content>
-                    <Select.Item value="note">Note</Select.Item>
-                    <Select.Item value="call">Call</Select.Item>
-                    <Select.Item value="email">Email</Select.Item>
-                    <Select.Item value="meeting">Meeting</Select.Item>
-                    <Select.Item value="task">Task</Select.Item>
-                  </Select.Content>
-                </Select>
-                <Textarea value={activityContent} onChange={(event) => setActivityContent(event.target.value)} placeholder="Log note, call outcome, or next action" />
-                <Button onClick={() => addActivityMutation.mutate()} disabled={!activityContent || addActivityMutation.isPending}>
-                  Save activity
-                </Button>
-              </div>
-
-              <div className="space-y-2 px-6 py-4">
-                <Heading level="h2">Activity timeline</Heading>
-                {selectedLead.activities?.length ? (
-                  [...selectedLead.activities]
-                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                    .map((activity) => (
-                      <Container key={activity.id} className="space-y-1 px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <StatusBadge color="grey">{titleize(activity.type)}</StatusBadge>
-                          <Text size="xsmall" className="text-ui-fg-subtle">
-                            {new Date(activity.created_at).toLocaleString()}
-                          </Text>
-                        </div>
-                        <Text size="small">{activity.content}</Text>
-                        {activity.due_at ? (
-                          <Text size="xsmall" className="text-ui-fg-subtle">
-                            Due {new Date(activity.due_at).toLocaleString()}
-                          </Text>
-                        ) : null}
-                      </Container>
-                    ))
-                ) : (
-                  <Text size="small" className="text-ui-fg-subtle">
-                    No activity yet.
-                  </Text>
-                )}
+                <Text size="xsmall" className="text-ui-fg-subtle">
+                  Keyboard: ↑ ↓
+                </Text>
               </div>
             </Container>
           ) : (
