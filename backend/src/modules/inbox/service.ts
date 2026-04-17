@@ -312,12 +312,38 @@ class InboxModuleService extends MedusaService({
       throw new Error("Name and email are required")
     }
 
-    const sessionId = input.sessionId?.trim() || `webchat_${crypto.randomUUID()}`
-
     const channelAccount = await this.getOrCreateChannelAccount({
       channel: "web_chat",
       externalAccountId: WEB_CHAT_CHANNEL_ACCOUNT_ID,
     })
+
+    let sessionId = input.sessionId?.trim()
+
+    if (!sessionId) {
+      const existingForEmail = await this.listConversations({
+        channel: "web_chat",
+        channel_account_id: channelAccount.id,
+        customer_handle: normalizedEmail,
+      })
+
+      const mostRecentConversation = existingForEmail
+        .slice()
+        .sort((a, b) => {
+          const aTime = new Date(
+            String(a.last_message_at || a.updated_at || a.created_at || 0)
+          ).getTime()
+          const bTime = new Date(
+            String(b.last_message_at || b.updated_at || b.created_at || 0)
+          ).getTime()
+          return bTime - aTime
+        })[0]
+
+      sessionId = mostRecentConversation?.customer_identifier || null
+    }
+
+    if (!sessionId) {
+      sessionId = `webchat_${crypto.randomUUID()}`
+    }
 
     const conversation = await this.getOrCreateConversation({
       channel: "web_chat",
