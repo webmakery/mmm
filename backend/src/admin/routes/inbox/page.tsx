@@ -3,10 +3,10 @@ import { ChatBubbleLeftRight, PaperClip, PaperPlane } from "@medusajs/icons"
 import { Badge, Button, Container, Heading, Input, StatusBadge, Text, Textarea, toast } from "@medusajs/ui"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FormEvent, useEffect, useMemo, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import {
   RiEmotionHappyLine,
-  RiGlobalLine,
+  RiChat3Line,
   RiInstagramLine,
   RiMessengerLine,
   RiTelegramLine,
@@ -121,39 +121,26 @@ const formatMessageTime = (message: Message) => {
   return formatDateTime(value)
 }
 
-const channelMeta: Record<
-  Channel,
-  { label: string; icon: typeof RiWhatsappLine; iconClassName: string; badgeClassName: string }
-> = {
+const channelMeta: Record<Channel, { label: string; icon: typeof RiWhatsappLine }> = {
   whatsapp: {
     label: "WhatsApp",
     icon: RiWhatsappLine,
-    iconClassName: "text-[#25D366]",
-    badgeClassName: "bg-[#25D3661A]",
   },
   messenger: {
     label: "Messenger",
     icon: RiMessengerLine,
-    iconClassName: "text-[#0084FF]",
-    badgeClassName: "bg-[#0084FF1A]",
   },
   instagram: {
     label: "Instagram",
     icon: RiInstagramLine,
-    iconClassName: "text-[#E4405F]",
-    badgeClassName: "bg-[#E4405F1A]",
   },
   telegram: {
     label: "Telegram",
     icon: RiTelegramLine,
-    iconClassName: "text-[#229ED9]",
-    badgeClassName: "bg-[#229ED91A]",
   },
   web_chat: {
     label: "Web Chat",
-    icon: RiGlobalLine,
-    iconClassName: "text-ui-fg-subtle",
-    badgeClassName: "bg-ui-bg-subtle",
+    icon: RiChat3Line,
   },
 }
 
@@ -254,10 +241,48 @@ const ChannelBadge = ({ channel }: { channel: Channel }) => {
   const Icon = channelMeta[channel].icon
 
   return (
-    <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${channelMeta[channel].badgeClassName}`}>
-      <Icon className={`h-3.5 w-3.5 ${channelMeta[channel].iconClassName}`} />
+    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-ui-fg-muted">
+      <Icon className="h-4 w-4" />
     </span>
   )
+}
+
+const splitName = (value?: string | null) => {
+  const clean = (value || "").trim()
+
+  if (!clean) {
+    return { firstName: "Lead", lastName: undefined as string | undefined }
+  }
+
+  const [firstName, ...rest] = clean.split(/\s+/)
+  return {
+    firstName: firstName || "Lead",
+    lastName: rest.length ? rest.join(" ") : undefined,
+  }
+}
+
+const getLeadPayloadFromConversation = (conversation: Conversation) => {
+  const nameSource =
+    conversation.customer_name ||
+    conversation.customer_handle ||
+    conversation.customer_phone ||
+    conversation.customer_identifier
+
+  const { firstName, lastName } = splitName(nameSource)
+  const normalizedIdentifier = normalizePhone(conversation.customer_identifier || "")
+  const phoneByChannel = conversation.channel === "web_chat" ? undefined : normalizedIdentifier || undefined
+
+  return {
+    first_name: firstName,
+    last_name: lastName,
+    phone: conversation.customer_phone || phoneByChannel,
+    source: channelMeta[conversation.channel].label,
+    metadata: {
+      inbox_channel: conversation.channel,
+      inbox_conversation_id: conversation.id,
+      inbox_customer_identifier: conversation.customer_identifier,
+    },
+  }
 }
 
 const ChannelFilters = ({ value, onChange }: { value: "all" | Channel; onChange: (channel: "all" | Channel) => void }) => {
@@ -282,12 +307,14 @@ const ChannelFilters = ({ value, onChange }: { value: "all" | Channel; onChange:
 }
 
 const InboxPage = () => {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
   const [channel, setChannel] = useState<"all" | Channel>("all")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [composer, setComposer] = useState("")
   const [composerMode, setComposerMode] = useState<"message" | "private_note">("message")
+  const [createdLead, setCreatedLead] = useState<Lead | null>(null)
 
   const { data: listData, isLoading: isLoadingConversations } = useQuery<{
     conversations: Conversation[]
@@ -323,6 +350,7 @@ const InboxPage = () => {
   useEffect(() => {
     setComposerMode("message")
     setComposer("")
+    setCreatedLead(null)
   }, [selectedId])
 
   useEffect(() => {
@@ -382,6 +410,10 @@ const InboxPage = () => {
   })
 
   const linkedLead = useMemo(() => {
+    if (createdLead && selectedConversation && String(createdLead.metadata?.inbox_conversation_id || "") === selectedConversation.id) {
+      return createdLead
+    }
+
     if (!selectedConversation) {
       return null
     }
@@ -399,7 +431,7 @@ const InboxPage = () => {
         return Boolean(normalizedConversationPhone && normalizedLeadPhone && normalizedConversationPhone === normalizedLeadPhone)
       }) || null
     )
-  }, [leadSearchData?.leads, selectedConversation])
+  }, [createdLead, leadSearchData?.leads, selectedConversation])
 
   const createLeadMutation = useMutation({
     mutationFn: async () => {
@@ -407,34 +439,30 @@ const InboxPage = () => {
         return
       }
 
-      const customerLabel =
-        selectedConversation.customer_name ||
-        selectedConversation.customer_handle ||
-        selectedConversation.customer_phone ||
-        selectedConversation.customer_identifier ||
-        "Lead"
-
-      const [firstName, ...remainingParts] = customerLabel.trim().split(/\s+/)
-
-      return sdk.client.fetch("/admin/leads", {
+      return sdk.client.fetch<{ lead: Lead }>("/admin/leads", {
         method: "POST",
-        body: {
-          first_name: firstName || "Lead",
-          last_name: remainingParts.join(" ") || "Inbox",
-          phone: selectedConversation.customer_phone || undefined,
-          source: channelMeta[selectedConversation.channel].label,
-          metadata: {
-            inbox_channel: selectedConversation.channel,
-            inbox_conversation_id: selectedConversation.id,
-            inbox_customer_identifier: selectedConversation.customer_identifier,
-          },
-        },
+        body: getLeadPayloadFromConversation(selectedConversation),
       })
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      if (response?.lead) {
+        setCreatedLead(response.lead)
+      }
       toast.success("Lead created from inbox conversation")
       queryClient.invalidateQueries({ queryKey: ["inbox-linked-lead"] })
       queryClient.invalidateQueries({ queryKey: ["leads"] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create lead")
+    },
+  })
+
+  const createAndOpenLeadMutation = useMutation({
+    mutationFn: async () => {
+      const response = await createLeadMutation.mutateAsync()
+      if (response?.lead?.id) {
+        navigate(`/leads/${response.lead.id}`)
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to create lead")
@@ -546,13 +574,14 @@ const InboxPage = () => {
                   <button
                     key={conversation.id}
                     type="button"
-                    className={`flex w-full flex-col gap-1.5 border-t px-6 py-2.5 text-left transition-colors ${
+                    className={`flex w-full flex-col gap-1.5 border-t px-6 py-3 text-left transition-colors ${
                       isSelected ? "bg-ui-bg-component-hover" : "hover:bg-ui-bg-subtle"
                     }`}
                     onClick={() => setSelectedId(conversation.id)}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <ChannelBadge channel={conversation.channel} />
                         <Text weight={conversation.unread_count > 0 || isSelected ? "plus" : "regular"} className="truncate">
                           {getConversationTitle(conversation)}
                         </Text>
@@ -562,19 +591,13 @@ const InboxPage = () => {
                       </Text>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-1.5">
-                        <ChannelBadge channel={conversation.channel} />
+                      <div className="flex min-w-0 items-center gap-2">
                         <Text size="small" className={`truncate ${conversation.unread_count > 0 ? "font-medium" : "text-ui-fg-subtle"}`}>
                           {conversation.last_message_preview || "No messages yet"}
                         </Text>
                       </div>
-                      {conversation.unread_count > 0 ? <Badge size="2xsmall">{conversation.unread_count}</Badge> : null}
-                    </div>
-                    <div className="flex items-center gap-2">
                       <StatusBadge color={urgency.color}>{urgency.label}</StatusBadge>
-                      <Text size="xsmall" className="text-ui-fg-subtle">
-                        {channelMeta[conversation.channel].label}
-                      </Text>
+                      {conversation.unread_count > 0 ? <Badge size="2xsmall">{conversation.unread_count}</Badge> : null}
                     </div>
                   </button>
                 )
@@ -799,18 +822,36 @@ const InboxPage = () => {
                     <Link to={`/leads/${linkedLead.id}`}>Open lead</Link>
                   </Button>
                 ) : (
-                  <Button
-                    type="button"
-                    size="small"
-                    variant="secondary"
-                    className="w-full"
-                    isLoading={createLeadMutation.isPending}
-                    disabled={createLeadMutation.isPending}
-                    onClick={() => createLeadMutation.mutate()}
-                  >
-                    Create lead
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      size="small"
+                      variant="secondary"
+                      className="w-full"
+                      isLoading={createLeadMutation.isPending}
+                      disabled={createLeadMutation.isPending || createAndOpenLeadMutation.isPending}
+                      onClick={() => createLeadMutation.mutate()}
+                    >
+                      Create lead
+                    </Button>
+                    <Button
+                      type="button"
+                      size="small"
+                      variant="secondary"
+                      className="w-full"
+                      isLoading={createAndOpenLeadMutation.isPending}
+                      disabled={createLeadMutation.isPending || createAndOpenLeadMutation.isPending}
+                      onClick={() => createAndOpenLeadMutation.mutate()}
+                    >
+                      Create and open lead
+                    </Button>
+                  </>
                 )}
+                {linkedLead ? (
+                  <Button type="button" size="small" variant="secondary" className="w-full" asChild>
+                    <Link to={`/leads/${linkedLead.id}`}>View in CRM</Link>
+                  </Button>
+                ) : null}
                 <Button type="button" size="small" variant="secondary" className="w-full" disabled>
                   Assign
                 </Button>

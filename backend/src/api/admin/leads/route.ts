@@ -1,9 +1,10 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils"
 import { LEAD_MODULE } from "../../../modules/lead"
 import LeadModuleService from "../../../modules/lead/service"
 import { createLeadWorkflow } from "../../../workflows/lead"
+import { resolveLeadStageId } from "./utils"
 
 export const GetAdminLeadsSchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(20),
@@ -72,9 +73,30 @@ export async function POST(
   req: MedusaRequest<z.infer<typeof PostAdminCreateLeadSchema>>,
   res: MedusaResponse
 ) {
-  const { result } = await createLeadWorkflow(req.scope).run({
-    input: req.validatedBody,
-  })
+  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER)
+  const leadService: LeadModuleService = req.scope.resolve(LEAD_MODULE)
 
-  res.json(result)
+  try {
+    const stageId = await resolveLeadStageId({
+      leadService,
+      stageId: req.validatedBody.stage_id,
+    })
+
+    const { result } = await createLeadWorkflow(req.scope).run({
+      input: {
+        ...req.validatedBody,
+        stage_id: stageId,
+      },
+    })
+
+    res.json(result)
+  } catch (error) {
+    logger.error(`[CRM] Failed to create lead: ${error instanceof Error ? error.message : String(error)}`)
+
+    if (error instanceof MedusaError) {
+      throw error
+    }
+
+    throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Failed to create lead")
+  }
 }
