@@ -141,6 +141,7 @@ class InboxModuleService extends MedusaService({
 
     for (const inboundMessage of channelResult.inboundMessages) {
       const [duplicate] = await this.listMessages({
+        channel: inboundMessage.channel,
         external_message_id: inboundMessage.externalMessageId,
       })
 
@@ -216,6 +217,7 @@ class InboxModuleService extends MedusaService({
       }
 
       const [existingOutbound] = await this.listMessages({
+        channel: statusEvent.channel,
         external_message_id: statusEvent.externalMessageId,
       })
 

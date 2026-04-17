@@ -1,5 +1,6 @@
 import { normalizeTelegramWebhookEvent } from "../../adapters/meta-normalizers"
 import { ChannelWebhookResult, SendMessageInput, SendMessageResult } from "../types"
+import { buildTelegramExternalMessageId, parseTelegramExternalMessageId } from "./message-id"
 
 type TelegramError = {
   description?: string
@@ -24,6 +25,7 @@ class TelegramProvider {
     }
 
     const endpoint = `https://api.telegram.org/bot${this.botToken_}/sendMessage`
+    const { messageId: contextMessageId } = parseTelegramExternalMessageId(input.contextMessageId || "")
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -33,7 +35,7 @@ class TelegramProvider {
       body: JSON.stringify({
         chat_id: input.to,
         text: input.text,
-        ...(input.contextMessageId ? { reply_to_message_id: Number(input.contextMessageId) || undefined } : {}),
+        ...(contextMessageId ? { reply_to_message_id: Number(contextMessageId) || undefined } : {}),
       }),
     })
 
@@ -45,11 +47,20 @@ class TelegramProvider {
     }
 
     const result = (responseBody.result || {}) as Record<string, unknown>
-    const externalMessageId = String(result.message_id || "")
+    const rawMessageId = String(result.message_id || "")
 
-    if (!externalMessageId) {
+    if (!rawMessageId) {
       throw new Error("Telegram API did not return a message id.")
     }
+
+    const chat = (result.chat || {}) as Record<string, unknown>
+    const chatId = String(chat.id || input.to || "")
+
+    if (!chatId) {
+      throw new Error("Telegram API did not return a chat id.")
+    }
+
+    const externalMessageId = buildTelegramExternalMessageId(chatId, rawMessageId)
 
     return {
       channel: "telegram",
