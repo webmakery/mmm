@@ -28,6 +28,12 @@ import {
 } from "./admin/inbox/conversations/[id]/messages/route"
 import { PostAdminCustomDomainsSchema } from "./admin/custom-domains/route"
 import { PostAdminStoreBrandingSchema } from "./admin/store-branding/route"
+import { PostAdminCreateLeadSchema, GetAdminLeadsSchema } from "./admin/leads/route"
+import { PostAdminUpdateLeadSchema } from "./admin/leads/[id]/route"
+import { PostAdminLeadActivitySchema } from "./admin/leads/[id]/activities/route"
+import { PostAdminMoveLeadStageSchema } from "./admin/leads/[id]/move-stage/route"
+import { PostAdminConvertLeadSchema } from "./admin/leads/[id]/convert/route"
+import { PostAdminCreateLeadStageSchema } from "./admin/lead-stages/route"
 import {
   GetStoreWebChatSessionSchema,
   PostStoreWebChatSessionSchema,
@@ -97,6 +103,43 @@ export default defineMiddlewares({
       matcher: "/admin/subscriptions/:id/infrastructure/retry",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostAdminRetryInfrastructureSchema)],
+    },
+    {
+      matcher: "/admin/leads",
+      methods: ["GET"],
+      middlewares: [
+        validateAndTransformQuery(GetAdminLeadsSchema, { isList: true }),
+      ],
+    },
+    {
+      matcher: "/admin/leads",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminCreateLeadSchema)],
+    },
+    {
+      matcher: "/admin/leads/:id",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminUpdateLeadSchema)],
+    },
+    {
+      matcher: "/admin/leads/:id/activities",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminLeadActivitySchema)],
+    },
+    {
+      matcher: "/admin/leads/:id/move-stage",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminMoveLeadStageSchema)],
+    },
+    {
+      matcher: "/admin/leads/:id/convert",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminConvertLeadSchema)],
+    },
+    {
+      matcher: "/admin/lead-stages",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminCreateLeadStageSchema)],
     },
     {
       matcher: "/admin/custom-domains",
