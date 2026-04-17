@@ -174,7 +174,7 @@ const PlanList = ({ plans }: { plans: StoreSubscriptionPlan[] }) => {
                 <Button
                   type="submit"
                   variant="primary"
-                  className="h-11 w-full rounded-full"
+                  className="h-11 w-full"
                   data-testid="subscribe-plan-button"
                 >
                   {ctaLabel}
