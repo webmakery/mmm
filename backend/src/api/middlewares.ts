@@ -40,6 +40,7 @@ import { GetAdminBookingsSchema, PostAdminCreateBookingSchema } from "./admin/bo
 import { GetAdminBookingAvailabilitySchema } from "./admin/bookings/availability/route"
 import { PostAdminUpdateBookingSchema } from "./admin/bookings/[id]/route"
 import { PostAdminBookingRulesSchema } from "./admin/booking-rules/route"
+import { GetStoreBookingServicesSchema } from "./store/booking-services/route"
 import { GetStoreBookingAvailabilitySchema } from "./store/bookings/availability/route"
 import { PostStoreCreateBookingSchema } from "./store/bookings/route"
 import { PostStoreRescheduleBookingSchema } from "./store/bookings/[id]/reschedule/route"
@@ -325,6 +326,11 @@ export default defineMiddlewares({
       matcher: "/store/inbox/web-chat/session",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostStoreWebChatSessionSchema)],
+    },
+    {
+      matcher: "/store/booking-services",
+      methods: ["GET"],
+      middlewares: [validateAndTransformQuery(GetStoreBookingServicesSchema, { isList: true })],
     },
     {
       matcher: "/store/bookings",
