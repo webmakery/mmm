@@ -15,7 +15,7 @@ const LeadActivity = model.define("lead_activity", {
   type: model.enum(LeadActivityTypes).index("IDX_LEAD_ACTIVITY_TYPE"),
   content: model.text(),
   created_by: model.text().nullable(),
-  due_at: model.dateTime().nullable().index("IDX_LEAD_ACTIVITY_DUE_AT"),
+  due_at: model.dateTime().index("IDX_LEAD_ACTIVITY_DUE_AT").nullable(),
   completed_at: model.dateTime().nullable(),
   lead: model.belongsTo(() => Lead, {
     mappedBy: "activities",
