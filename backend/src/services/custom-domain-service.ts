@@ -48,6 +48,7 @@ export class CustomDomainService {
   private getConfig(): { targetHost: string; targetIp: string | null; verificationType: CustomDomainVerificationType } {
     const targetHost = (process.env.PLATFORM_DOMAIN_TARGET_HOST || "").trim().toLowerCase()
     const targetIp = (process.env.VPS_PUBLIC_IP || "").trim()
+    const verificationType: CustomDomainVerificationType = targetIp ? "a_record" : "cname"
 
     if (!targetHost) {
       throw new Error("PLATFORM_DOMAIN_TARGET_HOST must be configured")
@@ -56,7 +57,7 @@ export class CustomDomainService {
     return {
       targetHost,
       targetIp: targetIp || null,
-      verificationType: "cname",
+      verificationType,
     }
   }
 
