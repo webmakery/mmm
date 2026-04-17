@@ -46,6 +46,10 @@ export async function GET(req: MedusaRequest<z.infer<typeof GetStoreWebChatMessa
 
   const query = req.scope.resolve("query")
 
+  const afterRaw = req.validatedQuery.after
+  const after = typeof afterRaw === "string" ? new Date(afterRaw) : null
+  const isIncrementalRequest = Boolean(after && !Number.isNaN(after.getTime()))
+
   const { data } = await query.graph({
     entity: "message",
     fields: [
@@ -69,13 +73,10 @@ export async function GET(req: MedusaRequest<z.infer<typeof GetStoreWebChatMessa
     pagination: {
       take: req.validatedQuery.limit,
       order: {
-        created_at: "ASC",
+        created_at: isIncrementalRequest ? "DESC" : "ASC",
       },
     },
   })
-
-  const afterRaw = req.validatedQuery.after
-  const after = typeof afterRaw === "string" ? new Date(afterRaw) : null
 
   const messages = data.filter((message: any) => {
     if (!after || Number.isNaN(after.getTime())) {
@@ -85,9 +86,18 @@ export async function GET(req: MedusaRequest<z.infer<typeof GetStoreWebChatMessa
     return new Date(String(message.created_at)).getTime() > after.getTime()
   })
 
+  const orderedMessages = isIncrementalRequest
+    ? messages
+        .slice()
+        .sort(
+          (a: any, b: any) =>
+            new Date(String(a.created_at)).getTime() - new Date(String(b.created_at)).getTime()
+        )
+    : messages
+
   return res.status(200).json({
     session,
-    messages: messages.map(serializeMessage),
+    messages: orderedMessages.map(serializeMessage),
   })
 }
 
