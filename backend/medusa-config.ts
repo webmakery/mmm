@@ -141,5 +141,8 @@ module.exports = defineConfig({
     {
       resolve: "./src/modules/lead",
     },
+    {
+      resolve: "./src/modules/booking",
+    },
   ],
 })

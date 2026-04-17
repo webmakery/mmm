@@ -34,6 +34,14 @@ import { PostAdminLeadActivitySchema } from "./admin/leads/[id]/activities/route
 import { PostAdminMoveLeadStageSchema } from "./admin/leads/[id]/move-stage/route"
 import { PostAdminConvertLeadSchema } from "./admin/leads/[id]/convert/route"
 import { PostAdminCreateLeadStageSchema } from "./admin/lead-stages/route"
+import { GetAdminBookingServicesSchema, PostAdminBookingServiceSchema } from "./admin/booking-services/route"
+import { PostAdminBookingServiceUpdateSchema } from "./admin/booking-services/[id]/route"
+import { GetAdminBookingsSchema, PostAdminCreateBookingSchema } from "./admin/bookings/route"
+import { PostAdminUpdateBookingSchema } from "./admin/bookings/[id]/route"
+import { PostAdminBookingRulesSchema } from "./admin/booking-rules/route"
+import { GetStoreBookingAvailabilitySchema } from "./store/bookings/availability/route"
+import { PostStoreCreateBookingSchema } from "./store/bookings/route"
+import { PostStoreRescheduleBookingSchema } from "./store/bookings/[id]/reschedule/route"
 import {
   GetStoreWebChatSessionSchema,
   PostStoreWebChatSessionSchema,
@@ -140,6 +148,41 @@ export default defineMiddlewares({
       matcher: "/admin/lead-stages",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostAdminCreateLeadStageSchema)],
+    },
+    {
+      matcher: "/admin/booking-services",
+      methods: ["GET"],
+      middlewares: [validateAndTransformQuery(GetAdminBookingServicesSchema, { isList: true })],
+    },
+    {
+      matcher: "/admin/booking-services",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminBookingServiceSchema)],
+    },
+    {
+      matcher: "/admin/booking-services/:id",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminBookingServiceUpdateSchema)],
+    },
+    {
+      matcher: "/admin/booking-rules",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminBookingRulesSchema)],
+    },
+    {
+      matcher: "/admin/bookings",
+      methods: ["GET"],
+      middlewares: [validateAndTransformQuery(GetAdminBookingsSchema, { isList: true })],
+    },
+    {
+      matcher: "/admin/bookings",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminCreateBookingSchema)],
+    },
+    {
+      matcher: "/admin/bookings/:id",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminUpdateBookingSchema)],
     },
     {
       matcher: "/admin/custom-domains",
@@ -276,6 +319,21 @@ export default defineMiddlewares({
       matcher: "/store/inbox/web-chat/session",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostStoreWebChatSessionSchema)],
+    },
+    {
+      matcher: "/store/bookings",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostStoreCreateBookingSchema)],
+    },
+    {
+      matcher: "/store/bookings/availability",
+      methods: ["GET"],
+      middlewares: [validateAndTransformQuery(GetStoreBookingAvailabilitySchema, {})],
+    },
+    {
+      matcher: "/store/bookings/:id/reschedule",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostStoreRescheduleBookingSchema)],
     },
     {
       matcher: "/store/inbox/web-chat/messages",
