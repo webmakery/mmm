@@ -27,6 +27,7 @@ import {
   PostAdminInboxConversationMessageSchema,
 } from "./admin/inbox/conversations/[id]/messages/route"
 import { PostAdminCustomDomainsSchema } from "./admin/custom-domains/route"
+import { PostAdminStoreBrandingSchema } from "./admin/store-branding/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -93,6 +94,11 @@ export default defineMiddlewares({
       matcher: "/admin/custom-domains",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostAdminCustomDomainsSchema)],
+    },
+    {
+      matcher: "/admin/store-branding",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminStoreBrandingSchema)],
     },
     {
       matcher: "/admin/inbox/conversations",
