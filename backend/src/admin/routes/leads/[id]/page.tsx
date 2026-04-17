@@ -1,22 +1,14 @@
-import { Badge, Button, Container, Heading, Input, Label, Select, Table, Text, Textarea, toast } from "@medusajs/ui"
+import { Badge, Button, Container, Heading, Input, Select, StatusBadge, Text, toast } from "@medusajs/ui"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { useMemo, useState } from "react"
+import { KeyboardEvent as ReactKeyboardEvent, useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { sdk } from "../../../lib/sdk"
-
-type LeadStage = {
-  id: string
-  name: string
-  slug: string
-}
 
 type LeadActivity = {
   id: string
   type: string
   content: string
-  created_by?: string
   due_at?: string
-  completed_at?: string
   created_at: string
 }
 
@@ -29,21 +21,105 @@ type Lead = {
   company?: string
   source?: string
   status: string
+  priority?: "low" | "medium" | "high" | string
   owner_user_id?: string
-  notes_summary?: string
   customer_id?: string
   next_follow_up_at?: string
-  stage?: LeadStage
   activities: LeadActivity[]
+}
+
+const asString = (value: unknown) => {
+  if (typeof value === "string") {
+    return value
+  }
+
+  if (value === null || value === undefined) {
+    return ""
+  }
+
+  return String(value)
+}
+
+const titleize = (value?: string) => {
+  const safeValue = asString(value)
+
+  if (!safeValue) {
+    return "New"
+  }
+
+  return safeValue
+    .split("_")
+    .map((part) => (part ? `${part[0].toUpperCase()}${part.slice(1)}` : ""))
+    .join(" ")
+}
+
+const getRelativeTimeLabel = (value?: string) => {
+  if (!value) {
+    return "just now"
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return "just now"
+  }
+
+  const diffMs = Date.now() - date.getTime()
+  if (diffMs < 60 * 1000) {
+    return "just now"
+  }
+
+  const diffHours = Math.floor(diffMs / (60 * 60 * 1000))
+  if (diffHours < 24) {
+    return `${diffHours}h ago`
+  }
+
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000))
+  if (diffDays === 1) {
+    return "yesterday"
+  }
+
+  return `${diffDays} days ago`
+}
+
+const getFollowUpState = (nextFollowUpAt?: string) => {
+  if (!nextFollowUpAt) {
+    return { color: "grey" as const, label: "No follow-up scheduled" }
+  }
+
+  const dueDate = new Date(nextFollowUpAt)
+  if (Number.isNaN(dueDate.getTime())) {
+    return { color: "grey" as const, label: "No follow-up scheduled" }
+  }
+
+  const now = new Date()
+  if (dueDate.getTime() < now.getTime()) {
+    const diffDays = Math.max(1, Math.ceil((now.getTime() - dueDate.getTime()) / (24 * 60 * 60 * 1000)))
+    return { color: "red" as const, label: `Overdue follow-up (${diffDays} day${diffDays > 1 ? "s" : ""})` }
+  }
+
+  return { color: "green" as const, label: `Follow-up due ${getRelativeTimeLabel(nextFollowUpAt)}` }
+}
+
+const getActivitySummary = (activityType: string) => {
+  switch (asString(activityType).toLowerCase()) {
+    case "call":
+      return "Called"
+    case "email":
+      return "Email sent"
+    case "note":
+      return "Note added"
+    case "meeting":
+      return "Meeting logged"
+    case "task":
+      return "Task logged"
+    default:
+      return titleize(activityType)
+  }
 }
 
 const LeadDetailsPage = () => {
   const { id } = useParams()
-  const [stageId, setStageId] = useState("")
-  const [status, setStatus] = useState("__keep")
-  const [activityType, setActivityType] = useState("note")
   const [activityContent, setActivityContent] = useState("")
-  const [followUpDate, setFollowUpDate] = useState("")
 
   const { data, refetch } = useQuery<{ lead: Lead }>({
     queryKey: ["lead", id],
@@ -51,48 +127,29 @@ const LeadDetailsPage = () => {
     enabled: !!id,
   })
 
-  const { data: stagesData } = useQuery<{ stages: LeadStage[] }>({
-    queryKey: ["lead-stages"],
-    queryFn: () => sdk.client.fetch("/admin/lead-stages"),
-  })
-
-  const sortedActivities = useMemo(() => {
-    return [...(data?.lead.activities || [])].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
-  }, [data?.lead.activities])
-
-  const moveStageMutation = useMutation({
-    mutationFn: () =>
-      sdk.client.fetch(`/admin/leads/${id}/move-stage`, {
+  const updateLeadMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      sdk.client.fetch(`/admin/leads/${id}`, {
         method: "POST",
-        body: {
-          stage_id: stageId,
-          status: status === "__keep" ? undefined : status,
-        },
+        body,
       }),
     onSuccess: () => {
-      toast.success("Lead stage updated")
       refetch()
     },
-    onError: () => toast.error("Failed to move stage"),
+    onError: () => toast.error("Failed to update lead"),
   })
 
   const addActivityMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (payload: { type: string; content: string }) =>
       sdk.client.fetch(`/admin/leads/${id}/activities`, {
         method: "POST",
         body: {
-          type: activityType,
-          content: activityContent,
-          due_at: followUpDate ? new Date(followUpDate).toISOString() : undefined,
-          set_as_next_follow_up: activityType === "task" && !!followUpDate,
+          type: payload.type,
+          content: payload.content,
         },
       }),
     onSuccess: () => {
       setActivityContent("")
-      setFollowUpDate("")
-      toast.success("Activity added")
       refetch()
     },
     onError: () => toast.error("Failed to add activity"),
@@ -111,132 +168,174 @@ const LeadDetailsPage = () => {
     onError: () => toast.error("Failed to convert lead"),
   })
 
+  const sortedActivities = useMemo(() => {
+    return [...(data?.lead.activities || [])].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  }, [data?.lead.activities])
+
   if (!data?.lead) {
     return <Container>Loading...</Container>
   }
 
+  const leadName = [data.lead.first_name, data.lead.last_name].filter(Boolean).join(" ")
+  const followUpState = getFollowUpState(data.lead.next_follow_up_at)
+
+  const saveActivity = (type: "note" | "call" | "email") => {
+    const content = activityContent.trim()
+    if (!content) {
+      return
+    }
+
+    addActivityMutation.mutate({ type, content })
+  }
+
+  const onActivityKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      saveActivity("note")
+    }
+  }
+
   return (
     <div className="flex flex-col gap-y-4">
-      <Container className="flex items-center justify-between px-6 py-4">
-        <div>
-          <Heading>{[data.lead.first_name, data.lead.last_name].filter(Boolean).join(" ")}</Heading>
-          <Text size="small" className="text-ui-fg-subtle">
-            {data.lead.email || "No email"}
-          </Text>
+      <Container className="space-y-4 px-6 py-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2">
+            <Input
+              defaultValue={leadName}
+              onBlur={(event) => {
+                const nextValue = event.target.value.trim()
+                if (!nextValue || nextValue === leadName) {
+                  return
+                }
+
+                const [firstName, ...lastNameParts] = nextValue.split(" ")
+                updateLeadMutation.mutate({
+                  first_name: firstName,
+                  last_name: lastNameParts.join(" ") || undefined,
+                })
+              }}
+            />
+            <Input
+              defaultValue={data.lead.email || ""}
+              placeholder="Email"
+              onBlur={(event) => {
+                const nextValue = event.target.value.trim()
+                if (nextValue !== (data.lead.email || "")) {
+                  updateLeadMutation.mutate({ email: nextValue || undefined })
+                }
+              }}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge color={data.lead.priority === "high" ? "red" : data.lead.priority === "low" ? "grey" : "orange"}>
+                {data.lead.priority === "high" ? "🔥 High" : data.lead.priority === "low" ? "Low" : "Medium"}
+              </StatusBadge>
+              <Select
+                value={data.lead.priority || "medium"}
+                onValueChange={(value) => updateLeadMutation.mutate({ priority: value })}
+              >
+                <Select.Trigger>
+                  <Select.Value />
+                </Select.Trigger>
+                <Select.Content>
+                  <Select.Item value="high">High</Select.Item>
+                  <Select.Item value="medium">Medium</Select.Item>
+                  <Select.Item value="low">Low</Select.Item>
+                </Select.Content>
+              </Select>
+              {data.lead.customer_id ? <Link to={`/customers/${data.lead.customer_id}`}>View customer</Link> : null}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {(["new", "contacted", "qualified", "won"] as const).map((stage) => (
+              <Button
+                key={stage}
+                size="small"
+                variant={data.lead.status === stage ? "primary" : "secondary"}
+                onClick={() => updateLeadMutation.mutate({ status: stage })}
+              >
+                {titleize(stage)}
+              </Button>
+            ))}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge>{data.lead.status}</Badge>
-          {data.lead.customer_id && (
-            <Link to={`/customers/${data.lead.customer_id}`}>View customer</Link>
-          )}
+
+        <div className="space-y-2">
+          <Heading level="h2">Quick add activity</Heading>
+          <Input
+            value={activityContent}
+            onChange={(event) => setActivityContent(event.target.value)}
+            placeholder="Write a note, log a call..."
+            onBlur={() => saveActivity("note")}
+            onKeyDown={onActivityKeyDown}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="small" variant="secondary" onClick={() => saveActivity("call")}>
+              Call
+            </Button>
+            <Button size="small" variant="secondary" onClick={() => saveActivity("email")}>
+              Email
+            </Button>
+            <Button size="small" variant="secondary" onClick={() => saveActivity("note")}>
+              Note
+            </Button>
+          </div>
         </div>
       </Container>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_340px]">
-        <Container className="divide-y p-0">
-          <div className="px-6 py-4">
-            <Heading level="h2">Activity timeline</Heading>
-          </div>
-          <Table>
-            <Table.Header>
-              <Table.Row>
-                <Table.HeaderCell>Type</Table.HeaderCell>
-                <Table.HeaderCell>Content</Table.HeaderCell>
-                <Table.HeaderCell>Due</Table.HeaderCell>
-                <Table.HeaderCell>Created</Table.HeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {sortedActivities.map((activity) => (
-                <Table.Row key={activity.id}>
-                  <Table.Cell>{activity.type}</Table.Cell>
-                  <Table.Cell>{activity.content}</Table.Cell>
-                  <Table.Cell>{activity.due_at ? new Date(activity.due_at).toLocaleString() : "-"}</Table.Cell>
-                  <Table.Cell>{new Date(activity.created_at).toLocaleString()}</Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table>
-        </Container>
-
-        <div className="flex flex-col gap-y-4">
-          <Container className="space-y-3 px-6 py-4">
-            <Heading level="h2">Lead info</Heading>
-            <Text size="small">Company: {data.lead.company || "-"}</Text>
-            <Text size="small">Phone: {data.lead.phone || "-"}</Text>
-            <Text size="small">Source: {data.lead.source || "-"}</Text>
-            <Text size="small">Owner: {data.lead.owner_user_id || "-"}</Text>
-            <Text size="small">Stage: {data.lead.stage?.name || "-"}</Text>
-            <Text size="small">Next follow-up: {data.lead.next_follow_up_at ? new Date(data.lead.next_follow_up_at).toLocaleString() : "-"}</Text>
-          </Container>
-
-          <Container className="space-y-3 px-6 py-4">
-            <Heading level="h2">Move stage</Heading>
-            <Select value={stageId} onValueChange={setStageId}>
-              <Select.Trigger>
-                <Select.Value placeholder="Select stage" />
-              </Select.Trigger>
-              <Select.Content>
-                {stagesData?.stages.map((stage) => (
-                  <Select.Item key={stage.id} value={stage.id}>
-                    {stage.name}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select>
-            <Select value={status} onValueChange={setStatus}>
-              <Select.Trigger>
-                <Select.Value placeholder="Optional status" />
-              </Select.Trigger>
-              <Select.Content>
-                <Select.Item value="__keep">Keep status</Select.Item>
-                <Select.Item value="new">New</Select.Item>
-                <Select.Item value="contacted">Contacted</Select.Item>
-                <Select.Item value="qualified">Qualified</Select.Item>
-                <Select.Item value="won">Won</Select.Item>
-                <Select.Item value="lost">Lost</Select.Item>
-              </Select.Content>
-            </Select>
-            <Button onClick={() => moveStageMutation.mutate()} disabled={!stageId || moveStageMutation.isPending}>
-              Update stage
-            </Button>
-          </Container>
-
-          <Container className="space-y-3 px-6 py-4">
-            <Heading level="h2">Add activity</Heading>
-            <Select value={activityType} onValueChange={setActivityType}>
-              <Select.Trigger>
-                <Select.Value />
-              </Select.Trigger>
-              <Select.Content>
-                <Select.Item value="note">Note</Select.Item>
-                <Select.Item value="call">Call</Select.Item>
-                <Select.Item value="email">Email</Select.Item>
-                <Select.Item value="meeting">Meeting</Select.Item>
-                <Select.Item value="task">Task</Select.Item>
-              </Select.Content>
-            </Select>
-            <div>
-              <Label>Content</Label>
-              <Textarea value={activityContent} onChange={(e) => setActivityContent(e.target.value)} />
-            </div>
-            <div>
-              <Label>Due date (optional)</Label>
-              <Input type="datetime-local" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} />
-            </div>
-            <Button onClick={() => addActivityMutation.mutate()} disabled={!activityContent || addActivityMutation.isPending}>
-              Add activity
-            </Button>
-          </Container>
-
-          <Container className="space-y-3 px-6 py-4">
-            <Heading level="h2">Convert</Heading>
-            <Button variant="secondary" onClick={() => convertMutation.mutate()} disabled={convertMutation.isPending}>
-              Convert to customer
-            </Button>
-          </Container>
+      <Container className="space-y-3 px-6 py-4">
+        <div className="flex items-center justify-between gap-2">
+          <Heading level="h2">Next best action</Heading>
+          <StatusBadge color={followUpState.color}>{followUpState.color === "red" ? "Needs action" : "On track"}</StatusBadge>
         </div>
-      </div>
+        <Text size="small" weight="plus">
+          {followUpState.color === "red"
+            ? `⚠️ ${followUpState.label}`
+            : data.lead.priority === "high"
+              ? "🔥 High chance to convert"
+              : "💡 Keep momentum with a quick follow-up"}
+        </Text>
+        <div className="flex flex-wrap items-center gap-2">
+          {data.lead.phone ? (
+            <Button size="small" variant="secondary" asChild>
+              <a href={`tel:${data.lead.phone}`}>Call now</a>
+            </Button>
+          ) : null}
+          <Button
+            size="small"
+            variant="secondary"
+            onClick={() => {
+              const snoozeDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
+              updateLeadMutation.mutate({ next_follow_up_at: snoozeDate.toISOString() })
+            }}
+          >
+            Snooze
+          </Button>
+          <Button size="small" variant="secondary" onClick={() => convertMutation.mutate()} disabled={convertMutation.isPending}>
+            Convert
+          </Button>
+        </div>
+      </Container>
+
+      <Container className="space-y-3 px-6 py-4">
+        <Heading level="h2">Activity timeline</Heading>
+        {sortedActivities.length ? (
+          sortedActivities.map((activity) => (
+            <Container key={activity.id} className="space-y-1 px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <Text size="small" weight="plus">
+                  {getActivitySummary(activity.type)} — {getRelativeTimeLabel(activity.created_at)}
+                </Text>
+                <Badge size="2xsmall">{titleize(activity.type)}</Badge>
+              </div>
+              {activity.content ? <Text size="small">{activity.content}</Text> : null}
+            </Container>
+          ))
+        ) : (
+          <Text size="small" className="text-ui-fg-subtle">
+            No activity yet.
+          </Text>
+        )}
+      </Container>
     </div>
   )
 }
