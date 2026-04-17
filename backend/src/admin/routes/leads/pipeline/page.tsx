@@ -3,7 +3,6 @@ import {
   ArrowPath,
   BuildingStorefront,
   CheckCircleSolid,
-  ClockSolid,
   CurrencyDollar,
   Funnel,
   SquaresPlus,
@@ -382,19 +381,6 @@ const PipelineBoardPage = () => {
     return { label: `Follow-up ${followUpDate.toLocaleDateString()}`, color: "orange" as const }
   }
 
-  const getFollowUpDateLabel = (dateValue?: string) => {
-    if (!dateValue) {
-      return "No date"
-    }
-
-    const followUpDate = new Date(dateValue)
-    if (Number.isNaN(followUpDate.getTime())) {
-      return "No date"
-    }
-
-    return followUpDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-  }
-
   const onCardKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>, leadId: string) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault()
@@ -527,7 +513,7 @@ const PipelineBoardPage = () => {
                       return (
                         <Container
                           key={lead.id}
-                          className={`space-y-2 px-2 py-2 ${selectedLeadId === lead.id ? "ring-1 ring-ui-border-interactive" : ""}`}
+                          className={`group space-y-1.5 px-2 py-2 ${selectedLeadId === lead.id ? "ring-1 ring-ui-border-interactive" : ""}`}
                           draggable
                           role="button"
                           tabIndex={0}
@@ -547,25 +533,18 @@ const PipelineBoardPage = () => {
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex min-w-0 items-center gap-1.5">
-                              <StatusBadge color="orange">
-                                <span className="inline-flex items-center gap-1">
-                                  <ClockSolid className="h-3 w-3" />
-                                  <span>Follow-up</span>
-                                </span>
-                              </StatusBadge>
-                              <Text
-                                size="xsmall"
-                                weight="plus"
-                                className={`truncate ${overdue ? "text-ui-fg-error" : "text-ui-fg-subtle"}`}
-                              >
-                                {getFollowUpDateLabel(lead.next_follow_up_at)}
+                          <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+                            <div className="min-w-0">
+                              <Text size="xsmall" className="truncate text-ui-fg-subtle">
+                                {[lead.company, lead.role].filter(Boolean).join(" • ") || "No company"}
+                              </Text>
+                              <Text size="xsmall" className="truncate text-ui-fg-subtle">
+                                {lead.email || lead.phone || "No contact info"}
                               </Text>
                             </div>
 
                             <div className="flex items-center gap-1">
-                              {[lead.source ? titleize(lead.source) : "Inbound", lead.priority === "high" ? "Hot" : "Follow-up"]
+                              {[lead.source ? titleize(lead.source) : "Inbound", lead.owner_user_id ? "Assigned" : "Unassigned", lead.priority === "high" ? "Hot" : "Follow-up"]
                                 .slice(0, 3)
                                 .map((tag) => (
                                   <StatusBadge key={`${lead.id}-${tag}`} color="grey">
@@ -583,9 +562,23 @@ const PipelineBoardPage = () => {
                               <Text size="xsmall" className="truncate text-ui-fg-subtle">
                                 {lead.owner_user_id || "Unassigned"}
                               </Text>
+                              <StatusBadge color={followUpState.color}>{followUpState.label}</StatusBadge>
                             </div>
 
-                            <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+                            <div
+                              className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              {lead.phone ? (
+                                <Button size="small" variant="transparent" asChild>
+                                  <a href={`tel:${lead.phone}`}>Call</a>
+                                </Button>
+                              ) : null}
+                              {lead.email ? (
+                                <Button size="small" variant="transparent" asChild>
+                                  <a href={`mailto:${lead.email}`}>Email</a>
+                                </Button>
+                              ) : null}
                               <Button size="small" variant="transparent" onClick={() => setSelectedLeadId(lead.id)}>
                                 Open
                               </Button>
