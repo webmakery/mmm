@@ -81,7 +81,11 @@ export default function WebChatWidget() {
   const [isBootstrapping, setIsBootstrapping] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
+  const [connectionState, setConnectionState] = useState<
+    "connected" | "reconnecting"
+  >("connected")
   const bottomRef = useRef<HTMLDivElement>(null)
+  const latestMessageRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     const stored = globalThis.localStorage?.getItem(STORAGE_KEY)
@@ -110,12 +114,18 @@ export default function WebChatWidget() {
     globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(session))
   }, [session])
 
+  useEffect(() => {
+    latestMessageRef.current = messages[messages.length - 1]?.created_at
+  }, [messages])
+
   const refreshMessages = async (after?: string) => {
     if (!session) {
       return
     }
 
-    setIsLoadingMessages(true)
+    if (!after) {
+      setIsLoadingMessages(true)
+    }
 
     try {
       const params = new URLSearchParams({
@@ -156,10 +166,13 @@ export default function WebChatWidget() {
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         )
       })
+      setConnectionState("connected")
     } catch {
-      setError("We couldn't refresh chat messages. Reconnecting...")
+      setConnectionState("reconnecting")
     } finally {
-      setIsLoadingMessages(false)
+      if (!after) {
+        setIsLoadingMessages(false)
+      }
     }
   }
 
@@ -171,14 +184,14 @@ export default function WebChatWidget() {
     refreshMessages()
 
     const interval = globalThis.setInterval(() => {
-      const after = messages[messages.length - 1]?.created_at
+      const after = latestMessageRef.current
       refreshMessages(after)
     }, 3000)
 
     return () => {
       globalThis.clearInterval(interval)
     }
-  }, [session, isOpen, messages, activeTab])
+  }, [session, isOpen, activeTab])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -430,7 +443,11 @@ export default function WebChatWidget() {
                     ) : null}
                     <div className="flex items-center justify-between">
                       <Text size="xsmall" className="text-ui-fg-subtle">
-                        {isLoadingMessages ? "Syncing..." : "Connected"}
+                        {isLoadingMessages
+                          ? "Syncing..."
+                          : connectionState === "connected"
+                          ? "Connected"
+                          : "Reconnecting..."}
                       </Text>
                       <Button
                         type="submit"
