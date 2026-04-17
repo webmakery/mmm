@@ -3,10 +3,10 @@ import { ChatBubbleLeftRight, PaperPlane } from "@medusajs/icons"
 import { Badge, Button, Container, Heading, Input, StatusBadge, Text, Textarea } from "@medusajs/ui"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FormEvent, useEffect, useMemo, useState } from "react"
-import { RiInstagramFill, RiMessengerFill, RiWhatsappFill } from "react-icons/ri"
+import { RiInstagramFill, RiMessengerFill, RiTelegram2Fill, RiWhatsappFill } from "react-icons/ri"
 import { sdk } from "../../lib/sdk"
 
-type Channel = "whatsapp" | "messenger" | "instagram"
+type Channel = "whatsapp" | "messenger" | "instagram" | "telegram"
 
 type Conversation = {
   id: string
@@ -47,6 +47,7 @@ const channelOptions: Array<{ label: string; value: "all" | Channel }> = [
   { label: "WhatsApp", value: "whatsapp" },
   { label: "Messenger", value: "messenger" },
   { label: "Instagram", value: "instagram" },
+  { label: "Telegram", value: "telegram" },
 ]
 
 const formatDateTime = (value?: string | null) => {
@@ -90,6 +91,11 @@ const channelMeta: Record<
     label: "Instagram",
     icon: RiInstagramFill,
     className: "text-[#E4405F]",
+  },
+  telegram: {
+    label: "Telegram",
+    icon: RiTelegram2Fill,
+    className: "text-ui-fg-base",
   },
 }
 

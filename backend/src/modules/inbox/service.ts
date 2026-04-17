@@ -6,6 +6,7 @@ import Message from "./models/message"
 import MessageAttachment from "./models/message-attachment"
 import WhatsappProvider from "./providers/whatsapp/provider"
 import MetaProvider from "./providers/meta/provider"
+import TelegramProvider from "./providers/telegram/provider"
 import { ChannelWebhookResult, InboxChannel } from "./providers/types"
 import { CreatePrivateNoteInput, IngestWebhookResult, SendInboxMessageInput } from "./types"
 
@@ -18,11 +19,13 @@ class InboxModuleService extends MedusaService({
 }) {
   private whatsappProvider_: WhatsappProvider
   private metaProvider_: MetaProvider
+  private telegramProvider_: TelegramProvider
 
   constructor(...args: any[]) {
     super(...args)
     this.whatsappProvider_ = new WhatsappProvider()
     this.metaProvider_ = new MetaProvider()
+    this.telegramProvider_ = new TelegramProvider()
   }
 
   private async getOrCreateChannelAccount(input: { channel: InboxChannel; externalAccountId: string }) {
@@ -264,6 +267,11 @@ class InboxModuleService extends MedusaService({
     return this.ingestWebhookPayload(payload, parsed)
   }
 
+  async ingestTelegramWebhook(payload: Record<string, unknown>): Promise<IngestWebhookResult> {
+    const parsed = this.telegramProvider_.parseWebhookPayload(payload)
+    return this.ingestWebhookPayload(payload, parsed)
+  }
+
   async sendWhatsAppMessage(input: SendInboxMessageInput) {
     return this.sendInboxMessage({ ...input, channel: "whatsapp" })
   }
@@ -274,6 +282,10 @@ class InboxModuleService extends MedusaService({
 
   async sendInstagramMessage(input: SendInboxMessageInput) {
     return this.sendInboxMessage({ ...input, channel: "instagram" })
+  }
+
+  async sendTelegramMessage(input: SendInboxMessageInput) {
+    return this.sendInboxMessage({ ...input, channel: "telegram" })
   }
 
   async sendInboxMessage(input: SendInboxMessageInput) {
@@ -314,11 +326,17 @@ class InboxModuleService extends MedusaService({
         to,
         text: input.text,
       })
-    } else {
+    } else if (channel === "instagram") {
       providerResponse = await this.metaProvider_.sendInstagramMessage({
         channel,
         instagramAccountId: conversation.instagram_account_id || conversation.channel_account.external_account_id,
         to,
+        text: input.text,
+      })
+    } else {
+      providerResponse = await this.telegramProvider_.sendMessage({
+        channel,
+        to: conversation.external_thread_id || to,
         text: input.text,
       })
     }

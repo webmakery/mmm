@@ -44,6 +44,11 @@ export default defineMiddlewares({
       middlewares: [bodyParser.json({ type: "application/json" })],
     },
     {
+      matcher: "/webhooks/telegram",
+      methods: ["POST"],
+      middlewares: [bodyParser.json({ type: "application/json" })],
+    },
+    {
       matcher: "/product-feed",
       methods: ["GET"],
       middlewares: [
