@@ -59,6 +59,16 @@ const formatTime = (value: string) => {
 
 const validateEmail = (email: string) => /\S+@\S+\.\S+/.test(email)
 
+const getInitial = (value: string) => {
+  const trimmed = value.trim()
+
+  if (!trimmed) {
+    return "?"
+  }
+
+  return trimmed[0].toUpperCase()
+}
+
 export default function WebChatWidget() {
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"home" | "messages">("home")
@@ -342,8 +352,8 @@ export default function WebChatWidget() {
                   </Button>
                 </form>
               ) : (
-                <>
-                  <div className="h-full overflow-y-auto p-4 flex flex-col gap-2 pb-20">
+                <div className="h-full flex flex-col">
+                  <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
                     {messages.length === 0 ? (
                       <Text size="small" className="text-ui-fg-subtle">
                         Start by sending your first message.
@@ -353,14 +363,24 @@ export default function WebChatWidget() {
                         .filter((item) => item.message_type !== "private_note")
                         .map((item) => {
                           const isGuest = item.direction === "inbound"
+                          const senderName = isGuest
+                            ? name.trim() || "You"
+                            : "Support"
 
                           return (
                             <div
                               key={item.id}
-                              className={`flex ${
+                              className={`flex items-end gap-2 ${
                                 isGuest ? "justify-end" : "justify-start"
                               }`}
                             >
+                              {!isGuest ? (
+                                <div className="size-7 rounded-full border border-ui-border-base bg-ui-bg-base flex items-center justify-center shrink-0">
+                                  <Text size="xsmall" className="text-ui-fg-subtle">
+                                    {getInitial(senderName)}
+                                  </Text>
+                                </div>
+                              ) : null}
                               <div
                                 className={`max-w-[85%] rounded-md border px-3 py-2 ${
                                   isGuest
@@ -368,6 +388,9 @@ export default function WebChatWidget() {
                                     : "bg-ui-bg-subtle border-ui-border-base"
                                 }`}
                               >
+                                <Text size="xsmall" className="text-ui-fg-subtle">
+                                  {senderName}
+                                </Text>
                                 <Text size="small">{item.text || ""}</Text>
                                 <Text
                                   size="xsmall"
@@ -376,6 +399,13 @@ export default function WebChatWidget() {
                                   {formatTime(item.created_at)}
                                 </Text>
                               </div>
+                              {isGuest ? (
+                                <div className="size-7 rounded-full border border-ui-border-base bg-ui-bg-base flex items-center justify-center shrink-0">
+                                  <Text size="xsmall" className="text-ui-fg-subtle">
+                                    {getInitial(senderName)}
+                                  </Text>
+                                </div>
+                              ) : null}
                             </div>
                           )
                         })
@@ -383,7 +413,7 @@ export default function WebChatWidget() {
                     <div ref={bottomRef} />
                   </div>
                   <form
-                    className="border-t bg-ui-bg-base p-3 flex flex-col gap-2"
+                    className="border-t bg-ui-bg-base p-3 flex flex-col gap-2 shrink-0"
                     onSubmit={onSendMessage}
                   >
                     <textarea
@@ -411,7 +441,7 @@ export default function WebChatWidget() {
                       </Button>
                     </div>
                   </form>
-                </>
+                </div>
               )
             ) : null}
           </div>
