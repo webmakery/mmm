@@ -1,5 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
+import { LEAD_MODULE } from "../../../../modules/lead"
+import LeadModuleService from "../../../../modules/lead/service"
 import { updateLeadWorkflow } from "../../../../workflows/lead"
 
 export const PostAdminUpdateLeadSchema = z.object({
@@ -47,4 +49,16 @@ export async function POST(
   })
 
   res.json(result)
+}
+
+export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
+  const leadService: LeadModuleService = req.scope.resolve(LEAD_MODULE)
+
+  await leadService.deleteLeads(req.params.id)
+
+  res.status(200).json({
+    id: req.params.id,
+    object: "lead",
+    deleted: true,
+  })
 }
