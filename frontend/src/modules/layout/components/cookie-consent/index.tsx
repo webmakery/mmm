@@ -28,6 +28,7 @@ const getConsentState = (): ConsentState => {
 
 export default function CookieConsent() {
   const [hasStoredConsent, setHasStoredConsent] = useState(false)
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false)
   const [showPreferences, setShowPreferences] = useState(false)
   const [consentState, setConsentState] = useState<ConsentState>(() => ({
     analytics: false,
@@ -49,6 +50,7 @@ export default function CookieConsent() {
       const updated = getConsentState()
       setConsentState(updated)
       setHasStoredConsent(Boolean(readCookieConsent()))
+      setIsBannerDismissed(Boolean(readCookieConsent()))
     }
 
     window.addEventListener(COOKIE_CONSENT_EVENT, onConsentUpdate)
@@ -57,9 +59,13 @@ export default function CookieConsent() {
       window.removeEventListener(COOKIE_CONSENT_EVENT, onConsentUpdate)
   }, [])
 
-  const showBanner = useMemo(() => !hasStoredConsent, [hasStoredConsent])
+  const showBanner = useMemo(
+    () => !hasStoredConsent && !isBannerDismissed,
+    [hasStoredConsent, isBannerDismissed]
+  )
 
   const onAcceptAll = () => {
+    setIsBannerDismissed(true)
     saveCookieConsent(
       {
         essential: true,
@@ -73,6 +79,7 @@ export default function CookieConsent() {
   }
 
   const onRejectAll = () => {
+    setIsBannerDismissed(true)
     saveCookieConsent(
       {
         essential: true,

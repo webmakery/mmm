@@ -110,6 +110,8 @@ export async function signupWithEmailPassword(
 ) {
   const email = formData.get("email") as string
   const password = formData.get("password") as string
+  const countryCode = formData.get("country_code") as string
+  const requestedPlanId = formData.get("plan_id") as string | null
 
   try {
     const token = await sdk.auth.register("customer", "emailpass", {
@@ -123,11 +125,7 @@ export async function signupWithEmailPassword(
       ...(await getAuthHeaders()),
     }
 
-    const { customer: createdCustomer } = await sdk.store.customer.create(
-      { email },
-      {},
-      headers
-    )
+    await sdk.store.customer.create({ email }, {}, headers)
 
     const loginToken = await sdk.auth.login("customer", "emailpass", {
       email,
@@ -141,7 +139,36 @@ export async function signupWithEmailPassword(
 
     await transferCart()
 
-    return createdCustomer
+    const { subscription_plans: subscriptionPlans } = await sdk.client.fetch<{
+      subscription_plans: Array<{ id: string; active?: boolean | null }>
+    }>("/store/subscription-plans", {
+      method: "GET",
+      cache: "no-cache",
+    })
+
+    const selectedPlanId =
+      requestedPlanId ||
+      subscriptionPlans.find((plan) => plan.active !== false)?.id ||
+      subscriptionPlans[0]?.id
+
+    if (!selectedPlanId) {
+      if (countryCode) {
+        redirect(`/${countryCode}/plans`)
+      }
+      redirect("/us/plans")
+    }
+
+    const { url } = await sdk.client.fetch<{ url: string }>(
+      `/store/subscription-plans/${selectedPlanId}/checkout-session`,
+      {
+        method: "POST",
+        headers: {
+          ...(await getAuthHeaders()),
+        },
+      }
+    )
+
+    redirect(url)
   } catch (error: any) {
     return error.toString()
   }
