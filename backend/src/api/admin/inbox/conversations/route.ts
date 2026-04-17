@@ -3,7 +3,7 @@ import { z } from "@medusajs/framework/zod"
 
 export const GetAdminInboxConversationsSchema = z.object({
   q: z.string().optional(),
-  channel: z.enum(["whatsapp", "messenger", "instagram", "telegram"]).optional(),
+  channel: z.enum(["whatsapp", "messenger", "instagram", "telegram", "web_chat"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 })
