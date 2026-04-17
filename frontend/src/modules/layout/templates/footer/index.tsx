@@ -1,15 +1,18 @@
 import { listCategories } from "@lib/data/categories"
 import { listCollections } from "@lib/data/collections"
+import { getStoreBranding } from "@lib/data/store-branding"
 import { Text, clx } from "@medusajs/ui"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import MedusaCTA from "@modules/layout/components/medusa-cta"
 
 export default async function Footer() {
-  const { collections } = await listCollections({
-    fields: "*products",
-  })
-  const productCategories = await listCategories()
+  const [{ collections }, productCategories, branding] = await Promise.all([
+    listCollections({
+      fields: "*products",
+    }),
+    listCategories(),
+    getStoreBranding(),
+  ])
 
   return (
     <footer className="border-t border-ui-border-base w-full">
@@ -18,9 +21,14 @@ export default async function Footer() {
           <div>
             <LocalizedClientLink
               href="/"
-              className="txt-compact-xlarge-plus text-ui-fg-subtle hover:text-ui-fg-base uppercase"
+              className="txt-compact-xlarge-plus text-ui-fg-subtle hover:text-ui-fg-base"
             >
-              Medusa Store
+              {branding.store_logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={branding.store_logo_url} alt={branding.store_name} className="h-8 w-auto" />
+              ) : (
+                <span className="uppercase">{branding.store_name}</span>
+              )}
             </LocalizedClientLink>
           </div>
           <div className="text-small-regular gap-10 md:gap-x-16 grid grid-cols-2 sm:grid-cols-3">
@@ -109,7 +117,7 @@ export default async function Footer() {
               </div>
             )}
             <div className="flex flex-col gap-y-2">
-              <span className="txt-small-plus txt-ui-fg-base">Medusa</span>
+              <span className="txt-small-plus txt-ui-fg-base">Resources</span>
               <ul className="grid grid-cols-1 gap-y-2 text-ui-fg-subtle txt-small">
                 <li>
                   <a
@@ -147,9 +155,8 @@ export default async function Footer() {
         </div>
         <div className="flex w-full mb-16 justify-between text-ui-fg-muted">
           <Text className="txt-compact-small">
-            © {new Date().getFullYear()} Medusa Store. All rights reserved.
+            © {new Date().getFullYear()} {branding.store_name}. All rights reserved.
           </Text>
-          <MedusaCTA />
         </div>
       </div>
     </footer>
