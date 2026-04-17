@@ -115,7 +115,7 @@ describe("inbox meta normalizers", () => {
       expect.objectContaining({
         channel: "telegram",
         externalThreadId: "998877",
-        externalMessageId: "42",
+        externalMessageId: "998877:42",
         externalUserId: "998877",
         customerName: "Jane Doe",
         customerHandle: "janed",

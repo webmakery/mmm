@@ -1,4 +1,5 @@
 import { ChannelWebhookResult, NormalizedWebhookMessage, NormalizedWebhookStatusEvent } from "../providers/types"
+import { buildTelegramExternalMessageId } from "../providers/telegram/message-id"
 
 export const normalizeProviderTimestamp = (
   value: number | string | Date | undefined,
@@ -185,13 +186,14 @@ export const normalizeTelegramWebhookEvent = (
 
     const externalUserId = String(from.id || chat.id || "")
     const externalThreadId = String(chat.id || "")
-    const externalMessageId = String(message.message_id || "")
+    const messageId = String(message.message_id || "")
 
-    if (externalUserId && externalThreadId && externalMessageId) {
+    if (externalUserId && externalThreadId && messageId) {
       const username = typeof from.username === "string" ? from.username : null
       const firstName = typeof from.first_name === "string" ? from.first_name : null
       const lastName = typeof from.last_name === "string" ? from.last_name : null
       const displayName = [firstName, lastName].filter(Boolean).join(" ").trim() || null
+      const externalMessageId = buildTelegramExternalMessageId(externalThreadId, messageId)
 
       inboundMessages.push({
         channel: "telegram",

@@ -14,7 +14,7 @@ const Message = model.define("message", {
   provider: model.enum(InboxProvider).default("whatsapp"),
   channel: model.enum(InboxProvider).default("whatsapp"),
   whatsapp_message_id: model.text().unique().nullable(),
-  external_message_id: model.text().unique().nullable(),
+  external_message_id: model.text().nullable(),
   external_event_id: model.text().unique().nullable(),
   direction: model.enum(MessageDirection),
   message_type: model.enum(MessageType).default("text"),
