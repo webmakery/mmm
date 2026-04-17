@@ -1,13 +1,14 @@
-import { LoaderOptions } from "@medusajs/framework/types"
-import { BOOKING_MODULE } from ".."
-import BookingModuleService from "../service"
+import { IMedusaInternalService, LoaderOptions } from "@medusajs/framework/types"
+import BookingRule from "../models/booking-rule"
+import BookingService from "../models/booking-service"
 
 export default async function seedDefaultBookingRules({ container }: LoaderOptions) {
-  const bookingService: BookingModuleService = container.resolve(BOOKING_MODULE)
+  const bookingRuleService: IMedusaInternalService<typeof BookingRule> = container.resolve("bookingRuleService")
+  const bookingServiceService: IMedusaInternalService<typeof BookingService> = container.resolve("bookingServiceService")
 
-  const rules = await bookingService.listBookingRules()
-  if (!rules.length) {
-    await bookingService.createBookingRules({
+  const [rules] = await bookingRuleService.listAndCount()
+  if (rules.length === 0) {
+    await bookingRuleService.create({
       minimum_notice_minutes: 60,
       maximum_days_in_advance: 60,
       cancellation_window_hours: 24,
@@ -15,28 +16,18 @@ export default async function seedDefaultBookingRules({ container }: LoaderOptio
       same_day_booking_enabled: false,
       buffer_minutes: 15,
       timezone: "UTC",
-      blackout_dates: { dates: [] },
     })
   }
 
-  const services = await bookingService.listBookingServices({})
-  if (!services.length) {
-    await bookingService.createBookingServices([
+  const [services] = await bookingServiceService.listAndCount()
+  if (services.length === 0) {
+    await bookingServiceService.create([
       {
-        name: "Discovery Call",
-        description: "30-minute discovery call",
+        name: "Standard Consultation",
+        description: "30 minute booking slot",
         duration_minutes: 30,
         availability_start_time: "09:00",
         availability_end_time: "17:00",
-        timezone: "UTC",
-        is_active: true,
-      },
-      {
-        name: "Implementation Session",
-        description: "60-minute implementation session",
-        duration_minutes: 60,
-        availability_start_time: "10:00",
-        availability_end_time: "18:00",
         timezone: "UTC",
         is_active: true,
       },
