@@ -321,8 +321,8 @@ export default function WebChatWidget() {
                   </Button>
                 </form>
               ) : (
-                <>
-                  <div className="h-full overflow-y-auto p-4 flex flex-col gap-2 pb-20">
+                <div className="h-full flex flex-col">
+                  <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-2 pb-20">
                     {messages.length === 0 ? (
                       <Text size="small" className="text-ui-fg-subtle">
                         Start by sending your first message.
@@ -390,7 +390,7 @@ export default function WebChatWidget() {
                       </Button>
                     </div>
                   </form>
-                </>
+                </div>
               )
             ) : null}
           </div>
