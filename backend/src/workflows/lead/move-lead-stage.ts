@@ -1,4 +1,4 @@
-import { createWorkflow, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
+import { createWorkflow, transform, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
 import { addLeadActivityStep } from "./steps/add-lead-activity"
 import { updateLeadStep } from "./steps/update-lead"
 
@@ -10,6 +10,10 @@ type MoveLeadStageInput = {
 }
 
 export const moveLeadStageWorkflow = createWorkflow("move-lead-stage", (input: MoveLeadStageInput) => {
+  const activityContent = transform({ stageId: input.stage_id, status: input.status }, (data) => {
+    return `Lead moved to stage ${data.stageId}${data.status ? ` with status ${data.status}` : ""}`
+  })
+
   const lead = updateLeadStep({
     id: input.id,
     stage_id: input.stage_id,
@@ -19,7 +23,7 @@ export const moveLeadStageWorkflow = createWorkflow("move-lead-stage", (input: M
   const activity = addLeadActivityStep({
     lead_id: input.id,
     type: "status_change",
-    content: `Lead moved to stage ${input.stage_id}${input.status ? ` with status ${input.status}` : ""}`,
+    content: activityContent,
     created_by: input.created_by,
   })
 
