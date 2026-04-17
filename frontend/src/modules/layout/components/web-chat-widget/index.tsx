@@ -1,6 +1,7 @@
 "use client"
 
 import { Button, Heading, Text } from "@medusajs/ui"
+import { ChatBubble } from "@medusajs/icons"
 import Input from "@modules/common/components/input"
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
 
@@ -60,6 +61,7 @@ const formatTime = (value: string) => {
 const validateEmail = (email: string) => /\S+@\S+\.\S+/.test(email)
 
 export default function WebChatWidget() {
+  const unreadCount = 2
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"home" | "messages">("home")
   const [session, setSession] = useState<WebChatSession | null>(null)
@@ -269,7 +271,7 @@ export default function WebChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-24 right-4 small:bottom-6 small:right-6 z-50">
       {isOpen ? (
         <div className="bg-white border border-ui-border-base rounded-2xl shadow-elevation-card-rest w-[22rem] max-w-[calc(100vw-2rem)] h-[38rem] max-h-[calc(100vh-6rem)] flex flex-col overflow-hidden">
           <div className="bg-ui-bg-interactive px-4 pt-4 pb-8 text-ui-fg-on-inverted">
@@ -493,9 +495,19 @@ export default function WebChatWidget() {
         </div>
       ) : null}
 
-      <Button size="large" onClick={() => setIsOpen((value) => !value)}>
-        {isOpen ? "Hide chat" : "Chat with us"}
-      </Button>
+      <button
+        type="button"
+        onClick={() => setIsOpen((value) => !value)}
+        className="h-11 rounded-full bg-ui-fg-interactive text-ui-fg-on-inverted px-4 flex items-center gap-2 shadow-elevation-card-rest"
+      >
+        <ChatBubble className="size-5" />
+        <Text weight="plus" className="text-ui-fg-on-inverted">
+          Chat
+        </Text>
+        <span className="size-6 rounded-full bg-green-500 text-white text-small-plus flex items-center justify-center">
+          {unreadCount}
+        </span>
+      </button>
     </div>
   )
 }
