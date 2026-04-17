@@ -1,4 +1,5 @@
 import { Button, Heading } from "@medusajs/ui"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 const Hero = () => {
   return (
@@ -37,8 +38,8 @@ const Hero = () => {
           </Heading>
 
           <div className="flex flex-col gap-3 small:flex-row">
-            <Button className="w-full small:w-auto" variant="primary">
-              Start for free
+            <Button className="w-full small:w-auto" variant="primary" asChild>
+              <LocalizedClientLink href="/signup">Start for free</LocalizedClientLink>
             </Button>
             <Button className="w-full small:w-auto" variant="secondary">
               View plans

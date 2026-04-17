@@ -104,6 +104,49 @@ export async function signup(_currentState: unknown, formData: FormData) {
   }
 }
 
+export async function signupWithEmailPassword(
+  _currentState: unknown,
+  formData: FormData
+) {
+  const email = formData.get("email") as string
+  const password = formData.get("password") as string
+
+  try {
+    const token = await sdk.auth.register("customer", "emailpass", {
+      email,
+      password,
+    })
+
+    await setAuthToken(token as string)
+
+    const headers = {
+      ...(await getAuthHeaders()),
+    }
+
+    const { customer: createdCustomer } = await sdk.store.customer.create(
+      { email },
+      {},
+      headers
+    )
+
+    const loginToken = await sdk.auth.login("customer", "emailpass", {
+      email,
+      password,
+    })
+
+    await setAuthToken(loginToken as string)
+
+    const customerCacheTag = await getCacheTag("customers")
+    revalidateTag(customerCacheTag)
+
+    await transferCart()
+
+    return createdCustomer
+  } catch (error: any) {
+    return error.toString()
+  }
+}
+
 export async function login(_currentState: unknown, formData: FormData) {
   const email = formData.get("email") as string
   const password = formData.get("password") as string
