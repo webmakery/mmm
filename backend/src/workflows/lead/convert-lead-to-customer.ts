@@ -1,5 +1,5 @@
 import { MedusaError } from "@medusajs/framework/utils"
-import { createWorkflow, createStep, StepResponse, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
+import { createWorkflow, createStep, StepResponse, transform, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
 import { Modules } from "@medusajs/framework/utils"
 import { addLeadActivityStep } from "./steps/add-lead-activity"
 import { updateLeadStep } from "./steps/update-lead"
@@ -67,14 +67,14 @@ export const convertLeadToCustomerWorkflow = createWorkflow(
       fields: ["id", "first_name", "last_name", "email", "phone", "company", "customer_id"],
       filters: { id: input.id },
       options: { throwIfKeyNotFound: true },
-    })
+    }).config({ name: "query-lead-for-conversion" })
 
     const { data: wonStages } = useQueryGraphStep({
       entity: "lead_stage",
       fields: ["id", "slug"],
       filters: { slug: "won" },
       options: { throwIfKeyNotFound: true },
-    })
+    }).config({ name: "query-won-stage-for-conversion" })
 
     const customer = ensureCustomerForLeadStep({
       id: leads[0].id,
@@ -93,10 +93,14 @@ export const convertLeadToCustomerWorkflow = createWorkflow(
       stage_id: wonStages[0].id,
     })
 
+    const conversionContent = transform({ customer }, (data) => {
+      return `Lead converted to customer ${data.customer.id}`
+    })
+
     addLeadActivityStep({
       lead_id: input.id,
       type: "status_change",
-      content: `Lead converted to customer ${customer.id}`,
+      content: conversionContent,
       created_by: input.created_by,
       completed_at: new Date(),
     })
