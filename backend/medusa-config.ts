@@ -30,6 +30,9 @@ module.exports = defineConfig({
       resolve: "./src/modules/subscription-infrastructure",
     },
     {
+      resolve: "./src/modules/custom-domain",
+    },
+    {
       resolve: "@medusajs/fulfillment",
       options: {
         providers: [

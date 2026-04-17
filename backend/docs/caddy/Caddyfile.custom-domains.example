@@ -1,0 +1,14 @@
+{
+  email ops@yourcompany.com
+  on_demand_tls {
+    ask http://127.0.0.1:9000/internal/custom-domains/can-issue-cert
+  }
+}
+
+https:// {
+  tls {
+    on_demand
+  }
+
+  reverse_proxy 127.0.0.1:3000
+}
