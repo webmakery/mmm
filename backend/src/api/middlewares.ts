@@ -227,7 +227,7 @@ export default defineMiddlewares({
     {
       matcher: "/store/inbox/web-chat/session",
       methods: ["GET"],
-      middlewares: [validateAndTransformQuery(GetStoreWebChatSessionSchema)],
+      middlewares: [validateAndTransformQuery(GetStoreWebChatSessionSchema, {})],
     },
     {
       matcher: "/store/inbox/web-chat/session",
@@ -237,7 +237,7 @@ export default defineMiddlewares({
     {
       matcher: "/store/inbox/web-chat/messages",
       methods: ["GET"],
-      middlewares: [validateAndTransformQuery(GetStoreWebChatMessagesSchema)],
+      middlewares: [validateAndTransformQuery(GetStoreWebChatMessagesSchema, {})],
     },
     {
       matcher: "/store/inbox/web-chat/messages",
