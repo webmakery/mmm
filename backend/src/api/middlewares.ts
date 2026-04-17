@@ -37,6 +37,7 @@ import { PostAdminCreateLeadStageSchema } from "./admin/lead-stages/route"
 import { GetAdminBookingServicesSchema, PostAdminBookingServiceSchema } from "./admin/booking-services/route"
 import { PostAdminBookingServiceUpdateSchema } from "./admin/booking-services/[id]/route"
 import { GetAdminBookingsSchema, PostAdminCreateBookingSchema } from "./admin/bookings/route"
+import { GetAdminBookingAvailabilitySchema } from "./admin/bookings/availability/route"
 import { PostAdminUpdateBookingSchema } from "./admin/bookings/[id]/route"
 import { PostAdminBookingRulesSchema } from "./admin/booking-rules/route"
 import { GetStoreBookingAvailabilitySchema } from "./store/bookings/availability/route"
@@ -178,6 +179,11 @@ export default defineMiddlewares({
       matcher: "/admin/bookings",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostAdminCreateBookingSchema)],
+    },
+    {
+      matcher: "/admin/bookings/availability",
+      methods: ["GET"],
+      middlewares: [validateAndTransformQuery(GetAdminBookingAvailabilitySchema, {})],
     },
     {
       matcher: "/admin/bookings/:id",
