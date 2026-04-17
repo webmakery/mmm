@@ -10,6 +10,15 @@ export type DnsInstructions = {
   name: string
   value: string
   note: string
+  ttl?: string
+}
+
+export type DomainDnsDetails = {
+  dns_record_type: "cname" | "a_record"
+  dns_host: string
+  dns_value: string
+  target_ip: string | null
+  target_host: string
 }
 
 export type CustomDomainRecord = {
@@ -27,6 +36,8 @@ export type CustomDomainRecord = {
   updated_at: Date
 }
 
+export type CustomDomainRecordWithDnsDetails = CustomDomainRecord & DomainDnsDetails
+
 export class CustomDomainService {
   constructor(private readonly container: any) {}
 
@@ -34,54 +45,120 @@ export class CustomDomainService {
     return this.container.resolve(CUSTOM_DOMAIN_MODULE)
   }
 
-  private async getDefaultStoreId(): Promise<string> {
+  private async getDefaultStore(): Promise<{ id: string; metadata: Record<string, unknown> | null }> {
     const query = this.container.resolve(ContainerRegistrationKeys.QUERY)
-    const { data } = await query.graph({ entity: "store", fields: ["id"], pagination: { take: 1, skip: 0 } })
+    const { data } = await query.graph({
+      entity: "store",
+      fields: ["id", "metadata"],
+      pagination: { take: 1, skip: 0 },
+    })
 
     if (!data?.length) {
       throw new Error("No store found for custom domain association")
     }
 
-    return data[0].id
+    return {
+      id: data[0].id,
+      metadata: (data[0].metadata as Record<string, unknown> | null) ?? null,
+    }
   }
 
-  private getConfig(): { targetHost: string; targetIp: string | null; verificationType: CustomDomainVerificationType } {
-    const targetHost = (process.env.PLATFORM_DOMAIN_TARGET_HOST || "").trim().toLowerCase()
-    const targetIp = (process.env.VPS_PUBLIC_IP || "").trim()
+  private pickString(value: unknown): string | null {
+    if (typeof value !== "string") {
+      return null
+    }
+
+    const trimmed = value.trim()
+
+    return trimmed ? trimmed : null
+  }
+
+  private getConfig(storeMetadata: Record<string, unknown> | null): { targetHost: string; targetIp: string | null } {
+    const metadataTargetHost =
+      this.pickString(storeMetadata?.custom_domain_target_host) ||
+      this.pickString(storeMetadata?.domain_target_host) ||
+      this.pickString(storeMetadata?.instance_host)
+    const metadataTargetIp =
+      this.pickString(storeMetadata?.custom_domain_target_ip) ||
+      this.pickString(storeMetadata?.domain_target_ip) ||
+      this.pickString(storeMetadata?.instance_ip)
+
+    const targetHost =
+      metadataTargetHost ||
+      this.pickString(process.env.CUSTOM_DOMAIN_TARGET_HOST) ||
+      this.pickString(process.env.PLATFORM_DOMAIN_TARGET_HOST)
+    const targetIp =
+      metadataTargetIp ||
+      this.pickString(process.env.CUSTOM_DOMAIN_TARGET_IP) ||
+      this.pickString(process.env.VPS_PUBLIC_IP)
 
     if (!targetHost) {
       throw new Error("PLATFORM_DOMAIN_TARGET_HOST must be configured")
     }
 
     return {
-      targetHost,
-      targetIp: targetIp || null,
-      verificationType: "cname",
+      targetHost: targetHost.toLowerCase(),
+      targetIp,
     }
+  }
+
+  private isApexDomain(domain: string): boolean {
+    return domain.split(".").filter(Boolean).length === 2
+  }
+
+  private resolveVerificationType(domain: string, targetIp: string | null): CustomDomainVerificationType {
+    if (this.isApexDomain(domain) && targetIp) {
+      return "a_record"
+    }
+
+    return "cname"
+  }
+
+  private getDnsHost(domain: string, verificationType: CustomDomainVerificationType): string {
+    if (verificationType === "a_record") {
+      return "@"
+    }
+
+    return domain.split(".")[0] || domain
   }
 
   private buildInstructions(domain: string, expectedValue: string, verificationType: CustomDomainVerificationType): DnsInstructions {
     if (verificationType === "a_record") {
       return {
         type: "A",
-        name: domain,
+        name: this.getDnsHost(domain, verificationType),
         value: expectedValue,
-        note: "Create an A record pointing to your VPS public IP.",
+        note: "Point your root domain to your dedicated server ingress.",
+        ttl: "Auto",
       }
     }
 
     return {
       type: "CNAME",
-      name: domain,
+      name: this.getDnsHost(domain, verificationType),
       value: expectedValue,
-      note: "Create a CNAME record pointing your custom domain to your assigned platform hostname.",
+      note: "Point your subdomain to your dedicated instance host.",
+      ttl: "Auto",
+    }
+  }
+
+  private withDnsDetails(domain: CustomDomainRecord): CustomDomainRecordWithDnsDetails {
+    return {
+      ...domain,
+      dns_record_type: domain.verification_type,
+      dns_host: this.getDnsHost(domain.domain, domain.verification_type),
+      dns_value: domain.expected_value,
+      target_ip: domain.verification_type === "a_record" ? domain.expected_value : null,
+      target_host: domain.target_host,
     }
   }
 
   async createDomain(input: { domain: string }): Promise<{ domain: CustomDomainRecord; dns_instructions: DnsInstructions }> {
     const normalizedDomain = normalizeDomain(input.domain)
-    const storeId = await this.getDefaultStoreId()
-    const config = this.getConfig()
+    const store = await this.getDefaultStore()
+    const config = this.getConfig(store.metadata)
+    const verificationType = this.resolveVerificationType(normalizedDomain, config.targetIp)
+    const expectedValue = verificationType === "a_record" ? config.targetIp ?? "" : config.targetHost
     const existing = await this.moduleService.listCustomDomains({ domain: normalizedDomain })
 
     if (existing.length) {
@@ -89,14 +166,11 @@ export class CustomDomainService {
     }
 
     const created = await this.moduleService.createCustomDomains({
-      store_id: storeId,
+      store_id: store.id,
       domain: normalizedDomain,
       target_host: config.targetHost,
-      expected_value:
-        config.verificationType === "cname"
-          ? config.targetHost
-          : config.targetIp ?? "",
-      verification_type: config.verificationType,
+      expected_value: expectedValue,
+      verification_type: verificationType,
       status: "pending_dns",
       failure_reason: null,
     })
@@ -107,14 +181,18 @@ export class CustomDomainService {
     }
   }
 
-  async listDomains(): Promise<CustomDomainRecord[]> {
-    const storeId = await this.getDefaultStoreId()
+  async listDomains(): Promise<CustomDomainRecordWithDnsDetails[]> {
+    const { id: storeId } = await this.getDefaultStore()
+    const domains = (await this.moduleService.listCustomDomains(
+      { store_id: storeId },
+      { order: { created_at: "DESC" } }
+    )) as CustomDomainRecord[]
 
-    return (await this.moduleService.listCustomDomains({ store_id: storeId }, { order: { created_at: "DESC" } })) as CustomDomainRecord[]
+    return domains.map((domain) => this.withDnsDetails(domain))
   }
 
   async markRemoved(id: string): Promise<CustomDomainRecord> {
-    const storeId = await this.getDefaultStoreId()
+    const { id: storeId } = await this.getDefaultStore()
     const domain = await this.requireDomain(id, storeId)
 
     return (await this.moduleService.updateCustomDomains({
@@ -125,7 +203,7 @@ export class CustomDomainService {
   }
 
   async verifyDomain(id: string): Promise<CustomDomainRecord> {
-    const storeId = await this.getDefaultStoreId()
+    const { id: storeId } = await this.getDefaultStore()
     const domain = await this.requireDomain(id, storeId)
 
     return this.verifyAndPersist(domain)

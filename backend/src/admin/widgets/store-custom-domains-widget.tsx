@@ -5,6 +5,7 @@ import {
   Container,
   Heading,
   Input,
+  Select,
   StatusBadge,
   Text,
   toast,
@@ -21,6 +22,11 @@ type CustomDomainRecord = {
   failure_reason?: string | null
   expected_value?: string | null
   verification_type?: "a_record" | "cname" | string
+  dns_record_type?: "a_record" | "cname" | string
+  dns_host?: string | null
+  dns_value?: string | null
+  target_ip?: string | null
+  target_host?: string | null
   verified_at?: string | null
 }
 
@@ -29,6 +35,7 @@ type DnsInstruction = {
   name: string
   value: string
   note?: string
+  ttl?: string
 }
 
 type DomainListResponse = {
@@ -57,7 +64,7 @@ const getStatusColor = (status: CustomDomainRecord["status"]) => {
 const getStatusLabel = (status: CustomDomainRecord["status"]) => {
   switch (status) {
     case "pending_dns":
-      return "Pending"
+      return "Pending DNS"
     case "active":
       return "Verified"
     case "failed":
@@ -71,6 +78,7 @@ const getStatusLabel = (status: CustomDomainRecord["status"]) => {
 
 const StoreCustomDomainsWidget = ({ data: _store }: DetailWidgetProps<AdminStore>) => {
   const [domain, setDomain] = useState("")
+  const [selectedDomainId, setSelectedDomainId] = useState<string>("")
 
   const { data, isLoading, refetch } = useQuery<DomainListResponse>({
     queryKey: ["custom-domains"],
@@ -130,13 +138,29 @@ const StoreCustomDomainsWidget = ({ data: _store }: DetailWidgetProps<AdminStore
     [data?.custom_domains]
   )
 
-  const dnsReferenceDomain = useMemo(
-    () => sortedDomains.find((item) => item.status !== "removed") ?? sortedDomains[0],
-    [sortedDomains]
-  )
+  const dnsReferenceDomain = useMemo(() => {
+    if (!sortedDomains.length) {
+      return undefined
+    }
 
-  const dnsType = dnsReferenceDomain?.verification_type === "a_record" ? "A" : "CNAME"
-  const dnsValue = dnsReferenceDomain?.expected_value || "Not available"
+    return (
+      sortedDomains.find((item) => item.id === selectedDomainId) ||
+      sortedDomains.find((item) => item.status !== "removed") ||
+      sortedDomains[0]
+    )
+  }, [selectedDomainId, sortedDomains])
+
+  const dnsType =
+    (dnsReferenceDomain?.dns_record_type || dnsReferenceDomain?.verification_type) === "a_record"
+      ? "A"
+      : "CNAME"
+  const dnsHost = dnsReferenceDomain?.dns_host || "@"
+  const dnsValue =
+    dnsReferenceDomain?.dns_value ||
+    dnsReferenceDomain?.expected_value ||
+    dnsReferenceDomain?.target_host ||
+    "Not available"
+  const dnsTtl = "Auto"
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -189,7 +213,11 @@ const StoreCustomDomainsWidget = ({ data: _store }: DetailWidgetProps<AdminStore
                       <Text weight="plus" className="truncate">
                         {item.domain}
                       </Text>
-                      <div className="mt-1 flex items-center gap-2">
+                      <Text size="small" className="mt-0.5 truncate text-ui-fg-subtle">
+                        {(item.dns_record_type || item.verification_type) === "a_record" ? "A" : "CNAME"}{" "}
+                        {item.dns_host || "@"} → {item.dns_value || item.expected_value || item.target_host || "—"}
+                      </Text>
+                      <div className="mt-2 flex items-center gap-2">
                         <StatusBadge color={getStatusColor(item.status)}>{getStatusLabel(item.status)}</StatusBadge>
                         {item.failure_reason ? (
                           <Text size="small" className="truncate text-ui-fg-subtle">
@@ -203,7 +231,10 @@ const StoreCustomDomainsWidget = ({ data: _store }: DetailWidgetProps<AdminStore
                         type="button"
                         variant="secondary"
                         size="small"
-                        onClick={() => verifyDomainMutation.mutate(item.id)}
+                        onClick={() => {
+                          setSelectedDomainId(item.id)
+                          verifyDomainMutation.mutate(item.id)
+                        }}
                         isLoading={verifyDomainMutation.isPending}
                       >
                         Verify
@@ -234,17 +265,59 @@ const StoreCustomDomainsWidget = ({ data: _store }: DetailWidgetProps<AdminStore
             DNS setup
           </Text>
           <Text size="small" className="text-ui-fg-subtle">
-            Connect your custom domain by adding the DNS record below at your domain provider, then run verification.
+            Each paid store runs on a dedicated instance. Point DNS to your store target below, then verify.
           </Text>
+
+          {sortedDomains.length ? (
+            <div className="mt-3">
+              <Select value={selectedDomainId || dnsReferenceDomain?.id || ""} onValueChange={setSelectedDomainId}>
+                <Select.Trigger>
+                  <Select.Value placeholder="Select domain" />
+                </Select.Trigger>
+                <Select.Content>
+                  {sortedDomains.map((item) => (
+                    <Select.Item key={item.id} value={item.id}>
+                      {item.domain}
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select>
+            </div>
+          ) : null}
+
           <div className="mt-3 space-y-1">
             <Text size="small">
               <span className="text-ui-fg-subtle">Type:</span> {dnsType}
             </Text>
             <Text size="small">
-              <span className="text-ui-fg-subtle">Host:</span> @ or subdomain
+              <span className="text-ui-fg-subtle">Host:</span> {dnsHost}
             </Text>
             <Text size="small">
               <span className="text-ui-fg-subtle">Value:</span> {dnsValue}
+            </Text>
+            <Text size="small">
+              <span className="text-ui-fg-subtle">TTL:</span> {dnsTtl}
+            </Text>
+            {dnsType === "A" && dnsReferenceDomain?.target_ip ? (
+              <Text size="small">
+                <span className="text-ui-fg-subtle">Target IP:</span> {dnsReferenceDomain.target_ip}
+              </Text>
+            ) : null}
+            {dnsReferenceDomain?.target_host ? (
+              <Text size="small">
+                <span className="text-ui-fg-subtle">Target host:</span> {dnsReferenceDomain.target_host}
+              </Text>
+            ) : null}
+          </div>
+          <div className="mt-2 space-y-1">
+            <Text size="small" className="text-ui-fg-subtle">
+              Use CNAME for subdomains.
+            </Text>
+            <Text size="small" className="text-ui-fg-subtle">
+              Use A for root domains when your instance ingress IP is available.
+            </Text>
+            <Text size="small" className="text-ui-fg-subtle">
+              Do not point DNS to the shared admin host unless it is your ingress target.
             </Text>
           </div>
         </div>

@@ -79,14 +79,21 @@ Join our [Discord server](https://discord.com/invite/medusajs) to meet other com
 
 ### Environment variables
 
-- `PLATFORM_DOMAIN_TARGET_HOST` (required): hostname customers should CNAME to, for example `cust123.ourplatform.com`.
-- `VPS_PUBLIC_IP` (optional): used for A-record mode fallback.
+- `PLATFORM_DOMAIN_TARGET_HOST` (required fallback): shared/default target host if no store-specific target host is configured.
+- `CUSTOM_DOMAIN_TARGET_HOST` (optional): instance-specific target host override.
+- `CUSTOM_DOMAIN_TARGET_IP` (optional): instance-specific ingress IP used for apex/root domain A records.
+- `VPS_PUBLIC_IP` (optional fallback): ingress IP when `CUSTOM_DOMAIN_TARGET_IP` is not set.
 - `INTERNAL_CUSTOM_DOMAIN_SECRET` (recommended): shared secret for Caddy ask endpoint.
+
+Store metadata can also override DNS targets with:
+
+- `custom_domain_target_host` (or `domain_target_host` / `instance_host`)
+- `custom_domain_target_ip` (or `domain_target_ip` / `instance_ip`)
 
 ### API flow
 
 1. `POST /admin/custom-domains` with `{ "domain": "shop.brand.com" }`.
-2. API returns normalized domain, status (`pending_dns`), and DNS instructions.
+2. API returns normalized domain, status (`pending_dns`), and DNS instructions with record type/host/value derived from the store's dedicated target host/IP.
 3. Worker job `verify-pending-custom-domains` checks DNS every 10 minutes.
 4. Domain status becomes `active` when DNS target matches expected value.
 5. Caddy asks `/internal/custom-domains/can-issue-cert?domain=shop.brand.com` on first TLS handshake.
