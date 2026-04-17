@@ -14,7 +14,6 @@ const Conversation = model.define("conversation", {
   external_user_id: model.text().nullable(),
   customer_identifier: model.text().index(),
   customer_phone: model.text().index(),
-  customer_email: model.text().nullable(),
   customer_name: model.text().nullable(),
   customer_handle: model.text().nullable(),
   page_id: model.text().nullable(),

@@ -21,7 +21,6 @@ type Conversation = {
   channel: Channel
   customer_identifier: string
   customer_phone: string
-  customer_email?: string | null
   customer_name?: string | null
   customer_handle?: string | null
   external_user_id?: string | null
@@ -262,31 +261,21 @@ const splitName = (value?: string | null) => {
   }
 }
 
-const getLeadPayloadFromConversation = (
-  conversation: Conversation,
-  contact: { name: string; email: string; phone: string }
-) => {
+const getLeadPayloadFromConversation = (conversation: Conversation) => {
   const nameSource =
-    contact.name ||
     conversation.customer_name ||
     conversation.customer_handle ||
-    contact.phone ||
     conversation.customer_phone ||
-    contact.email ||
-    conversation.customer_email ||
     conversation.customer_identifier
 
   const { firstName, lastName } = splitName(nameSource)
   const normalizedIdentifier = normalizePhone(conversation.customer_identifier || "")
-  const normalizedEditedPhone = normalizePhone(contact.phone)
   const phoneByChannel = conversation.channel === "web_chat" ? undefined : normalizedIdentifier || undefined
-  const email = contact.email.trim() || conversation.customer_email || undefined
 
   return {
     first_name: firstName,
     last_name: lastName,
-    email,
-    phone: normalizedEditedPhone || conversation.customer_phone || phoneByChannel,
+    phone: conversation.customer_phone || phoneByChannel,
     source: channelMeta[conversation.channel].label,
     metadata: {
       inbox_channel: conversation.channel,
@@ -326,11 +315,6 @@ const InboxPage = () => {
   const [composer, setComposer] = useState("")
   const [composerMode, setComposerMode] = useState<"message" | "private_note">("message")
   const [createdLead, setCreatedLead] = useState<Lead | null>(null)
-  const [contactDraft, setContactDraft] = useState({
-    name: "",
-    email: "",
-    phone: "",
-  })
 
   const { data: listData, isLoading: isLoadingConversations } = useQuery<{
     conversations: Conversation[]
@@ -370,23 +354,6 @@ const InboxPage = () => {
   }, [selectedId])
 
   useEffect(() => {
-    if (!selectedConversation) {
-      setContactDraft({
-        name: "",
-        email: "",
-        phone: "",
-      })
-      return
-    }
-
-    setContactDraft({
-      name: selectedConversation.customer_name || "",
-      email: selectedConversation.customer_email || "",
-      phone: selectedConversation.customer_phone || "",
-    })
-  }, [selectedConversation])
-
-  useEffect(() => {
     if (!selectedId) {
       return
     }
@@ -422,7 +389,6 @@ const InboxPage = () => {
 
     return (
       selectedConversation.customer_phone ||
-      selectedConversation.customer_email ||
       selectedConversation.customer_handle ||
       selectedConversation.customer_name ||
       selectedConversation.customer_identifier ||
@@ -473,14 +439,9 @@ const InboxPage = () => {
         return
       }
 
-      const hasContactMethod = Boolean(contactDraft.email.trim() || contactDraft.phone.trim())
-      if (!hasContactMethod) {
-        throw new Error("Add at least an email or phone number before creating a CRM lead.")
-      }
-
       return sdk.client.fetch<{ lead: Lead }>("/admin/leads", {
         method: "POST",
-        body: getLeadPayloadFromConversation(selectedConversation, contactDraft),
+        body: getLeadPayloadFromConversation(selectedConversation),
       })
     },
     onSuccess: (response) => {
@@ -575,46 +536,7 @@ const InboxPage = () => {
     return message.participant?.display_name || message.participant?.external_id || "Customer"
   }
 
-  const saveContactMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedConversation) {
-        return
-      }
-
-      return sdk.client.fetch<{ conversation: Conversation }>(`/admin/inbox/conversations/${selectedConversation.id}`, {
-        method: "PATCH",
-        body: {
-          customer_name: contactDraft.name,
-          customer_email: contactDraft.email,
-          customer_phone: contactDraft.phone,
-        },
-      })
-    },
-    onSuccess: () => {
-      toast.success("Contact details updated")
-      queryClient.invalidateQueries({ queryKey: ["inbox-conversations"] })
-      queryClient.invalidateQueries({ queryKey: ["inbox-conversation", selectedId] })
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to update contact details")
-    },
-  })
-
-  const hasLeadContactMethod = Boolean(contactDraft.email.trim() || contactDraft.phone.trim())
-  const hasContactChanges = Boolean(
-    selectedConversation &&
-      (contactDraft.name !== (selectedConversation.customer_name || "") ||
-        contactDraft.email !== (selectedConversation.customer_email || "") ||
-        contactDraft.phone !== (selectedConversation.customer_phone || ""))
-  )
-  const selectedCountry = detectCountry(
-    selectedConversation
-      ? {
-          ...selectedConversation,
-          customer_phone: contactDraft.phone || selectedConversation.customer_phone,
-        }
-      : null
-  )
+  const selectedCountry = detectCountry(selectedConversation)
 
   return (
     <Container className="h-[calc(100vh-9rem)] min-h-[640px] p-0">
@@ -653,11 +575,7 @@ const InboxPage = () => {
                     key={conversation.id}
                     type="button"
                     className={`flex w-full flex-col gap-1.5 border-t px-6 py-3 text-left transition-colors ${
-                      isSelected
-                        ? "bg-ui-bg-component-hover"
-                        : conversation.unread_count > 0
-                        ? "bg-ui-tag-blue-bg hover:bg-ui-bg-subtle"
-                        : "hover:bg-ui-bg-subtle"
+                      isSelected ? "bg-ui-bg-component-hover" : "hover:bg-ui-bg-subtle"
                     }`}
                     onClick={() => setSelectedId(conversation.id)}
                   >
@@ -899,43 +817,6 @@ const InboxPage = () => {
               ) : null}
 
               <div className="space-y-2 pt-2">
-                <Text size="xsmall" className="text-ui-fg-subtle">
-                  Contact details
-                </Text>
-                <div className="space-y-2">
-                  <Input
-                    size="small"
-                    placeholder="Lead / contact name"
-                    value={contactDraft.name}
-                    onChange={(event) => setContactDraft((current) => ({ ...current, name: event.target.value }))}
-                  />
-                  <Input
-                    size="small"
-                    placeholder="Email"
-                    value={contactDraft.email}
-                    onChange={(event) => setContactDraft((current) => ({ ...current, email: event.target.value }))}
-                  />
-                  <Input
-                    size="small"
-                    placeholder="Phone number"
-                    value={contactDraft.phone}
-                    onChange={(event) => setContactDraft((current) => ({ ...current, phone: event.target.value }))}
-                  />
-                  <Button
-                    type="button"
-                    size="small"
-                    variant="secondary"
-                    className="w-full"
-                    isLoading={saveContactMutation.isPending}
-                    disabled={!hasContactChanges || saveContactMutation.isPending}
-                    onClick={() => saveContactMutation.mutate()}
-                  >
-                    Save contact details
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2">
                 {linkedLead ? (
                   <Button type="button" size="small" variant="secondary" className="w-full" asChild>
                     <Link to={`/leads/${linkedLead.id}`}>Open lead</Link>
@@ -948,7 +829,7 @@ const InboxPage = () => {
                       variant="secondary"
                       className="w-full"
                       isLoading={createLeadMutation.isPending}
-                      disabled={!hasLeadContactMethod || createLeadMutation.isPending || createAndOpenLeadMutation.isPending}
+                      disabled={createLeadMutation.isPending || createAndOpenLeadMutation.isPending}
                       onClick={() => createLeadMutation.mutate()}
                     >
                       Create lead
@@ -959,18 +840,13 @@ const InboxPage = () => {
                       variant="secondary"
                       className="w-full"
                       isLoading={createAndOpenLeadMutation.isPending}
-                      disabled={!hasLeadContactMethod || createLeadMutation.isPending || createAndOpenLeadMutation.isPending}
+                      disabled={createLeadMutation.isPending || createAndOpenLeadMutation.isPending}
                       onClick={() => createAndOpenLeadMutation.mutate()}
                     >
                       Create and open lead
                     </Button>
                   </>
                 )}
-                {!linkedLead && !hasLeadContactMethod ? (
-                  <Text size="xsmall" className="text-ui-fg-subtle">
-                    Add at least an email or phone number before creating a CRM lead.
-                  </Text>
-                ) : null}
                 {linkedLead ? (
                   <Button type="button" size="small" variant="secondary" className="w-full" asChild>
                     <Link to={`/leads/${linkedLead.id}`}>View in CRM</Link>
