@@ -162,15 +162,6 @@ export default function CookieConsent() {
         </div>
       ) : null}
 
-      <button
-        type="button"
-        className="fixed bottom-4 left-4 z-50 rounded-rounded border border-ui-border-base bg-ui-bg-base px-3 py-2 txt-compact-small-plus text-ui-fg-base shadow-elevation-card-rest"
-        onClick={() => setShowPreferences(true)}
-        aria-haspopup="dialog"
-      >
-        Cookie Settings
-      </button>
-
       <Modal
         isOpen={showPreferences}
         close={() => setShowPreferences(false)}
