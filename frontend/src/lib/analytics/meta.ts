@@ -1,5 +1,7 @@
 "use client"
 
+import { readCookie } from "@lib/analytics/consent"
+
 declare global {
   interface Window {
     fbq?: (...args: unknown[]) => void
@@ -42,21 +44,6 @@ const parseConsentValue = (value: string | null | undefined) => {
   return null
 }
 
-const readCookie = (name: string) => {
-  if (typeof document === "undefined") return ""
-
-  const match = document.cookie
-    .split(";")
-    .map((item) => item.trim())
-    .find((entry) => entry.startsWith(`${name}=`))
-
-  if (!match) {
-    return ""
-  }
-
-  return decodeURIComponent(match.slice(name.length + 1))
-}
-
 export const getMarketingConsent = () => {
   if (typeof window === "undefined") {
     return false
@@ -82,7 +69,7 @@ export const getMarketingConsent = () => {
     }
   }
 
-  return true
+  return false
 }
 
 export const getMetaBrowserIds = () => ({
