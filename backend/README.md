@@ -147,6 +147,41 @@ npm run medusa migrations run
 5. Use follow-up fields/filters with `next_follow_up_at` and task activities.
 6. Convert lead with `POST /admin/leads/:id/convert`.
 
-### Lead conversion flow
+## CRM Setup & Verification
+
+1. Run migrations:
+
+```bash
+npx medusa migrations run
+```
+
+2. Run CRM seed data:
+
+```bash
+npm run seed:crm
+```
+
+3. Verify in Admin:
+   - Open `/app/leads` and confirm sample leads are listed.
+   - Open `/app/leads/pipeline` and confirm cards appear under stages.
+   - Click **Create Lead** on `/app/leads`, submit the form, and confirm the lead appears immediately.
+
+4. Example API request to create a lead:
+
+```bash
+curl -X POST "http://localhost:9000/admin/leads" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  --data '{
+    "first_name": "Taylor",
+    "last_name": "Johnson",
+    "email": "taylor.johnson@example.com",
+    "company": "Acme Inc",
+    "source": "manual",
+    "status": "new"
+  }'
+```
+
+## Lead conversion flow
 
 `convertLeadToCustomerWorkflow` validates that lead email exists, reuses an existing customer by email when available, otherwise creates a new customer, then updates `lead.customer_id`, sets status to `won`, moves the lead to the `won` stage, and logs a `status_change` activity.
