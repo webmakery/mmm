@@ -60,6 +60,7 @@ module.exports = {
       },
       fontFamily: {
         sans: [
+          "var(--font-inter)",
           "Inter",
           "-apple-system",
           "BlinkMacSystemFont",
@@ -68,6 +69,18 @@ module.exports = {
           "Helvetica Neue",
           "Ubuntu",
           "sans-serif",
+        ],
+        mono: [
+          "var(--font-roboto-mono)",
+          "Roboto Mono",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Monaco",
+          "Consolas",
+          "Liberation Mono",
+          "Courier New",
+          "monospace",
         ],
       },
       keyframes: {
