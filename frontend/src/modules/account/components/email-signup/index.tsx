@@ -1,15 +1,13 @@
 "use client"
 
 import { useActionState, useMemo } from "react"
-import { useRouter } from "next/navigation"
 import { HttpTypes } from "@medusajs/types"
 import { signupWithEmailPassword } from "@lib/data/customer"
 import Input from "@modules/common/components/input"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { Button } from "@medusajs/ui"
-import { ChevronDownMini } from "@medusajs/icons"
-import NativeSelect from "@modules/common/components/native-select"
+import ReactCountryFlag from "react-country-flag"
 
 type Props = {
   storeName: string
@@ -17,14 +15,8 @@ type Props = {
   regions: HttpTypes.StoreRegion[]
 }
 
-const toFlag = (countryCode: string) =>
-  countryCode
-    .toUpperCase()
-    .replace(/./g, (char) => String.fromCodePoint(char.charCodeAt(0) + 127397))
-
 const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
   const [message, formAction] = useActionState(signupWithEmailPassword, null)
-  const router = useRouter()
 
   const regionOptions = useMemo(() => {
     return regions
@@ -32,7 +24,6 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
         (region.countries ?? []).map((country) => ({
           value: country.iso_2 ?? "",
           label: country.display_name ?? (country.iso_2 ?? "").toUpperCase(),
-          flag: toFlag(country.iso_2 ?? ""),
         }))
       )
       .filter((country) => country.value)
@@ -43,7 +34,7 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
     regionOptions.find((option) => option.value === countryCode) ?? regionOptions[0]
 
   return (
-    <div className="min-h-screen w-full bg-black text-white flex items-center justify-center px-6 py-8">
+    <div className="min-h-screen w-full overflow-x-hidden bg-black text-white flex items-center justify-center px-6 py-8">
       <div className="relative w-full max-w-md flex flex-col items-center gap-y-6">
         <div className="pointer-events-none absolute left-1/2 top-[180px] h-[420px] w-[540px] -translate-x-1/2 rounded-full bg-ui-bg-subtle/25 blur-3xl" />
 
@@ -127,29 +118,21 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
           </span>
         </div>
 
-        <div className="relative w-full max-w-[220px]">
-          <NativeSelect
-            aria-label="Select region"
-            className="w-full h-10 border-white bg-transparent text-ui-fg-base hover:bg-transparent"
-            value={currentRegion?.value}
-            onChange={(event) => {
-              const nextCountry = event.target.value
-              if (nextCountry && nextCountry !== countryCode) {
-                router.push(`/${nextCountry}/signup`)
-              }
-            }}
-          >
-            {regionOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {`${option.flag} ${option.label}`}
-              </option>
-            ))}
-          </NativeSelect>
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-x-2 text-small-regular text-ui-fg-base">
-            <span aria-hidden>{currentRegion?.flag}</span>
-            <span>{currentRegion?.label}</span>
-            <ChevronDownMini className="opacity-0" />
-          </div>
+        <div className="flex items-center gap-x-2 text-small-regular text-ui-fg-base">
+          {currentRegion?.value ? (
+            <>
+              {/* @ts-ignore */}
+              <ReactCountryFlag
+                svg
+                style={{
+                  width: "16px",
+                  height: "16px",
+                }}
+                countryCode={currentRegion.value}
+              />
+              <span>{currentRegion.label}</span>
+            </>
+          ) : null}
         </div>
 
         <div className="text-center text-small-regular text-ui-fg-subtle mt-12 space-y-2">
