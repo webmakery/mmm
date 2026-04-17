@@ -171,3 +171,46 @@ export const normalizeMessengerWebhookEvent = (payload: Record<string, unknown>)
 
 export const normalizeInstagramWebhookEvent = (payload: Record<string, unknown>): ChannelWebhookResult =>
   normalizeMetaMessagingWebhookEvent(payload, "instagram")
+
+export const normalizeTelegramWebhookEvent = (
+  payload: Record<string, unknown>,
+  accountId?: string
+): ChannelWebhookResult => {
+  const inboundMessages: NormalizedWebhookMessage[] = []
+  const message = (payload.message || payload.edited_message) as Record<string, unknown> | undefined
+
+  if (message && typeof message === "object") {
+    const from = (message.from || {}) as Record<string, unknown>
+    const chat = (message.chat || {}) as Record<string, unknown>
+
+    const externalUserId = String(from.id || chat.id || "")
+    const externalThreadId = String(chat.id || "")
+    const externalMessageId = String(message.message_id || "")
+
+    if (externalUserId && externalThreadId && externalMessageId) {
+      const username = typeof from.username === "string" ? from.username : null
+      const firstName = typeof from.first_name === "string" ? from.first_name : null
+      const lastName = typeof from.last_name === "string" ? from.last_name : null
+      const displayName = [firstName, lastName].filter(Boolean).join(" ").trim() || null
+
+      inboundMessages.push({
+        channel: "telegram",
+        externalUserId,
+        externalThreadId,
+        externalMessageId,
+        customerName: displayName,
+        customerHandle: username,
+        text: typeof message.text === "string" ? message.text : null,
+        timestamp: normalizeProviderTimestamp(message.date as number | undefined, "s", true),
+        rawPayload: message,
+        accountId: accountId || null,
+      })
+    }
+  }
+
+  return {
+    inboundMessages,
+    statusEvents: [],
+    rawPayload: payload,
+  }
+}
