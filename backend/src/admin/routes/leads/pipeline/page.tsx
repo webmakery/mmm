@@ -31,7 +31,7 @@ const PipelineBoardPage = () => {
 
   const { data: leadsData, refetch: refetchLeads } = useQuery<{ leads: Lead[] }>({
     queryKey: ["pipeline-leads"],
-    queryFn: () => sdk.client.fetch("/admin/leads", { query: { limit: 200, offset: 0 } }),
+    queryFn: () => sdk.client.fetch("/admin/leads", { query: { limit: 100, offset: 0 } }),
   })
 
   const moveMutation = useMutation({

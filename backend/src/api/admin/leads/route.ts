@@ -1,5 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { LEAD_MODULE } from "../../../modules/lead"
 import LeadModuleService from "../../../modules/lead/service"
 import { createLeadWorkflow } from "../../../workflows/lead"
@@ -32,22 +33,32 @@ export const PostAdminCreateLeadSchema = z.object({
 })
 
 export async function GET(req: MedusaRequest<z.infer<typeof GetAdminLeadsSchema>>, res: MedusaResponse) {
+  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER)
   const leadService: LeadModuleService = req.scope.resolve(LEAD_MODULE)
 
-  const { leads, count } = await leadService.listLeadsWithFilters(
-    {
-      q: req.validatedQuery.q,
-      stage_id: req.validatedQuery.stage_id,
-      status: req.validatedQuery.status,
-      owner_user_id: req.validatedQuery.owner_user_id,
-      source: req.validatedQuery.source,
-      follow_up: req.validatedQuery.follow_up,
-    },
-    {
+  const sanitizedFilters = {
+    q: req.validatedQuery.q?.trim() || undefined,
+    stage_id: req.validatedQuery.stage_id?.trim() || undefined,
+    status: req.validatedQuery.status,
+    owner_user_id: req.validatedQuery.owner_user_id?.trim() || undefined,
+    source: req.validatedQuery.source?.trim() || undefined,
+    follow_up: req.validatedQuery.follow_up,
+  }
+
+  logger.info(
+    `[CRM] GET /admin/leads query=${JSON.stringify({
+      ...sanitizedFilters,
       limit: req.validatedQuery.limit,
       offset: req.validatedQuery.offset,
-    }
+    })}`
   )
+
+  const { leads, count } = await leadService.listLeadsWithFilters(sanitizedFilters, {
+    limit: req.validatedQuery.limit,
+    offset: req.validatedQuery.offset,
+  })
+
+  logger.info(`[CRM] GET /admin/leads returned=${leads.length} count=${count}`)
 
   res.json({
     leads,

@@ -1,9 +1,10 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { User, PlusMini } from "@medusajs/icons"
-import { Button, Container, Heading, Input, Select, Table, Text } from "@medusajs/ui"
+import { Button, Container, Drawer, Heading, Input, Select, Table, Text } from "@medusajs/ui"
 import { useQuery } from "@tanstack/react-query"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
+import CreateLeadForm from "../../components/leads/create-lead-form"
 import { sdk } from "../../lib/sdk"
 
 type Lead = {
@@ -30,16 +31,20 @@ const LeadsPage = () => {
   const [source, setSource] = useState("")
   const [ownerUserId, setOwnerUserId] = useState("")
   const [search, setSearch] = useState("")
+  const [isCreateOpen, setCreateOpen] = useState(false)
 
-  const query = {
-    status: status === "__all" ? undefined : status,
-    stage_id: stageId === "__all" ? undefined : stageId,
-    source: source || undefined,
-    owner_user_id: ownerUserId || undefined,
-    q: search || undefined,
-    limit: 50,
-    offset: 0,
-  }
+  const query = useMemo(
+    () => ({
+      status: status === "__all" ? undefined : status,
+      stage_id: stageId === "__all" ? undefined : stageId,
+      source: source.trim() || undefined,
+      owner_user_id: ownerUserId.trim() || undefined,
+      q: search.trim() || undefined,
+      limit: 50,
+      offset: 0,
+    }),
+    [status, stageId, source, ownerUserId, search]
+  )
 
   const { data, refetch, isLoading } = useQuery<{ leads: Lead[]; count: number }>({
     queryKey: ["leads", query],
@@ -53,8 +58,29 @@ const LeadsPage = () => {
 
   return (
     <Container className="divide-y p-0">
-      <div className="px-6 py-4">
+      <div className="flex items-center justify-between px-6 py-4">
         <Heading>Leads</Heading>
+        <Drawer open={isCreateOpen} onOpenChange={setCreateOpen}>
+          <Drawer.Trigger asChild>
+            <Button>
+              <PlusMini />
+              Create Lead
+            </Button>
+          </Drawer.Trigger>
+          <Drawer.Content>
+            <Drawer.Header>
+              <Drawer.Title>Create Lead</Drawer.Title>
+            </Drawer.Header>
+            <Drawer.Body>
+              <CreateLeadForm
+                onSuccess={() => {
+                  setCreateOpen(false)
+                  refetch()
+                }}
+              />
+            </Drawer.Body>
+          </Drawer.Content>
+        </Drawer>
       </div>
       <div className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-5">
         <Input placeholder="Search name, email, company" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -92,10 +118,7 @@ const LeadsPage = () => {
           Apply filters
         </Button>
         <Button asChild>
-          <Link to="/leads/pipeline">
-            <PlusMini />
-            Pipeline board
-          </Link>
+          <Link to="/leads/pipeline">Pipeline board</Link>
         </Button>
       </div>
       <Table>
