@@ -27,6 +27,7 @@ export async function GET(
     filters.$or = [
       { customer_name: { $ilike: `%${q}%` } },
       { customer_phone: { $ilike: `%${q}%` } },
+      { customer_email: { $ilike: `%${q}%` } },
       { customer_handle: { $ilike: `%${q}%` } },
       { last_message_preview: { $ilike: `%${q}%` } },
     ]
@@ -39,6 +40,7 @@ export async function GET(
       "channel",
       "customer_identifier",
       "customer_phone",
+      "customer_email",
       "customer_name",
       "customer_handle",
       "external_user_id",

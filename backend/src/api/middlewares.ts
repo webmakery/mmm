@@ -22,6 +22,7 @@ import { PostStoreReviewSchema } from "./store/reviews/route"
 import { PostStoreSyncSubscriptionSchema } from "./store/customers/me/subscriptions/sync/route"
 import { PostAdminRetryInfrastructureSchema } from "./admin/subscriptions/[id]/infrastructure/retry/route"
 import { GetAdminInboxConversationsSchema } from "./admin/inbox/conversations/route"
+import { PatchAdminInboxConversationSchema } from "./admin/inbox/conversations/[id]/route"
 import {
   GetAdminInboxConversationMessagesSchema,
   PostAdminInboxConversationMessageSchema,
@@ -175,6 +176,11 @@ export default defineMiddlewares({
       matcher: "/admin/inbox/conversations/:id/messages",
       methods: ["GET"],
       middlewares: [validateAndTransformQuery(GetAdminInboxConversationMessagesSchema, { isList: true })],
+    },
+    {
+      matcher: "/admin/inbox/conversations/:id",
+      methods: ["PATCH"],
+      middlewares: [validateAndTransformBody(PatchAdminInboxConversationSchema)],
     },
     {
       matcher: "/admin/inbox/conversations/:id/messages",
