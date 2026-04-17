@@ -1,6 +1,6 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { ArrowPath, BuildingStorefront, CheckCircleSolid, CurrencyDollar, Funnel, SquaresPlus, XCircleSolid } from "@medusajs/icons"
-import { Container, Heading, Select, StatusBadge, Text } from "@medusajs/ui"
+import { Button, Container, Heading, Select, StatusBadge, Text, toast } from "@medusajs/ui"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { ComponentType, useMemo } from "react"
 import { Link } from "react-router-dom"
@@ -93,7 +93,7 @@ const PipelineBoardPage = () => {
 
   const { data: leadsData, refetch: refetchLeads } = useQuery<{ leads: Lead[]; count?: number }>({
     queryKey: ["pipeline-leads"],
-    queryFn: () => sdk.client.fetch("/admin/leads", { query: { limit: 250, offset: 0 } }),
+    queryFn: () => sdk.client.fetch("/admin/leads", { query: { limit: 100, offset: 0 } }),
   })
 
   const moveMutation = useMutation({
@@ -105,6 +105,21 @@ const PipelineBoardPage = () => {
     onSuccess: () => {
       refetchLeads()
       refetchStages()
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (leadId: string) =>
+      sdk.client.fetch(`/admin/leads/${leadId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      toast.success("Lead deleted")
+      refetchLeads()
+      refetchStages()
+    },
+    onError: () => {
+      toast.error("Failed to delete lead")
     },
   })
 
@@ -278,6 +293,20 @@ const PipelineBoardPage = () => {
                         ))}
                       </Select.Content>
                     </Select>
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="small"
+                      onClick={() => {
+                        if (window.confirm("Delete this lead?")) {
+                          deleteMutation.mutate(lead.id)
+                        }
+                      }}
+                      disabled={deleteMutation.isPending}
+                    >
+                      Delete
+                    </Button>
                   </Container>
                 ))
               ) : (
