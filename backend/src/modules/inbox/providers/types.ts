@@ -1,4 +1,4 @@
-export type InboxChannel = "whatsapp" | "messenger" | "instagram" | "email"
+export type InboxChannel = "whatsapp" | "messenger" | "instagram"
 
 export type NormalizedWebhookMessage = {
   channel: InboxChannel
