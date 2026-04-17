@@ -16,7 +16,7 @@ const Lead = model.define("lead", {
   owner_user_id: model.text().nullable().index("IDX_LEAD_OWNER"),
   value_estimate: model.bigNumber().nullable(),
   notes_summary: model.text().nullable(),
-  next_follow_up_at: model.dateTime().nullable().index("IDX_LEAD_NEXT_FOLLOW_UP"),
+  next_follow_up_at: model.dateTime().index("IDX_LEAD_NEXT_FOLLOW_UP").nullable(),
   customer_id: model.text().nullable().index("IDX_LEAD_CUSTOMER_ID"),
   metadata: model.json().nullable(),
   stage: model.belongsTo(() => LeadStage, {
