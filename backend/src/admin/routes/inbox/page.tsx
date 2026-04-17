@@ -1,15 +1,16 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { ChatBubbleLeftRight, PaperClip, PaperPlane } from "@medusajs/icons"
-import { Badge, Button, Container, Heading, Input, StatusBadge, Text, Textarea } from "@medusajs/ui"
+import { Badge, Button, Container, Heading, Input, StatusBadge, Text, Textarea, toast } from "@medusajs/ui"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FormEvent, useEffect, useMemo, useState } from "react"
+import { Link } from "react-router-dom"
 import {
-  RiChat1Fill,
   RiEmotionHappyLine,
-  RiInstagramFill,
-  RiMessengerFill,
-  RiTelegram2Fill,
-  RiWhatsappFill,
+  RiGlobalLine,
+  RiInstagramLine,
+  RiMessengerLine,
+  RiTelegramLine,
+  RiWhatsappLine,
 } from "react-icons/ri"
 import { sdk } from "../../lib/sdk"
 
@@ -48,6 +49,14 @@ type Message = {
     display_name?: string | null
     external_id?: string | null
   } | null
+}
+
+type Lead = {
+  id: string
+  first_name: string
+  last_name?: string | null
+  phone?: string | null
+  metadata?: Record<string, unknown> | null
 }
 
 const channelOptions: Array<{ label: string; value: "all" | Channel }> = [
@@ -114,33 +123,106 @@ const formatMessageTime = (message: Message) => {
 
 const channelMeta: Record<
   Channel,
-  { label: string; icon: typeof RiWhatsappFill; className: string }
+  { label: string; icon: typeof RiWhatsappLine; iconClassName: string; badgeClassName: string }
 > = {
   whatsapp: {
     label: "WhatsApp",
-    icon: RiWhatsappFill,
-    className: "text-[#25D366]",
+    icon: RiWhatsappLine,
+    iconClassName: "text-[#25D366]",
+    badgeClassName: "bg-[#25D3661A]",
   },
   messenger: {
     label: "Messenger",
-    icon: RiMessengerFill,
-    className: "text-[#0084FF]",
+    icon: RiMessengerLine,
+    iconClassName: "text-[#0084FF]",
+    badgeClassName: "bg-[#0084FF1A]",
   },
   instagram: {
     label: "Instagram",
-    icon: RiInstagramFill,
-    className: "text-[#E4405F]",
+    icon: RiInstagramLine,
+    iconClassName: "text-[#E4405F]",
+    badgeClassName: "bg-[#E4405F1A]",
   },
   telegram: {
     label: "Telegram",
-    icon: RiTelegram2Fill,
-    className: "text-ui-fg-base",
+    icon: RiTelegramLine,
+    iconClassName: "text-[#229ED9]",
+    badgeClassName: "bg-[#229ED91A]",
   },
   web_chat: {
     label: "Web Chat",
-    icon: RiChat1Fill,
-    className: "text-ui-fg-base",
+    icon: RiGlobalLine,
+    iconClassName: "text-ui-fg-subtle",
+    badgeClassName: "bg-ui-bg-subtle",
   },
+}
+
+const avatarToneClasses = [
+  "bg-[#DBEAFE] text-[#1E3A8A]",
+  "bg-[#FEF3C7] text-[#92400E]",
+  "bg-[#EDE9FE] text-[#5B21B6]",
+  "bg-[#DCFCE7] text-[#166534]",
+] as const
+
+const countryCodeMap: Array<{ code: string; country: string; flag: string }> = [
+  { code: "971", country: "United Arab Emirates", flag: "🇦🇪" },
+  { code: "966", country: "Saudi Arabia", flag: "🇸🇦" },
+  { code: "380", country: "Ukraine", flag: "🇺🇦" },
+  { code: "351", country: "Portugal", flag: "🇵🇹" },
+  { code: "91", country: "India", flag: "🇮🇳" },
+  { code: "84", country: "Vietnam", flag: "🇻🇳" },
+  { code: "82", country: "South Korea", flag: "🇰🇷" },
+  { code: "81", country: "Japan", flag: "🇯🇵" },
+  { code: "66", country: "Thailand", flag: "🇹🇭" },
+  { code: "65", country: "Singapore", flag: "🇸🇬" },
+  { code: "64", country: "New Zealand", flag: "🇳🇿" },
+  { code: "63", country: "Philippines", flag: "🇵🇭" },
+  { code: "62", country: "Indonesia", flag: "🇮🇩" },
+  { code: "61", country: "Australia", flag: "🇦🇺" },
+  { code: "57", country: "Colombia", flag: "🇨🇴" },
+  { code: "56", country: "Chile", flag: "🇨🇱" },
+  { code: "55", country: "Brazil", flag: "🇧🇷" },
+  { code: "54", country: "Argentina", flag: "🇦🇷" },
+  { code: "52", country: "Mexico", flag: "🇲🇽" },
+  { code: "51", country: "Peru", flag: "🇵🇪" },
+  { code: "49", country: "Germany", flag: "🇩🇪" },
+  { code: "44", country: "United Kingdom", flag: "🇬🇧" },
+  { code: "39", country: "Italy", flag: "🇮🇹" },
+  { code: "34", country: "Spain", flag: "🇪🇸" },
+  { code: "33", country: "France", flag: "🇫🇷" },
+  { code: "32", country: "Belgium", flag: "🇧🇪" },
+  { code: "31", country: "Netherlands", flag: "🇳🇱" },
+  { code: "27", country: "South Africa", flag: "🇿🇦" },
+  { code: "20", country: "Egypt", flag: "🇪🇬" },
+]
+
+const normalizePhone = (value?: string | null) => (value || "").replace(/[^\d+]/g, "")
+
+const getSenderInitial = (name: string) => {
+  const trimmed = name.trim()
+  if (!trimmed) {
+    return "C"
+  }
+
+  return trimmed[0].toUpperCase()
+}
+
+const getSenderToneClass = (key: string) => {
+  const hash = key.split("").reduce((accumulator, character) => accumulator + character.charCodeAt(0), 0)
+  return avatarToneClasses[hash % avatarToneClasses.length]
+}
+
+const detectCountry = (conversation?: Conversation | null) => {
+  const candidate = normalizePhone(conversation?.customer_phone || conversation?.customer_identifier)
+
+  if (!candidate.startsWith("+")) {
+    return null
+  }
+
+  const digits = candidate.slice(1)
+  const match = countryCodeMap.find((entry) => digits.startsWith(entry.code) && digits.length > entry.code.length + 4)
+
+  return match || null
 }
 
 const getStatusColor = (status: Message["status"]) => {
@@ -166,6 +248,37 @@ const getUrgencyState = (conversation: Conversation) => {
   }
 
   return { label: "Waiting", color: "orange" as const }
+}
+
+const ChannelBadge = ({ channel }: { channel: Channel }) => {
+  const Icon = channelMeta[channel].icon
+
+  return (
+    <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${channelMeta[channel].badgeClassName}`}>
+      <Icon className={`h-3.5 w-3.5 ${channelMeta[channel].iconClassName}`} />
+    </span>
+  )
+}
+
+const ChannelFilters = ({ value, onChange }: { value: "all" | Channel; onChange: (channel: "all" | Channel) => void }) => {
+  return (
+    <div className="px-6 pb-4">
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {channelOptions.map((option) => (
+          <Button
+            key={option.value}
+            type="button"
+            variant={value === option.value ? "secondary" : "transparent"}
+            size="small"
+            className="shrink-0 rounded-full"
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 const InboxPage = () => {
@@ -195,6 +308,12 @@ const InboxPage = () => {
 
   const conversations = listData?.conversations || []
 
+  const selectedConversation = useMemo(
+    () => conversations.find((conversation) => conversation.id === selectedId) || null,
+    [conversations, selectedId]
+  )
+
+
   useEffect(() => {
     if (!selectedId && conversations.length > 0) {
       setSelectedId(conversations[0].id)
@@ -206,23 +325,14 @@ const InboxPage = () => {
     setComposer("")
   }, [selectedId])
 
-  const { data: conversationData, isLoading: isLoadingConversation } = useQuery<{
-    conversation: Conversation & { messages: Message[] }
-  }>({
-    queryKey: ["inbox-conversation", selectedId],
-    queryFn: () => sdk.client.fetch(`/admin/inbox/conversations/${selectedId}`),
-    enabled: Boolean(selectedId),
-    refetchInterval: 5000,
-  })
-
   useEffect(() => {
     if (!selectedId) {
       return
     }
 
-    const selectedConversation = conversations.find((conversation) => conversation.id === selectedId)
+    const currentConversation = conversations.find((conversation) => conversation.id === selectedId)
 
-    if (selectedConversation?.unread_count) {
+    if (currentConversation?.unread_count) {
       sdk.client
         .fetch(`/admin/inbox/conversations/${selectedId}/read`, {
           method: "POST",
@@ -232,6 +342,104 @@ const InboxPage = () => {
         })
     }
   }, [conversations, queryClient, selectedId])
+
+  const { data: conversationData, isLoading: isLoadingConversation } = useQuery<{
+    conversation: Conversation & { messages: Message[] }
+  }>({
+    queryKey: ["inbox-conversation", selectedId],
+    queryFn: () => sdk.client.fetch(`/admin/inbox/conversations/${selectedId}`),
+    enabled: Boolean(selectedId),
+    refetchInterval: 5000,
+  })
+
+  const messages = useMemo(() => conversationData?.conversation.messages || [], [conversationData])
+
+  const leadSearchTerm = useMemo(() => {
+    if (!selectedConversation) {
+      return ""
+    }
+
+    return (
+      selectedConversation.customer_phone ||
+      selectedConversation.customer_handle ||
+      selectedConversation.customer_name ||
+      selectedConversation.customer_identifier ||
+      ""
+    )
+  }, [selectedConversation])
+
+  const { data: leadSearchData } = useQuery<{ leads: Lead[] }>({
+    queryKey: ["inbox-linked-lead", selectedConversation?.id, leadSearchTerm],
+    enabled: Boolean(selectedConversation && leadSearchTerm),
+    queryFn: () =>
+      sdk.client.fetch("/admin/leads", {
+        query: {
+          q: leadSearchTerm,
+          limit: 10,
+          offset: 0,
+        },
+      }),
+  })
+
+  const linkedLead = useMemo(() => {
+    if (!selectedConversation) {
+      return null
+    }
+
+    const normalizedConversationPhone = normalizePhone(selectedConversation.customer_phone)
+
+    return (
+      leadSearchData?.leads.find((lead) => {
+        const conversationIdFromMetadata = String(lead.metadata?.inbox_conversation_id || "")
+        if (conversationIdFromMetadata && conversationIdFromMetadata === selectedConversation.id) {
+          return true
+        }
+
+        const normalizedLeadPhone = normalizePhone(lead.phone)
+        return Boolean(normalizedConversationPhone && normalizedLeadPhone && normalizedConversationPhone === normalizedLeadPhone)
+      }) || null
+    )
+  }, [leadSearchData?.leads, selectedConversation])
+
+  const createLeadMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedConversation) {
+        return
+      }
+
+      const customerLabel =
+        selectedConversation.customer_name ||
+        selectedConversation.customer_handle ||
+        selectedConversation.customer_phone ||
+        selectedConversation.customer_identifier ||
+        "Lead"
+
+      const [firstName, ...remainingParts] = customerLabel.trim().split(/\s+/)
+
+      return sdk.client.fetch("/admin/leads", {
+        method: "POST",
+        body: {
+          first_name: firstName || "Lead",
+          last_name: remainingParts.join(" ") || "Inbox",
+          phone: selectedConversation.customer_phone || undefined,
+          source: channelMeta[selectedConversation.channel].label,
+          metadata: {
+            inbox_channel: selectedConversation.channel,
+            inbox_conversation_id: selectedConversation.id,
+            inbox_customer_identifier: selectedConversation.customer_identifier,
+          },
+        },
+      })
+    },
+    onSuccess: () => {
+      toast.success("Lead created from inbox conversation")
+      queryClient.invalidateQueries({ queryKey: ["inbox-linked-lead"] })
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create lead")
+    },
+  })
 
   const sendMutation = useMutation({
     mutationFn: async (text: string) => {
@@ -253,9 +461,6 @@ const InboxPage = () => {
       queryClient.invalidateQueries({ queryKey: ["inbox-conversation", selectedId] })
     },
   })
-
-  const selectedConversation = conversationData?.conversation
-  const messages = useMemo(() => selectedConversation?.messages || [], [selectedConversation])
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -293,7 +498,7 @@ const InboxPage = () => {
 
   const getSenderName = (message: Message) => {
     if (message.message_type === "private_note") {
-      return message.participant?.display_name || message.participant?.external_id || "Admin note"
+      return message.participant?.display_name || message.participant?.external_id || "Private note"
     }
 
     if (message.direction === "outbound") {
@@ -303,6 +508,8 @@ const InboxPage = () => {
     return message.participant?.display_name || message.participant?.external_id || "Customer"
   }
 
+  const selectedCountry = detectCountry(selectedConversation)
+
   return (
     <Container className="h-[calc(100vh-9rem)] min-h-[640px] p-0">
       <div className="grid h-full min-h-0 grid-cols-1 divide-y lg:grid-cols-[320px_1fr_280px] lg:divide-x lg:divide-y-0">
@@ -310,26 +517,15 @@ const InboxPage = () => {
           <div className="flex items-center justify-between px-6 py-4">
             <Heading>Inbox</Heading>
           </div>
-          <div className="px-6 pb-4">
+          <div className="px-6 pb-3">
             <Input
               placeholder="Search by name, handle, phone, or message"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto px-6 pb-4">
-            {channelOptions.map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                variant={channel === option.value ? "secondary" : "transparent"}
-                size="small"
-                onClick={() => setChannel(option.value)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
+
+          <ChannelFilters value={channel} onChange={setChannel} />
 
           <div className="flex-1 min-h-0 overflow-y-auto">
             {isLoadingConversations ? (
@@ -350,7 +546,7 @@ const InboxPage = () => {
                   <button
                     key={conversation.id}
                     type="button"
-                    className={`flex w-full flex-col gap-1 border-t px-6 py-2.5 text-left transition-colors ${
+                    className={`flex w-full flex-col gap-1.5 border-t px-6 py-2.5 text-left transition-colors ${
                       isSelected ? "bg-ui-bg-component-hover" : "hover:bg-ui-bg-subtle"
                     }`}
                     onClick={() => setSelectedId(conversation.id)}
@@ -367,11 +563,7 @@ const InboxPage = () => {
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-1.5">
-                        {(() => {
-                          const Icon = channelMeta[conversation.channel].icon
-
-                          return <Icon className={`h-3.5 w-3.5 shrink-0 ${channelMeta[conversation.channel].className}`} />
-                        })()}
+                        <ChannelBadge channel={conversation.channel} />
                         <Text size="small" className={`truncate ${conversation.unread_count > 0 ? "font-medium" : "text-ui-fg-subtle"}`}>
                           {conversation.last_message_preview || "No messages yet"}
                         </Text>
@@ -392,7 +584,7 @@ const InboxPage = () => {
         </div>
 
         <div className="flex min-h-0 flex-col">
-          {!selectedConversation ? (
+          {!conversationData?.conversation ? (
             <div className="flex flex-1 min-h-0 items-center justify-center px-6">
               <Text className="text-ui-fg-subtle">
                 {isLoadingConversation
@@ -407,35 +599,31 @@ const InboxPage = () => {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <Heading level="h2" className="truncate">
-                        {getConversationTitle(selectedConversation)}
+                        {getConversationTitle(conversationData.conversation)}
                       </Heading>
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-ui-tag-green-icon" aria-label="Active" />
+                      {selectedCountry ? (
+                        <Text size="small" className="shrink-0" title={selectedCountry.country}>
+                          {selectedCountry.flag}
+                        </Text>
+                      ) : null}
                     </div>
-                    {getConversationSubtitle(selectedConversation) ? (
+                    {getConversationSubtitle(conversationData.conversation) ? (
                       <Text size="small" className="truncate text-ui-fg-subtle">
-                        {getConversationSubtitle(selectedConversation)}
+                        {getConversationSubtitle(conversationData.conversation)}
                       </Text>
                     ) : null}
                   </div>
                   <Badge size="2xsmall" className="inline-flex items-center gap-1">
-                    {(() => {
-                      const Icon = channelMeta[selectedConversation.channel].icon
-
-                      return (
-                        <>
-                          <Icon className={`h-3 w-3 ${channelMeta[selectedConversation.channel].className}`} />
-                          <span>{channelMeta[selectedConversation.channel].label}</span>
-                        </>
-                      )
-                    })()}
+                    <ChannelBadge channel={conversationData.conversation.channel} />
+                    <span>{channelMeta[conversationData.conversation.channel].label}</span>
                   </Badge>
                 </div>
                 <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                  Last active {formatRelativeTime(selectedConversation.last_message_at || selectedConversation.updated_at)}
+                  Last message {formatRelativeTime(conversationData.conversation.last_message_at || conversationData.conversation.updated_at)}
                 </Text>
               </div>
 
-              <div className="flex flex-1 min-h-0 flex-col gap-2 overflow-y-auto px-4 py-3">
+              <div className="flex flex-1 min-h-0 flex-col gap-3 overflow-y-auto px-4 py-4">
                 {messages.length === 0 ? (
                   <Text size="small" className="text-ui-fg-subtle">
                     No messages yet. Start a conversation or select another lead.
@@ -444,33 +632,50 @@ const InboxPage = () => {
                   messages.map((message) => {
                     const isOutbound = message.direction === "outbound"
                     const isPrivateNote = message.message_type === "private_note"
+                    const senderName = getSenderName(message)
+                    const senderInitial = getSenderInitial(senderName)
+
+                    if (isPrivateNote) {
+                      return (
+                        <div key={message.id} className="rounded-lg border border-ui-tag-orange-border bg-ui-tag-orange-bg px-3 py-2">
+                          <div className="mb-1 flex items-center gap-2">
+                            <Badge size="2xsmall">Private note</Badge>
+                            <Text size="xsmall" className="text-ui-fg-subtle">
+                              {senderName}
+                            </Text>
+                          </div>
+                          <Text size="small">{message.text || message.content || ""}</Text>
+                          <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                            {formatMessageTime(message)}
+                          </Text>
+                        </div>
+                      )
+                    }
 
                     return (
-                      <div
-                        key={message.id}
-                        className={`flex ${isPrivateNote ? "justify-center" : isOutbound ? "justify-end" : "justify-start"}`}
-                      >
-                        <div
-                          className={`rounded-lg border px-3 py-2 transition-colors ${
-                            isPrivateNote
-                              ? "w-full max-w-[86%] border-ui-border-base bg-ui-bg-subtle"
-                              : isOutbound
-                                ? "max-w-[78%] border-ui-border-base bg-ui-bg-base"
-                                : "max-w-[78%] border-ui-border-strong bg-ui-bg-field"
-                          }`}
-                        >
-                          <Text size="xsmall" className="mb-1 text-ui-fg-subtle">
-                            {getSenderName(message)}
+                      <div key={message.id} className={`flex items-end gap-2 ${isOutbound ? "justify-end" : "justify-start"}`}>
+                        {!isOutbound ? (
+                          <span
+                            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-medium ${getSenderToneClass(
+                              senderName
+                            )}`}
+                          >
+                            {senderInitial}
+                          </span>
+                        ) : null}
+
+                        <div className={`max-w-[80%] space-y-1 ${isOutbound ? "text-right" : "text-left"}`}>
+                          <Text size="xsmall" className="text-ui-fg-subtle">
+                            {senderName}
                           </Text>
-                          <Text size="small">{message.text || message.content || ""}</Text>
-                          <div className="mt-1 flex items-center gap-1.5">
-                            {isPrivateNote ? <Badge size="2xsmall">Private note</Badge> : null}
+                          <Text size="small" className={isOutbound ? "rounded-xl bg-ui-bg-subtle px-3 py-2" : "px-1"}>
+                            {message.text || message.content || ""}
+                          </Text>
+                          <div className={`flex items-center gap-1.5 ${isOutbound ? "justify-end" : "justify-start"}`}>
                             <Text size="xsmall" className="text-ui-fg-subtle">
                               {formatMessageTime(message)}
                             </Text>
-                            {isOutbound && !isPrivateNote ? (
-                              <StatusBadge color={getStatusColor(message.status)}>{message.status}</StatusBadge>
-                            ) : null}
+                            {isOutbound ? <StatusBadge color={getStatusColor(message.status)}>{message.status}</StatusBadge> : null}
                           </div>
                         </div>
                       </div>
@@ -502,7 +707,7 @@ const InboxPage = () => {
                   <div className="rounded-xl border border-ui-border-base bg-ui-bg-field p-2">
                     <Textarea
                       rows={2}
-                      placeholder={composerMode === "private_note" ? "Type an internal note" : "Type your message"}
+                      placeholder={composerMode === "private_note" ? "Type a private note" : "Type your message"}
                       value={composer}
                       onChange={(event) => setComposer(event.target.value)}
                       disabled={sendMutation.isPending}
@@ -577,7 +782,35 @@ const InboxPage = () => {
                 <Text size="small">{channelMeta[selectedConversation.channel].label}</Text>
               </div>
 
+              {selectedCountry ? (
+                <div>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    Country
+                  </Text>
+                  <Text size="small">
+                    {selectedCountry.flag} {selectedCountry.country}
+                  </Text>
+                </div>
+              ) : null}
+
               <div className="space-y-2 pt-2">
+                {linkedLead ? (
+                  <Button type="button" size="small" variant="secondary" className="w-full" asChild>
+                    <Link to={`/leads/${linkedLead.id}`}>Open lead</Link>
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="small"
+                    variant="secondary"
+                    className="w-full"
+                    isLoading={createLeadMutation.isPending}
+                    disabled={createLeadMutation.isPending}
+                    onClick={() => createLeadMutation.mutate()}
+                  >
+                    Create lead
+                  </Button>
+                )}
                 <Button type="button" size="small" variant="secondary" className="w-full" disabled>
                   Assign
                 </Button>
