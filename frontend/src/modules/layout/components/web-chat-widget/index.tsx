@@ -27,7 +27,23 @@ const MEDUSA_BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL?.replace(
   ""
 )
 
+const PUBLISHABLE_API_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+
 const buildChatUrl = (path: string) => `${MEDUSA_BACKEND_URL || ""}${path}`
+
+const getChatHeaders = (hasBody = false) => {
+  const headers: HeadersInit = {}
+
+  if (hasBody) {
+    headers["Content-Type"] = "application/json"
+  }
+
+  if (PUBLISHABLE_API_KEY) {
+    headers["x-publishable-api-key"] = PUBLISHABLE_API_KEY
+  }
+
+  return headers
+}
 
 const formatTime = (value: string) => {
   const date = new Date(value)
@@ -101,7 +117,12 @@ export default function WebChatWidget() {
       }
 
       const response = await fetch(
-        `${buildChatUrl("/store/inbox/web-chat/messages")}?${params.toString()}`
+        `${buildChatUrl(
+          "/store/inbox/web-chat/messages"
+        )}?${params.toString()}`,
+        {
+          headers: getChatHeaders(),
+        }
       )
 
       if (!response.ok) {
@@ -170,17 +191,18 @@ export default function WebChatWidget() {
     setError(null)
 
     try {
-      const response = await fetch(buildChatUrl("/store/inbox/web-chat/session"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          session_id: session?.session_id,
-          name: name.trim(),
-          email: email.trim(),
-        }),
-      })
+      const response = await fetch(
+        buildChatUrl("/store/inbox/web-chat/session"),
+        {
+          method: "POST",
+          headers: getChatHeaders(true),
+          body: JSON.stringify({
+            session_id: session?.session_id,
+            name: name.trim(),
+            email: email.trim(),
+          }),
+        }
+      )
 
       if (!response.ok) {
         throw new Error("Failed to start chat")
@@ -211,9 +233,7 @@ export default function WebChatWidget() {
         buildChatUrl("/store/inbox/web-chat/messages"),
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: getChatHeaders(true),
           body: JSON.stringify({
             session_id: session.session_id,
             text,
