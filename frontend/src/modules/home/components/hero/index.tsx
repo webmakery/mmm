@@ -14,7 +14,7 @@ const Hero = () => {
         aria-hidden="true"
       >
         <source
-          src="https://cdn.coverr.co/videos/coverr-a-close-up-of-a-man-writing-on-a-piece-of-paper-1579/1080p.mp4"
+          src="https://pub-ba24c3daf8c64c0289537005de0266f9.r2.dev/Assets/video/webmaker-hero.mp4"
           type="video/mp4"
         />
       </video>
