@@ -1,5 +1,6 @@
 "use client"
 
+import { COOKIE_CONSENT_EVENT } from "@lib/analytics/consent"
 import { getMarketingConsent } from "@lib/analytics/meta"
 import { useEffect, useMemo, useState } from "react"
 
@@ -72,18 +73,18 @@ export default function MetaPixelProvider() {
   const canLoadPixel = useMemo(() => Boolean(META_PIXEL_ID && isConsentGranted), [isConsentGranted])
 
   useEffect(() => {
-    setIsConsentGranted(getMarketingConsent())
-
-    const interval = window.setInterval(() => {
+    const syncConsent = () => {
       setIsConsentGranted(getMarketingConsent())
-    }, 1000)
+    }
 
-    const onStorageChange = () => setIsConsentGranted(getMarketingConsent())
-    window.addEventListener("storage", onStorageChange)
+    syncConsent()
+
+    window.addEventListener(COOKIE_CONSENT_EVENT, syncConsent)
+    window.addEventListener("storage", syncConsent)
 
     return () => {
-      window.clearInterval(interval)
-      window.removeEventListener("storage", onStorageChange)
+      window.removeEventListener(COOKIE_CONSENT_EVENT, syncConsent)
+      window.removeEventListener("storage", syncConsent)
     }
   }, [])
 
