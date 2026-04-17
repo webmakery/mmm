@@ -28,6 +28,14 @@ import {
 } from "./admin/inbox/conversations/[id]/messages/route"
 import { PostAdminCustomDomainsSchema } from "./admin/custom-domains/route"
 import { PostAdminStoreBrandingSchema } from "./admin/store-branding/route"
+import {
+  GetStoreWebChatSessionSchema,
+  PostStoreWebChatSessionSchema,
+} from "./store/inbox/web-chat/session/route"
+import {
+  GetStoreWebChatMessagesSchema,
+  PostStoreWebChatMessageSchema,
+} from "./store/inbox/web-chat/messages/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -215,6 +223,26 @@ export default defineMiddlewares({
       matcher: "/store/carts/:id/product-builder",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(AddBuilderProductSchema)],
+    },
+    {
+      matcher: "/store/inbox/web-chat/session",
+      methods: ["GET"],
+      middlewares: [validateAndTransformQuery(GetStoreWebChatSessionSchema)],
+    },
+    {
+      matcher: "/store/inbox/web-chat/session",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostStoreWebChatSessionSchema)],
+    },
+    {
+      matcher: "/store/inbox/web-chat/messages",
+      methods: ["GET"],
+      middlewares: [validateAndTransformQuery(GetStoreWebChatMessagesSchema)],
+    },
+    {
+      matcher: "/store/inbox/web-chat/messages",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostStoreWebChatMessageSchema)],
     },
     {
       matcher: "/admin/invoice-config",
