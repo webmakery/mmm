@@ -72,6 +72,15 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
               required
               data-testid="signup-email-input"
             />
+            <Input
+              label="Password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              data-testid="signup-password-input"
+            />
+            <input type="hidden" name="country_code" value={countryCode} />
 
             <ErrorMessage error={message} data-testid="signup-error-message" />
 
@@ -118,10 +127,10 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
           </span>
         </div>
 
-        <div className="w-full max-w-[180px]">
+        <div className="relative w-full max-w-[220px]">
           <NativeSelect
             aria-label="Select region"
-            className="w-full"
+            className="w-full h-10 border-white bg-transparent text-ui-fg-base hover:bg-transparent"
             value={currentRegion?.value}
             onChange={(event) => {
               const nextCountry = event.target.value
@@ -136,10 +145,10 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
               </option>
             ))}
           </NativeSelect>
-          <div className="pointer-events-none -mt-8 mr-10 flex items-center justify-center gap-x-2 text-small-regular text-ui-fg-base">
-            <span>{currentRegion?.flag}</span>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-x-2 text-small-regular text-ui-fg-base">
+            <span aria-hidden>{currentRegion?.flag}</span>
             <span>{currentRegion?.label}</span>
-            <ChevronDownMini />
+            <ChevronDownMini className="opacity-0" />
           </div>
         </div>
 
