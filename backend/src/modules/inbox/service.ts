@@ -320,28 +320,6 @@ class InboxModuleService extends MedusaService({
     let sessionId = input.sessionId?.trim()
 
     if (!sessionId) {
-      const existingForEmail = await this.listConversations({
-        channel: "web_chat",
-        channel_account_id: channelAccount.id,
-        customer_handle: normalizedEmail,
-      })
-
-      const mostRecentConversation = existingForEmail
-        .slice()
-        .sort((a, b) => {
-          const aTime = new Date(
-            String(a.last_message_at || a.updated_at || a.created_at || 0)
-          ).getTime()
-          const bTime = new Date(
-            String(b.last_message_at || b.updated_at || b.created_at || 0)
-          ).getTime()
-          return bTime - aTime
-        })[0]
-
-      sessionId = mostRecentConversation?.customer_identifier || null
-    }
-
-    if (!sessionId) {
       sessionId = `webchat_${crypto.randomUUID()}`
     }
 
