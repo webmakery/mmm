@@ -19,8 +19,10 @@ const getConsentState = (): ConsentState => {
   const consentRecord = readCookieConsent()
 
   return {
-    analytics: consentRecord?.preferences.analytics ?? DEFAULT_COOKIE_CONSENT.analytics,
-    marketing: consentRecord?.preferences.marketing ?? DEFAULT_COOKIE_CONSENT.marketing,
+    analytics:
+      consentRecord?.preferences.analytics ?? DEFAULT_COOKIE_CONSENT.analytics,
+    marketing:
+      consentRecord?.preferences.marketing ?? DEFAULT_COOKIE_CONSENT.marketing,
   }
 }
 
@@ -51,7 +53,8 @@ export default function CookieConsent() {
 
     window.addEventListener(COOKIE_CONSENT_EVENT, onConsentUpdate)
 
-    return () => window.removeEventListener(COOKIE_CONSENT_EVENT, onConsentUpdate)
+    return () =>
+      window.removeEventListener(COOKIE_CONSENT_EVENT, onConsentUpdate)
   }, [])
 
   const showBanner = useMemo(() => !hasStoredConsent, [hasStoredConsent])
@@ -109,27 +112,44 @@ export default function CookieConsent() {
                 We use cookies to improve your experience
               </Heading>
               <Text size="small" className="mt-2 text-ui-fg-subtle">
-                Essential cookies are always active. You can accept or reject non-essential cookies, or customize your preferences.
+                Essential cookies are always active. You can accept or reject
+                non-essential cookies, or customize your preferences.
               </Text>
               <Text size="small" className="mt-1 text-ui-fg-subtle">
-                <a href="/privacy-policy" className="txt-compact-small-plus underline underline-offset-2">
+                <a
+                  href="/privacy-policy"
+                  className="txt-compact-small-plus underline underline-offset-2"
+                >
                   Privacy Policy
                 </a>{" "}
                 ·{" "}
-                <a href="/cookie-policy" className="txt-compact-small-plus underline underline-offset-2">
+                <a
+                  href="/cookie-policy"
+                  className="txt-compact-small-plus underline underline-offset-2"
+                >
                   Cookie Policy
                 </a>
               </Text>
             </div>
 
             <div className="grid grid-cols-1 gap-2 small:grid-cols-3">
-              <Button variant="secondary" onClick={onRejectAll}>
+              <Button
+                className="w-full"
+                variant="secondary"
+                onClick={onRejectAll}
+              >
                 Reject all
               </Button>
-              <Button variant="secondary" onClick={() => setShowPreferences(true)}>
+              <Button
+                className="w-full"
+                variant="secondary"
+                onClick={() => setShowPreferences(true)}
+              >
                 Customize
               </Button>
-              <Button onClick={onAcceptAll}>Accept all</Button>
+              <Button className="w-full" onClick={onAcceptAll}>
+                Accept all
+              </Button>
             </div>
           </div>
         </div>
@@ -144,11 +164,16 @@ export default function CookieConsent() {
         Cookie Settings
       </button>
 
-      <Modal isOpen={showPreferences} close={() => setShowPreferences(false)} size="small">
+      <Modal
+        isOpen={showPreferences}
+        close={() => setShowPreferences(false)}
+        size="small"
+      >
         <Modal.Title>Cookie Preferences</Modal.Title>
         <div className="mt-4 flex flex-col gap-4">
           <Text size="small" className="text-ui-fg-subtle">
-            Essential cookies are required for core website functionality and cannot be disabled.
+            Essential cookies are required for core website functionality and
+            cannot be disabled.
           </Text>
 
           <div className="rounded-rounded border border-ui-border-base p-4">
@@ -159,7 +184,9 @@ export default function CookieConsent() {
                   Required for security, checkout, and basic site operations.
                 </Text>
               </div>
-              <Text size="small" className="text-ui-fg-subtle">Always active</Text>
+              <Text size="small" className="text-ui-fg-subtle">
+                Always active
+              </Text>
             </div>
           </div>
 
@@ -176,7 +203,10 @@ export default function CookieConsent() {
                 type="checkbox"
                 checked={consentState.analytics}
                 onChange={(event) =>
-                  setConsentState((prev) => ({ ...prev, analytics: event.target.checked }))
+                  setConsentState((prev) => ({
+                    ...prev,
+                    analytics: event.target.checked,
+                  }))
                 }
               />
             </div>
@@ -187,7 +217,8 @@ export default function CookieConsent() {
               <div>
                 <Text weight="plus">Marketing</Text>
                 <Text size="small" className="text-ui-fg-subtle">
-                  Allows personalized ads and enables Meta/Facebook Pixel tracking.
+                  Allows personalized ads and enables Meta/Facebook Pixel
+                  tracking.
                 </Text>
               </div>
               <input
@@ -195,30 +226,49 @@ export default function CookieConsent() {
                 type="checkbox"
                 checked={consentState.marketing}
                 onChange={(event) =>
-                  setConsentState((prev) => ({ ...prev, marketing: event.target.checked }))
+                  setConsentState((prev) => ({
+                    ...prev,
+                    marketing: event.target.checked,
+                  }))
                 }
               />
             </div>
           </label>
 
           <Text size="small" className="text-ui-fg-subtle">
-            <a href="/privacy-policy" className="txt-compact-small-plus underline underline-offset-2">
+            <a
+              href="/privacy-policy"
+              className="txt-compact-small-plus underline underline-offset-2"
+            >
               Privacy Policy
             </a>{" "}
             ·{" "}
-            <a href="/cookie-policy" className="txt-compact-small-plus underline underline-offset-2">
+            <a
+              href="/cookie-policy"
+              className="txt-compact-small-plus underline underline-offset-2"
+            >
               Cookie Policy
             </a>
           </Text>
 
           <div className="mt-2 grid grid-cols-1 gap-2 small:grid-cols-3">
-            <Button variant="secondary" onClick={onRejectAll}>
+            <Button
+              className="w-full"
+              variant="secondary"
+              onClick={onRejectAll}
+            >
               Reject all
             </Button>
-            <Button variant="secondary" onClick={onSavePreferences}>
+            <Button
+              className="w-full"
+              variant="secondary"
+              onClick={onSavePreferences}
+            >
               Save preferences
             </Button>
-            <Button onClick={onAcceptAll}>Accept all</Button>
+            <Button className="w-full" onClick={onAcceptAll}>
+              Accept all
+            </Button>
           </div>
         </div>
       </Modal>

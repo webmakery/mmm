@@ -1,35 +1,52 @@
-import { Github } from "@medusajs/icons"
 import { Button, Heading } from "@medusajs/ui"
 
 const Hero = () => {
   return (
-    <div className="h-[75vh] w-full border-b border-ui-border-base relative bg-ui-bg-subtle">
-      <div className="absolute inset-0 z-10 flex flex-col justify-center items-center text-center small:p-32 gap-6">
-        <span>
+    <section className="relative h-[75vh] w-full overflow-hidden border-b border-ui-border-base bg-ui-bg-subtle">
+      <video
+        className="absolute inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-hidden="true"
+      >
+        <source
+          src="https://cdn.coverr.co/videos/coverr-a-close-up-of-a-man-writing-on-a-piece-of-paper-1579/1080p.mp4"
+          type="video/mp4"
+        />
+      </video>
+
+      <div className="absolute inset-0 bg-black/50" />
+
+      <div className="relative z-10 mx-auto flex h-full w-full max-w-screen-2xl items-center px-6 py-10 small:px-10">
+        <div className="flex max-w-xl flex-col gap-6">
           <Heading
             level="h1"
-            className="text-3xl leading-10 text-ui-fg-base font-normal"
+            className="text-3xl font-normal leading-10 text-white small:text-5xl small:leading-[1.1]"
           >
-            Ecommerce Starter Template
+            Build the next brand customers remember
           </Heading>
           <Heading
             level="h2"
-            className="text-3xl leading-10 text-ui-fg-subtle font-normal"
+            className="text-large-regular text-white/90 small:text-xl"
           >
-            Built with modern commerce technology
+            Launch fast, scale with confidence, and deliver a premium commerce
+            experience.
           </Heading>
-        </span>
-        <a
-          href="https://github.com/medusajs/nextjs-starter-medusa"
-          target="_blank"
-        >
-          <Button variant="secondary">
-            View on GitHub
-            <Github />
-          </Button>
-        </a>
+
+          <div className="flex flex-col gap-3 small:flex-row">
+            <Button className="w-full small:w-auto" variant="primary">
+              Start for free
+            </Button>
+            <Button className="w-full small:w-auto" variant="secondary">
+              View plans
+            </Button>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
   )
 }
 
