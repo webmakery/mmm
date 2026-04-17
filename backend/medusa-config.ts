@@ -138,5 +138,8 @@ module.exports = defineConfig({
     {
       resolve: "./src/modules/inbox",
     },
+    {
+      resolve: "./src/modules/lead",
+    },
   ],
 })

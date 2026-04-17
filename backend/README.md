@@ -112,3 +112,41 @@ Safe reload command example:
 ```bash
 caddy validate --config /etc/caddy/Caddyfile && caddy reload --config /etc/caddy/Caddyfile
 ```
+
+
+## Sales CRM (Leads)
+
+### Files and structure
+
+- Module: `src/modules/lead`
+  - models: `lead`, `lead_stage`, `lead_activity`
+  - service: filtering and listing logic for leads
+  - loader: seeds default pipeline stages (`new`, `contacted`, `qualified`, `proposal`, `won`, `lost`)
+- Workflows: `src/workflows/lead/*`
+  - `createLeadWorkflow`
+  - `updateLeadWorkflow`
+  - `moveLeadStageWorkflow`
+  - `addLeadActivityWorkflow`
+  - `scheduleFollowUpWorkflow`
+  - `convertLeadToCustomerWorkflow`
+- Admin API routes: `src/api/admin/leads/*` and `src/api/admin/lead-stages/route.ts`
+- Admin pages: `src/admin/routes/leads/*`
+
+### Run migrations
+
+```bash
+npm run medusa migrations run
+```
+
+### Test the feature quickly
+
+1. Open Admin and go to **Leads**.
+2. Create leads using `POST /admin/leads` or your admin integration.
+3. Move stage from lead details or the Pipeline page.
+4. Add activities (`note`, `call`, `email`, `meeting`, `task`) from lead details.
+5. Use follow-up fields/filters with `next_follow_up_at` and task activities.
+6. Convert lead with `POST /admin/leads/:id/convert`.
+
+### Lead conversion flow
+
+`convertLeadToCustomerWorkflow` validates that lead email exists, reuses an existing customer by email when available, otherwise creates a new customer, then updates `lead.customer_id`, sets status to `won`, moves the lead to the `won` stage, and logs a `status_change` activity.
