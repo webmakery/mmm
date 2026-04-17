@@ -6,6 +6,7 @@ import Input from "@modules/common/components/input"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { Button } from "@medusajs/ui"
+import { ChevronDownMini } from "@medusajs/icons"
 
 type Props = {
   storeName: string
@@ -16,26 +17,26 @@ const EmailSignup = ({ storeName, storeLogoUrl }: Props) => {
   const [message, formAction] = useActionState(signupWithEmailPassword, null)
 
   return (
-    <div className="min-h-screen w-full bg-ui-bg-subtle flex items-center justify-center px-6 py-8">
-      <div className="w-full max-w-sm flex flex-col items-center gap-y-6">
+    <div className="min-h-screen w-full bg-black text-white flex items-center justify-center px-6 py-8">
+      <div className="w-full max-w-md flex flex-col items-center gap-y-6">
         {storeLogoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={storeLogoUrl} alt={storeName} className="h-10 w-auto" />
+          <img src={storeLogoUrl} alt={storeName} className="h-14 w-auto" />
         ) : (
           <h2 className="text-large-semi uppercase">{storeName}</h2>
         )}
 
-        <div className="w-full border border-ui-border-base bg-ui-bg-base rounded-rounded p-6 flex flex-col gap-y-4">
-          <div className="text-center">
-            <h1 className="text-large-semi uppercase">Start for free</h1>
-            <p className="text-base-regular text-ui-fg-base mt-2">
-              Create your account to get started.
-            </p>
-          </div>
+        <div className="text-center">
+          <h1 className="text-3xl font-normal">Start your free trial</h1>
+          <p className="text-base-regular text-ui-fg-subtle mt-2">
+            3 days free, then 3 months for €1/month
+          </p>
+        </div>
 
-          <form className="w-full flex flex-col gap-y-2" action={formAction}>
+        <div className="w-full border border-ui-border-base bg-ui-bg-base rounded-rounded p-5 small:p-6 flex flex-col gap-y-3 text-ui-fg-base">
+          <form className="w-full flex flex-col gap-y-3" action={formAction}>
             <Input
-              label="Email"
+              label="Email address"
               name="email"
               type="email"
               title="Enter a valid email address."
@@ -43,38 +44,65 @@ const EmailSignup = ({ storeName, storeLogoUrl }: Props) => {
               required
               data-testid="signup-email-input"
             />
-            <Input
-              label="Password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              data-testid="signup-password-input"
-            />
 
             <ErrorMessage error={message} data-testid="signup-error-message" />
 
             <Button
               type="submit"
               variant="primary"
-              className="w-full mt-4"
+              className="w-full"
               data-testid="signup-submit-button"
             >
               Continue with email
             </Button>
           </form>
 
-          <span className="text-center text-ui-fg-base text-small-regular">
-            Already have an account? <LocalizedClientLink href="/account" className="underline">Sign in</LocalizedClientLink>.
+          <div className="flex items-center gap-x-4 py-1">
+            <span className="h-px flex-1 bg-ui-border-base" />
+            <span className="text-small-regular text-ui-fg-subtle">or</span>
+            <span className="h-px flex-1 bg-ui-border-base" />
+          </div>
+
+          <Button variant="secondary" className="w-full justify-start">
+            Continue with Google
+          </Button>
+          <Button variant="secondary" className="w-full justify-start">
+            Continue with Apple
+          </Button>
+          <Button variant="secondary" className="w-full justify-start">
+            Continue with Facebook
+          </Button>
+
+          <span className="text-center text-small-regular text-ui-fg-base mt-2">
+            Already have a {storeName} account?{" "}
+            <LocalizedClientLink href="/account" className="underline">
+              Log in
+            </LocalizedClientLink>
           </span>
         </div>
 
-        <LocalizedClientLink
-          href="/"
-          className="text-small-regular text-ui-fg-subtle underline"
+        <button
+          type="button"
+          className="inline-flex items-center gap-x-2 rounded-rounded border border-ui-border-base px-5 py-2 text-small-regular text-ui-fg-base"
         >
-          Back to home
-        </LocalizedClientLink>
+          Germany
+          <ChevronDownMini />
+        </button>
+
+        <div className="text-center text-small-regular text-ui-fg-subtle mt-12 space-y-2">
+          <p className="text-ui-fg-base">Need Help?</p>
+          <p>
+            By continuing, you agree to the{" "}
+            <LocalizedClientLink href="/content/terms-of-use" className="underline">
+              Terms
+            </LocalizedClientLink>{" "}
+            and{" "}
+            <LocalizedClientLink href="/content/privacy-policy" className="underline">
+              Privacy Policy
+            </LocalizedClientLink>
+            .
+          </p>
+        </div>
       </div>
     </div>
   )
