@@ -26,6 +26,7 @@ import {
   GetAdminInboxConversationMessagesSchema,
   PostAdminInboxConversationMessageSchema,
 } from "./admin/inbox/conversations/[id]/messages/route"
+import { PostAdminCustomDomainsSchema } from "./admin/custom-domains/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -87,6 +88,11 @@ export default defineMiddlewares({
       matcher: "/admin/subscriptions/:id/infrastructure/retry",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostAdminRetryInfrastructureSchema)],
+    },
+    {
+      matcher: "/admin/custom-domains",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminCustomDomainsSchema)],
     },
     {
       matcher: "/admin/inbox/conversations",

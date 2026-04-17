@@ -74,3 +74,34 @@ Join our [Discord server](https://discord.com/invite/medusajs) to meet other com
 - [Twitter](https://twitter.com/medusajs)
 - [LinkedIn](https://www.linkedin.com/company/medusajs)
 - [Medusa Blog](https://medusajs.com/blog/)
+
+## Custom domains (Caddy + on-demand TLS)
+
+### Environment variables
+
+- `PLATFORM_DOMAIN_TARGET_HOST` (required): hostname customers should CNAME to, for example `cust123.ourplatform.com`.
+- `VPS_PUBLIC_IP` (optional): used for A-record mode fallback.
+- `INTERNAL_CUSTOM_DOMAIN_SECRET` (recommended): shared secret for Caddy ask endpoint.
+
+### API flow
+
+1. `POST /admin/custom-domains` with `{ "domain": "shop.brand.com" }`.
+2. API returns normalized domain, status (`pending_dns`), and DNS instructions.
+3. Worker job `verify-pending-custom-domains` checks DNS every 10 minutes.
+4. Domain status becomes `active` when DNS target matches expected value.
+5. Caddy asks `/internal/custom-domains/can-issue-cert?domain=shop.brand.com` on first TLS handshake.
+6. If allowed, certificate is issued and storefront is proxied to `127.0.0.1:3000`.
+
+### Caddy setup
+
+Use `docs/caddy/Caddyfile.custom-domains.example` and update:
+
+- global email address.
+- ask endpoint port (`9000` above should match your Medusa API bind port).
+- optionally pass `x-internal-secret: $INTERNAL_CUSTOM_DOMAIN_SECRET` from a trusted local proxy if not restricting to loopback.
+
+Safe reload command example:
+
+```bash
+caddy validate --config /etc/caddy/Caddyfile && caddy reload --config /etc/caddy/Caddyfile
+```
