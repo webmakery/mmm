@@ -22,8 +22,12 @@ type WebChatSession = {
 }
 
 const STORAGE_KEY = "web_chat_widget_session_v1"
-const MEDUSA_BACKEND_URL =
-  process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000"
+const MEDUSA_BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL?.replace(
+  /\/$/,
+  ""
+)
+
+const buildChatUrl = (path: string) => `${MEDUSA_BACKEND_URL || ""}${path}`
 
 const formatTime = (value: string) => {
   const date = new Date(value)
@@ -97,7 +101,7 @@ export default function WebChatWidget() {
       }
 
       const response = await fetch(
-        `${MEDUSA_BACKEND_URL}/store/inbox/web-chat/messages?${params.toString()}`
+        `${buildChatUrl("/store/inbox/web-chat/messages")}?${params.toString()}`
       )
 
       if (!response.ok) {
@@ -166,20 +170,17 @@ export default function WebChatWidget() {
     setError(null)
 
     try {
-      const response = await fetch(
-        `${MEDUSA_BACKEND_URL}/store/inbox/web-chat/session`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            session_id: session?.session_id,
-            name,
-            email,
-          }),
-        }
-      )
+      const response = await fetch(buildChatUrl("/store/inbox/web-chat/session"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          session_id: session?.session_id,
+          name: name.trim(),
+          email: email.trim(),
+        }),
+      })
 
       if (!response.ok) {
         throw new Error("Failed to start chat")
@@ -207,7 +208,7 @@ export default function WebChatWidget() {
 
     try {
       const response = await fetch(
-        `${MEDUSA_BACKEND_URL}/store/inbox/web-chat/messages`,
+        buildChatUrl("/store/inbox/web-chat/messages"),
         {
           method: "POST",
           headers: {
