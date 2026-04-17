@@ -107,7 +107,7 @@ const BookingsPage = () => {
   const { data: slotsData, refetch: refetchSlots, isFetching: slotsLoading } = useQuery<{ slots: string[] }>({
     queryKey: ["booking-slots", bookingForm.service_id, slotDate],
     queryFn: () =>
-      sdk.client.fetch("/store/bookings/availability", {
+      sdk.client.fetch("/admin/bookings/availability", {
         query: {
           service_id: bookingForm.service_id,
           date: slotDate,
