@@ -1,5 +1,5 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { ArrowPath, BuildingOffice, CheckCircleSolid, CurrencyDollar, Funnel, SquaresPlus, XCircleSolid } from "@medusajs/icons"
+import { ArrowPath, BuildingStorefront, CheckCircleSolid, CurrencyDollar, Funnel, SquaresPlus, XCircleSolid } from "@medusajs/icons"
 import { Container, Heading, Select, StatusBadge, Text } from "@medusajs/ui"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { ComponentType, useMemo } from "react"
@@ -34,8 +34,20 @@ type MetricCard = {
   icon: ComponentType<{ className?: string }>
 }
 
+const asString = (value: unknown) => {
+  if (typeof value === "string") {
+    return value
+  }
+
+  if (value === null || value === undefined) {
+    return ""
+  }
+
+  return String(value)
+}
+
 const getStatusColor = (status?: string) => {
-  switch ((status || "new").toLowerCase()) {
+  switch ((asString(status) || "new").toLowerCase()) {
     case "won":
       return "green"
     case "qualified":
@@ -50,7 +62,7 @@ const getStatusColor = (status?: string) => {
 }
 
 const getPriorityColor = (priority?: Lead["priority"]) => {
-  switch ((priority || "medium").toLowerCase()) {
+  switch ((asString(priority) || "medium").toLowerCase()) {
     case "high":
       return "red"
     case "low":
@@ -61,11 +73,13 @@ const getPriorityColor = (priority?: Lead["priority"]) => {
 }
 
 const titleize = (value?: string) => {
-  if (!value) {
+  const safeValue = asString(value)
+
+  if (!safeValue) {
     return "New"
   }
 
-  return value
+  return safeValue
     .split("_")
     .map((part) => (part ? `${part[0].toUpperCase()}${part.slice(1)}` : ""))
     .join(" ")
@@ -125,7 +139,7 @@ const PipelineBoardPage = () => {
       label: "Total Leads",
       value: totalLeads,
       helper: "Current pipeline volume",
-      icon: BuildingOffice,
+      icon: BuildingStorefront,
     },
     {
       key: "contacted",
@@ -219,7 +233,7 @@ const PipelineBoardPage = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <Link to={`/leads/${lead.id}`} className="text-ui-fg-base truncate">
-                          {[lead.first_name, lead.last_name].filter(Boolean).join(" ")}
+                          {[asString(lead.first_name), asString(lead.last_name)].filter(Boolean).join(" ") || "Unnamed lead"}
                         </Link>
                         <Text size="xsmall" className="truncate text-ui-fg-subtle">
                           {lead.company || "No company"}
