@@ -10,6 +10,8 @@ import TelegramProvider from "./providers/telegram/provider"
 import { ChannelWebhookResult, InboxChannel } from "./providers/types"
 import { CreatePrivateNoteInput, IngestWebhookResult, SendInboxMessageInput } from "./types"
 
+const WEB_CHAT_CHANNEL_ACCOUNT_ID = "web_chat_widget"
+
 class InboxModuleService extends MedusaService({
   ChannelAccount,
   Conversation,
@@ -55,6 +57,7 @@ class InboxModuleService extends MedusaService({
     pageId?: string | null
     instagramAccountId?: string | null
     tenantId?: string | null
+    metadata?: Record<string, unknown> | null
   }) {
     const [existing] = await this.listConversations({
       channel: input.channel,
@@ -73,6 +76,10 @@ class InboxModuleService extends MedusaService({
         external_user_id: input.externalUserId || existing.external_user_id,
         page_id: input.pageId || existing.page_id,
         instagram_account_id: input.instagramAccountId || existing.instagram_account_id,
+        metadata: {
+          ...(existing.metadata || {}),
+          ...(input.metadata || {}),
+        },
       })
 
       return existing
@@ -95,6 +102,7 @@ class InboxModuleService extends MedusaService({
       unread_count: 0,
       last_message_at: null,
       last_message_preview: null,
+      metadata: input.metadata || null,
     })
 
     await this.createParticipants({
@@ -102,6 +110,7 @@ class InboxModuleService extends MedusaService({
       role: "customer",
       external_id: input.customerIdentifier,
       display_name: input.customerDisplayName || input.customerHandle || null,
+      metadata: input.metadata || null,
     })
 
     return conversation
@@ -290,6 +299,187 @@ class InboxModuleService extends MedusaService({
     return this.sendInboxMessage({ ...input, channel: "telegram" })
   }
 
+  async bootstrapWebChatSession(input: {
+    sessionId?: string | null
+    name: string
+    email: string
+    initialMessage?: string | null
+  }) {
+    const normalizedName = input.name.trim()
+    const normalizedEmail = input.email.trim().toLowerCase()
+
+    if (!normalizedName || !normalizedEmail) {
+      throw new Error("Name and email are required")
+    }
+
+    const sessionId = input.sessionId?.trim() || `webchat_${crypto.randomUUID()}`
+
+    const channelAccount = await this.getOrCreateChannelAccount({
+      channel: "web_chat",
+      externalAccountId: WEB_CHAT_CHANNEL_ACCOUNT_ID,
+    })
+
+    const conversation = await this.getOrCreateConversation({
+      channel: "web_chat",
+      accountRefId: channelAccount.id,
+      customerIdentifier: sessionId,
+      customerDisplayName: normalizedName,
+      customerHandle: normalizedEmail,
+      customerPhone: normalizedEmail,
+      externalUserId: sessionId,
+      externalThreadId: sessionId,
+      metadata: {
+        customer_email: normalizedEmail,
+        session_id: sessionId,
+      },
+    })
+
+    const [customerParticipant] = await this.listParticipants({
+      conversation_id: conversation.id,
+      role: "customer",
+    })
+
+    if (customerParticipant && customerParticipant.display_name !== normalizedName) {
+      await this.updateParticipants({
+        id: customerParticipant.id,
+        display_name: normalizedName,
+        metadata: {
+          ...(customerParticipant.metadata || {}),
+          email: normalizedEmail,
+          session_id: sessionId,
+        },
+      })
+    }
+
+    if (input.initialMessage?.trim()) {
+      await this.sendWebChatInboundMessage({
+        sessionId,
+        text: input.initialMessage,
+        conversationId: conversation.id,
+      })
+    }
+
+    return {
+      session_id: sessionId,
+      conversation_id: conversation.id,
+      channel: "web_chat" as const,
+      customer: {
+        name: normalizedName,
+        email: normalizedEmail,
+      },
+    }
+  }
+
+  async resolveWebChatSession(sessionId: string) {
+    const normalizedSessionId = sessionId.trim()
+
+    const [conversation] = await this.listConversations({
+      channel: "web_chat",
+      customer_identifier: normalizedSessionId,
+    })
+
+    if (!conversation) {
+      return null
+    }
+
+    return {
+      session_id: normalizedSessionId,
+      conversation_id: conversation.id,
+      channel: "web_chat" as const,
+      customer: {
+        name: conversation.customer_name,
+        email: conversation.customer_handle,
+      },
+    }
+  }
+
+  async listConversationMessages(input: { conversationId: string; limit?: number; after?: string | null }) {
+    const limit = input.limit || 100
+    const after = input.after ? new Date(input.after) : null
+
+    const messages = await this.listMessages(
+      {
+        conversation_id: input.conversationId,
+      },
+      {
+        order: {
+          created_at: "ASC",
+        },
+        take: limit,
+      }
+    )
+
+    return messages.filter((message) => {
+      if (!after || Number.isNaN(after.getTime())) {
+        return true
+      }
+
+      const createdAt = message.created_at ? new Date(message.created_at) : null
+      return Boolean(createdAt && createdAt.getTime() > after.getTime())
+    })
+  }
+
+  async sendWebChatInboundMessage(input: { sessionId: string; text: string; conversationId?: string }) {
+    const text = input.text.trim()
+
+    if (!text) {
+      throw new Error("Message text is required")
+    }
+
+    let conversationId = input.conversationId
+
+    if (!conversationId) {
+      const session = await this.resolveWebChatSession(input.sessionId)
+      conversationId = session?.conversation_id
+    }
+
+    if (!conversationId) {
+      throw new Error("Web chat session not found")
+    }
+
+    const conversation = await this.retrieveConversation(conversationId)
+
+    if (conversation.channel !== "web_chat") {
+      throw new Error("Conversation is not a web chat conversation")
+    }
+
+    const [customerParticipant] = await this.listParticipants({
+      conversation_id: conversationId,
+      role: "customer",
+    })
+
+    if (!customerParticipant) {
+      throw new Error("Conversation does not have a customer participant")
+    }
+
+    const message = await this.createMessages({
+      provider: "web_chat",
+      channel: "web_chat",
+      external_message_id: `webchat:inbound:${crypto.randomUUID()}`,
+      direction: "inbound",
+      status: "received",
+      message_type: "text",
+      text,
+      content: text,
+      received_at: new Date(),
+      conversation_id: conversationId,
+      participant_id: customerParticipant.id,
+      channel_account_id: conversation.channel_account_id,
+      raw_payload: {
+        source: "web_widget",
+      },
+    })
+
+    await this.syncConversationState({
+      conversationId,
+      text,
+      timestamp: new Date(),
+      incrementUnread: true,
+    })
+
+    return { message }
+  }
+
   async sendInboxMessage(input: SendInboxMessageInput) {
     const conversation = await this.retrieveConversation(input.conversationId, {
       relations: ["channel_account"],
@@ -335,12 +525,20 @@ class InboxModuleService extends MedusaService({
         to,
         text: input.text,
       })
-    } else {
+    } else if (channel === "telegram") {
       providerResponse = await this.telegramProvider_.sendMessage({
         channel,
         to: conversation.external_thread_id || to,
         text: input.text,
       })
+    } else {
+      providerResponse = {
+        channel,
+        externalMessageId: `webchat:outbound:${crypto.randomUUID()}`,
+        rawResponse: {
+          source: "inbox_admin",
+        },
+      }
     }
 
     const message = await this.createMessages({
