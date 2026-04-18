@@ -34,6 +34,28 @@ const toTitle = (value: string) =>
     .map((part) => (part ? `${part[0].toUpperCase()}${part.slice(1)}` : ""))
     .join(" ")
 
+const asHours = (value: number) => {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "—"
+  }
+
+  return `${value.toFixed(1)}h`
+}
+
+const asPercent = (value: number) => `${value.toFixed(2)}%`
+
+const asChangeLabel = (value: number) => {
+  if (value > 0) {
+    return `↑ ${Math.abs(value).toFixed(2)}%`
+  }
+
+  if (value < 0) {
+    return `↓ ${Math.abs(value).toFixed(2)}%`
+  }
+
+  return "0.00%"
+}
+
 const Sparkline = ({ values }: { values: number[] }) => {
   if (!values.length) {
     return ""
@@ -76,46 +98,6 @@ const KpiCard = ({
   )
 }
 
-const AttentionCard = ({
-  title,
-  value,
-  preview,
-  href,
-}: {
-  title: string
-  value: number
-  preview: Array<{ id: string; label: string; context: string }>
-  href: string
-}) => {
-  return (
-    <Container className="p-0">
-      <div className="flex items-center justify-between px-4 py-3">
-        <Text size="small">{title}</Text>
-        <StatusBadge color={value > 0 ? "orange" : "green"}>{value}</StatusBadge>
-      </div>
-      <div className="divide-y border-t">
-        {preview.length ? (
-          preview.map((item) => (
-            <div className="px-4 py-2" key={item.id}>
-              <Text size="small">{item.label}</Text>
-              <Text size="xsmall" className="text-ui-fg-subtle">{item.context}</Text>
-            </div>
-          ))
-        ) : (
-          <div className="px-4 py-2">
-            <Text size="xsmall" className="text-ui-fg-subtle">No exceptions.</Text>
-          </div>
-        )}
-      </div>
-      <div className="border-t px-4 py-2">
-        <Link to={href} className="text-ui-fg-interactive text-small">
-          View all
-        </Link>
-      </div>
-    </Container>
-  )
-}
-
 const DashboardPageContent = () => {
   const { data, isLoading, isError } = useDashboardData()
 
@@ -143,6 +125,7 @@ const DashboardPageContent = () => {
   const kpis = data.executive_kpis
   const revenueSeries = data.performance.revenue_trend_30_days
   const leadBookingSeries = data.performance.leads_vs_bookings_30_days
+  const funnel = data.full_funnel
 
   return (
     <div className="flex flex-col gap-y-4">
@@ -268,27 +251,74 @@ const DashboardPageContent = () => {
 
       <Container className="p-0">
         <div className="px-6 py-4">
-          <Heading level="h2">Attention required</Heading>
+          <Heading level="h2">Full Funnel Performance</Heading>
+          <Text size="small" className="text-ui-fg-subtle">
+            Leads → Qualified → Bookings → Completed → Paid
+          </Text>
         </div>
-        <div className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-2 xl:grid-cols-3">
-          <AttentionCard title="Unassigned leads" value={data.attention_required.unassigned_leads.value} preview={data.attention_required.unassigned_leads.preview} href="/leads" />
-          <AttentionCard title="Overdue follow-ups" value={data.attention_required.overdue_follow_ups.value} preview={data.attention_required.overdue_follow_ups.preview} href="/leads" />
-          <AttentionCard title="Unpaid orders" value={data.attention_required.unpaid_orders.value} preview={data.attention_required.unpaid_orders.preview} href="/orders" />
-          <AttentionCard title="Low stock" value={data.attention_required.low_stock.value} preview={data.attention_required.low_stock.preview} href="/products" />
-          <AttentionCard title="Bookings needing confirmation" value={data.attention_required.upcoming_confirmations.value} preview={data.attention_required.upcoming_confirmations.preview} href="/bookings" />
-        </div>
-      </Container>
 
-      <Container className="p-0">
         <div className="px-6 py-4">
-          <Heading level="h2">Quick navigation</Heading>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+            {funnel.stages.map((stage, index) => (
+              <Container className="p-0" key={stage.key}>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <Link to={stage.href} className="text-ui-fg-interactive text-small">
+                    {stage.label}
+                  </Link>
+                  <StatusBadge color={index === 0 || stage.dropoff_from_previous < 30 ? "green" : "orange"}>
+                    {stage.count}
+                  </StatusBadge>
+                </div>
+                <div className="border-t px-4 py-2">
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    {index === 0 ? "Entry stage" : `Conversion ${asPercent(stage.conversion_from_previous)} · Drop-off ${asPercent(stage.dropoff_from_previous)}`}
+                  </Text>
+                </div>
+              </Container>
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-3 xl:grid-cols-5">
-          <Container className="px-3 py-3"><Link to="/leads" className="text-ui-fg-interactive text-small">View leads</Link></Container>
-          <Container className="px-3 py-3"><Link to="/orders" className="text-ui-fg-interactive text-small">View orders</Link></Container>
-          <Container className="px-3 py-3"><Link to="/bookings" className="text-ui-fg-interactive text-small">View bookings</Link></Container>
-          <Container className="px-3 py-3"><Link to="/customers" className="text-ui-fg-interactive text-small">View customers</Link></Container>
-          <Container className="px-3 py-3"><Link to="/products" className="text-ui-fg-interactive text-small">View inventory/issues</Link></Container>
+
+        <div className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-2 xl:grid-cols-4">
+          <Container className="px-3 py-3">
+            <Text size="xsmall" className="text-ui-fg-subtle">Lead → Booking conversion</Text>
+            <Heading level="h2">{asPercent(funnel.derived_metrics.lead_to_booking_conversion)}</Heading>
+            <Text size="xsmall" className="text-ui-fg-muted">
+              Week {asChangeLabel(funnel.period_comparison.week.lead_to_booking_change_percent)} · Month {asChangeLabel(funnel.period_comparison.month.lead_to_booking_change_percent)}
+            </Text>
+          </Container>
+          <Container className="px-3 py-3">
+            <Text size="xsmall" className="text-ui-fg-subtle">Booking → Paid conversion</Text>
+            <Heading level="h2">{asPercent(funnel.derived_metrics.booking_to_paid_conversion)}</Heading>
+            <Text size="xsmall" className="text-ui-fg-muted">
+              Week {asChangeLabel(funnel.period_comparison.week.booking_to_paid_change_percent)} · Month {asChangeLabel(funnel.period_comparison.month.booking_to_paid_change_percent)}
+            </Text>
+          </Container>
+          <Container className="px-3 py-3">
+            <Text size="xsmall" className="text-ui-fg-subtle">Overall funnel conversion</Text>
+            <Heading level="h2">{asPercent(funnel.derived_metrics.overall_funnel_conversion)}</Heading>
+            <Text size="xsmall" className="text-ui-fg-muted">
+              Paid share of all leads
+            </Text>
+          </Container>
+          <Container className="px-3 py-3">
+            <Text size="xsmall" className="text-ui-fg-subtle">Average stage velocity</Text>
+            <Heading level="h2">{asHours(funnel.derived_metrics.average_hours_lead_to_booking)} / {asHours(funnel.derived_metrics.average_hours_booking_to_payment)}</Heading>
+            <Text size="xsmall" className="text-ui-fg-muted">
+              Lead→Booking / Booking→Payment
+            </Text>
+          </Container>
+        </div>
+
+        <div className="px-6 pb-4">
+          <Container className="px-3 py-3">
+            <Text size="small">Insights</Text>
+            <div className="mt-2 space-y-2">
+              {funnel.insights.map((insight) => (
+                <Text size="small" key={insight.id} className="text-ui-fg-subtle">• {insight.detail}</Text>
+              ))}
+            </div>
+          </Container>
         </div>
       </Container>
     </div>

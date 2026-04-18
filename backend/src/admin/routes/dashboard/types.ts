@@ -63,26 +63,35 @@ export type DashboardResponse = {
       bookings: number
     }>
   }
-  attention_required: {
-    unassigned_leads: {
-      value: number
-      preview: Array<{ id: string; label: string; context: string }>
+  full_funnel: {
+    stages: Array<{
+      key: "leads" | "qualified" | "bookings" | "completed" | "paid"
+      label: string
+      count: number
+      conversion_from_previous: number
+      dropoff_from_previous: number
+      href: string
+    }>
+    derived_metrics: {
+      lead_to_booking_conversion: number
+      booking_to_paid_conversion: number
+      overall_funnel_conversion: number
+      average_hours_lead_to_booking: number
+      average_hours_booking_to_payment: number
     }
-    overdue_follow_ups: {
-      value: number
-      preview: Array<{ id: string; label: string; context: string }>
+    period_comparison: {
+      week: {
+        lead_to_booking_change_percent: number
+        booking_to_paid_change_percent: number
+      }
+      month: {
+        lead_to_booking_change_percent: number
+        booking_to_paid_change_percent: number
+      }
     }
-    unpaid_orders: {
-      value: number
-      preview: Array<{ id: string; label: string; context: string }>
-    }
-    low_stock: {
-      value: number
-      preview: Array<{ id: string; label: string; context: string }>
-    }
-    upcoming_confirmations: {
-      value: number
-      preview: Array<{ id: string; label: string; context: string }>
-    }
+    insights: Array<{
+      id: string
+      detail: string
+    }>
   }
 }
