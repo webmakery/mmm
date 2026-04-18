@@ -38,6 +38,7 @@ import { GetAdminBookingServicesSchema, PostAdminBookingServiceSchema } from "./
 import { PostAdminBookingServiceUpdateSchema } from "./admin/booking-services/[id]/route"
 import { GetAdminBookingsSchema, PostAdminCreateBookingSchema } from "./admin/bookings/route"
 import { GetAdminBookingAvailabilitySchema } from "./admin/bookings/availability/route"
+import { GetAdminDashboardSchema } from "./admin/dashboard/route"
 import { PostAdminUpdateBookingSchema } from "./admin/bookings/[id]/route"
 import { PostAdminBookingRulesSchema } from "./admin/booking-rules/route"
 import { GetStoreBookingServicesSchema } from "./store/booking-services/route"
@@ -175,6 +176,11 @@ export default defineMiddlewares({
       matcher: "/admin/bookings",
       methods: ["GET"],
       middlewares: [validateAndTransformQuery(GetAdminBookingsSchema, { isList: true })],
+    },
+    {
+      matcher: "/admin/dashboard",
+      methods: ["GET"],
+      middlewares: [validateAndTransformQuery(GetAdminDashboardSchema, {})],
     },
     {
       matcher: "/admin/bookings",
