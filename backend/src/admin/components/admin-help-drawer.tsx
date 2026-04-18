@@ -13,6 +13,147 @@ declare global {
 
 const OPEN_DRAWER_EVENT = "admin-help-drawer:open"
 
+type InlinePart = {
+  text: string
+  bold: boolean
+}
+
+type Block =
+  | { type: "heading"; level: 1 | 2; content: InlinePart[] }
+  | { type: "paragraph"; content: InlinePart[] }
+  | { type: "ordered-list"; items: InlinePart[][] }
+  | { type: "unordered-list"; items: InlinePart[][] }
+
+const parseInlineFormatting = (text: string): InlinePart[] => {
+  const normalized = text.replace(/\*\*/g, "__")
+  const parts = normalized.split(/(__[^_]+__)/g).filter(Boolean)
+
+  return parts.map((part) => {
+    const isBold = part.startsWith("__") && part.endsWith("__") && part.length > 4
+
+    if (isBold) {
+      return {
+        text: part.slice(2, -2),
+        bold: true,
+      }
+    }
+
+    return {
+      text: part,
+      bold: false,
+    }
+  })
+}
+
+const toInlineContent = (text: string) => parseInlineFormatting(text.trim())
+
+const parseAnswerToBlocks = (answer: string): Block[] => {
+  const lines = answer.replace(/\r\n/g, "\n").split("\n")
+  const blocks: Block[] = []
+  let paragraphLines: string[] = []
+  let orderedItems: InlinePart[][] = []
+  let unorderedItems: InlinePart[][] = []
+
+  const flushParagraph = () => {
+    if (!paragraphLines.length) {
+      return
+    }
+
+    blocks.push({
+      type: "paragraph",
+      content: toInlineContent(paragraphLines.join(" ").trim()),
+    })
+    paragraphLines = []
+  }
+
+  const flushOrderedList = () => {
+    if (!orderedItems.length) {
+      return
+    }
+
+    blocks.push({
+      type: "ordered-list",
+      items: orderedItems,
+    })
+    orderedItems = []
+  }
+
+  const flushUnorderedList = () => {
+    if (!unorderedItems.length) {
+      return
+    }
+
+    blocks.push({
+      type: "unordered-list",
+      items: unorderedItems,
+    })
+    unorderedItems = []
+  }
+
+  const flushAll = () => {
+    flushParagraph()
+    flushOrderedList()
+    flushUnorderedList()
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+
+    if (!line) {
+      flushAll()
+      continue
+    }
+
+    const headingMatch = line.match(/^(#{1,2})\s+(.+)$/)
+    if (headingMatch) {
+      flushAll()
+      blocks.push({
+        type: "heading",
+        level: headingMatch[1].length === 1 ? 1 : 2,
+        content: toInlineContent(headingMatch[2]),
+      })
+      continue
+    }
+
+    const orderedMatch = line.match(/^(\d+)[.)]\s+(.+)$/)
+    if (orderedMatch) {
+      flushParagraph()
+      flushUnorderedList()
+      orderedItems.push(toInlineContent(orderedMatch[2]))
+      continue
+    }
+
+    const unorderedMatch = line.match(/^[-*]\s+(.+)$/)
+    if (unorderedMatch) {
+      flushParagraph()
+      flushOrderedList()
+      unorderedItems.push(toInlineContent(unorderedMatch[1]))
+      continue
+    }
+
+    flushOrderedList()
+    flushUnorderedList()
+    paragraphLines.push(line)
+  }
+
+  flushAll()
+  return blocks
+}
+
+const InlineText = ({ content }: { content: InlinePart[] }) => (
+  <>
+    {content.map((part, index) =>
+      part.bold ? (
+        <strong key={`${part.text}-${index}`} className="font-semibold text-ui-fg-base">
+          {part.text}
+        </strong>
+      ) : (
+        <span key={`${part.text}-${index}`}>{part.text}</span>
+      )
+    )}
+  </>
+)
+
 export const AdminHelpDrawer = () => {
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
@@ -23,6 +164,7 @@ export const AdminHelpDrawer = () => {
   const [isAnswering, setIsAnswering] = useState(false)
 
   const context = useMemo(() => findHelpContextByPath(pathname), [pathname])
+  const answerBlocks = useMemo(() => parseAnswerToBlocks(answer), [answer])
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -164,16 +306,65 @@ export const AdminHelpDrawer = () => {
           </div>
 
           {answer ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Heading level="h3">Answer</Heading>
+            <div className="space-y-3 rounded-lg border border-ui-border-base bg-ui-bg-field p-4">
+              <div className="flex items-center justify-between gap-2">
+                <Text size="small" weight="plus" className="text-ui-fg-base">
+                  Assistant response
+                </Text>
                 <Badge size="2xsmall" color={answerSource?.toLowerCase() === "ai" ? "green" : "orange"}>
-                  {answerSource?.toLowerCase() === "ai" ? "AI" : "Fallback"}
+                  {answerSource?.toLowerCase() === "ai" ? "AI powered" : "Fallback"}
                 </Badge>
               </div>
-              <Text size="small" className="text-ui-fg-subtle">
-                {answer}
-              </Text>
+              <div className="space-y-3">
+                {answerBlocks.map((block, blockIndex) => {
+                  if (block.type === "heading") {
+                    return (
+                      <Text
+                        key={`heading-${blockIndex}`}
+                        size={block.level === 1 ? "small" : "xsmall"}
+                        weight="plus"
+                        className="text-ui-fg-base"
+                      >
+                        <InlineText content={block.content} />
+                      </Text>
+                    )
+                  }
+
+                  if (block.type === "ordered-list") {
+                    return (
+                      <ol key={`ordered-${blockIndex}`} className="list-decimal space-y-2 pl-5 text-ui-fg-subtle">
+                        {block.items.map((item, itemIndex) => (
+                          <li key={`ordered-${blockIndex}-item-${itemIndex}`}>
+                            <Text as="span" size="small" className="text-ui-fg-subtle">
+                              <InlineText content={item} />
+                            </Text>
+                          </li>
+                        ))}
+                      </ol>
+                    )
+                  }
+
+                  if (block.type === "unordered-list") {
+                    return (
+                      <ul key={`unordered-${blockIndex}`} className="list-disc space-y-2 pl-5 text-ui-fg-subtle">
+                        {block.items.map((item, itemIndex) => (
+                          <li key={`unordered-${blockIndex}-item-${itemIndex}`}>
+                            <Text as="span" size="small" className="text-ui-fg-subtle">
+                              <InlineText content={item} />
+                            </Text>
+                          </li>
+                        ))}
+                      </ul>
+                    )
+                  }
+
+                  return (
+                    <Text key={`paragraph-${blockIndex}`} size="small" className="text-ui-fg-subtle">
+                      <InlineText content={block.content} />
+                    </Text>
+                  )
+                })}
+              </div>
             </div>
           ) : null}
         </Drawer.Body>
