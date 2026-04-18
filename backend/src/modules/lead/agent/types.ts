@@ -39,7 +39,9 @@ export type QualifiedLeadResult = {
   company: string
   score: number
   outreach_message_draft: string
-  follow_up_event_id?: string
+  next_follow_up_at?: string
+  follow_up_status?: string
+  owner_user_id?: string
 }
 
 export type LeadDisqualification = {
@@ -102,23 +104,14 @@ export interface LeadCrmProvider {
     leadId: string,
     input: {
       follow_up_status?: string
-      follow_up_event_id?: string | null
+      next_follow_up_at?: Date | null
+      owner_user_id?: string | null
       outreach_approved_at?: Date | null
       outreach_sent_at?: Date | null
       notes_summary?: string
       metadata_patch?: Record<string, unknown>
     }
   ): Promise<void>
-}
-
-export interface LeadCalendarProvider {
-  createFollowUpEvent(input: {
-    lead_id: string
-    company: string
-    when: Date
-    owner_email?: string
-    notes: string
-  }): Promise<{ event_id: string }>
 }
 
 export interface OutreachProvider {
