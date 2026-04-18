@@ -24,8 +24,39 @@ class TeamRbacModuleService extends MedusaService({
   Role,
   UserRole,
 }) {
-  private getUserService(): IUserModuleService {
-    return (this as any).__container__[Modules.USER]
+  private getUserService(): IUserModuleService | null {
+    const container = (this as any).__container__
+
+    const serviceKeys = [Modules.USER, "userModuleService", "userService"]
+
+    for (const key of serviceKeys) {
+      try {
+        if (typeof container?.resolve === "function") {
+          const service = container.resolve(key)
+          if (service) {
+            return service
+          }
+        } else if (container?.[key]) {
+          return container[key]
+        }
+      } catch (e) {
+        continue
+      }
+    }
+
+    return null
+  }
+
+  private requireUserService(): IUserModuleService {
+    const userService = this.getUserService()
+    if (!userService) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "User service is not available in the current container"
+      )
+    }
+
+    return userService
   }
 
   async ensureDefaultRoles() {
@@ -56,6 +87,14 @@ class TeamRbacModuleService extends MedusaService({
     await this.ensureDefaultRoles()
 
     const userService = this.getUserService()
+    if (!userService) {
+      const mappings = await this.listUserRoles({ user_id: actorId }, { relations: ["role"] })
+
+      return mappings
+        .map((mapping: any) => mapping.role)
+        .filter(Boolean) as RoleRecord[]
+    }
+
     const user = await userService.retrieveUser(actorId).catch(() => null)
 
     if (!user) {
@@ -134,7 +173,7 @@ class TeamRbacModuleService extends MedusaService({
   }
 
   async assignRolesToUser(userId: string, roleIds: string[]) {
-    const userService = this.getUserService()
+    const userService = this.requireUserService()
     const user = await userService.retrieveUser(userId)
     const roles = await this.getRolesByIds(roleIds)
 
@@ -153,7 +192,7 @@ class TeamRbacModuleService extends MedusaService({
   }
 
   async removeRoleFromUser(userId: string, roleId: string) {
-    const userService = this.getUserService()
+    const userService = this.requireUserService()
     const user = await userService.retrieveUser(userId)
     const role = await this.retrieveRole(roleId).catch(() => null)
 
@@ -174,7 +213,7 @@ class TeamRbacModuleService extends MedusaService({
   }
 
   async listTeamUsers() {
-    const userService = this.getUserService()
+    const userService = this.requireUserService()
     const [users] = await userService.listAndCountUsers({}, { take: 200 })
 
     await Promise.all(users.map((user) => this.syncUserRoleMappings(user)))
@@ -199,7 +238,7 @@ class TeamRbacModuleService extends MedusaService({
   }
 
   async listPendingInvites() {
-    const userService = this.getUserService()
+    const userService = this.requireUserService()
     const [allInvites] = await userService.listAndCountInvites({} as any, { take: 200 })
     const invites = allInvites.filter((invite) => !invite.accepted)
 
@@ -235,6 +274,9 @@ class TeamRbacModuleService extends MedusaService({
     }
 
     const userService = this.getUserService()
+    if (!userService) {
+      return
+    }
     const user = await userService.retrieveUser(actorId).catch(() => null)
     if (!user) {
       return
