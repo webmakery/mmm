@@ -5,6 +5,11 @@ export type DashboardResponse = {
   customers: {
     total: number
   }
+  operational_risks: {
+    unassigned_leads: number
+    overdue_follow_ups: number
+    unpaid_orders: number
+  }
   executive_kpis: {
     revenue_this_month: {
       value: number

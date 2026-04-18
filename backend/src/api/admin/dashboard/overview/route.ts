@@ -590,6 +590,11 @@ export const GET = async (
     customers: {
       total: customerList.length,
     },
+    operational_risks: {
+      unassigned_leads: unassignedLeads.length,
+      overdue_follow_ups: overdueFollowUps.length,
+      unpaid_orders: unpaidOrderList.length,
+    },
     executive_kpis: {
       revenue_this_month: {
         value: revenueThisMonth,
