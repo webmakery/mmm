@@ -3,6 +3,9 @@ const NON_RETRYABLE_MESSAGE_PATTERNS = [
   /Value for Lead\.stage_id is required/i,
   /stage_id.*required/i,
   /validation/i,
+  /column\s+"[^"]+"\s+of relation\s+"[^"]+"\s+does not exist/i,
+  /no such column/i,
+  /unknown column/i,
 ]
 
 export class LeadAgentInputError extends Error {
