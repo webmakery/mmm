@@ -59,6 +59,9 @@ module.exports = defineConfig({
       },
     },
     {
+      resolve: "@medusajs/user",
+    },
+    {
       resolve: "@medusajs/fulfillment",
       options: {
         providers: [
