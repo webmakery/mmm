@@ -1,5 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { findHelpContextByPath } from "../../../../admin/lib/admin-help-context"
 
 export const PostAdminHelpAskSchema = z.object({
@@ -11,7 +12,7 @@ type PostAdminHelpAskBody = z.infer<typeof PostAdminHelpAskSchema>
 
 type HelpAskResponse = {
   answer: string
-  source: "ai" | "fallback"
+  source: "AI" | "Fallback"
   suggestions: string[]
   context_title: string
 }
@@ -52,12 +53,25 @@ const createSystemPrompt = (contextTitle: string, intro: string, tips: string[])
   ].join("\n")
 }
 
-const queryOpenAi = async (contextTitle: string, pathname: string, question: string) => {
-  const apiKey = process.env.OPENAI_API_KEY
+type QueryOpenAiResult = {
+  answer: string | null
+  failureReason?: string
+}
+
+const queryOpenAi = async (
+  contextTitle: string,
+  pathname: string,
+  question: string
+): Promise<QueryOpenAiResult> => {
+  const apiKey = process.env.OPENAI_API_KEY?.trim()
+  const hasApiKey = Boolean(apiKey)
   const model = process.env.OPENAI_HELP_MODEL || "gpt-4.1-mini"
 
-  if (!apiKey) {
-    return null
+  if (!hasApiKey) {
+    return {
+      answer: null,
+      failureReason: "missing_openai_api_key",
+    }
   }
 
   const context = findHelpContextByPath(pathname)
@@ -92,34 +106,54 @@ const queryOpenAi = async (contextTitle: string, pathname: string, question: str
   const payload = await response.json()
   const text = typeof payload?.output_text === "string" ? payload.output_text.trim() : ""
 
-  return text || null
+  if (!text) {
+    return {
+      answer: null,
+      failureReason: "empty_ai_response",
+    }
+  }
+
+  return {
+    answer: text,
+  }
 }
 
 export async function POST(
   req: MedusaRequest<PostAdminHelpAskBody>,
   res: MedusaResponse<HelpAskResponse>
 ) {
+  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER)
   const { pathname, question } = req.validatedBody
   const context = findHelpContextByPath(pathname)
+  const hasApiKey = Boolean(process.env.OPENAI_API_KEY?.trim())
+
+  logger.info(`[admin/help/ask] hasApiKey=${hasApiKey}`)
 
   try {
-    const aiAnswer = await queryOpenAi(context.title, pathname, question)
+    logger.info("[admin/help/ask] entering AI branch")
+    const aiResult = await queryOpenAi(context.title, pathname, question)
 
-    if (aiAnswer) {
+    if (aiResult.answer) {
+      logger.info("[admin/help/ask] AI branch success source=AI")
+
       return res.json({
-        answer: aiAnswer,
-        source: "ai",
+        answer: aiResult.answer,
+        source: "AI",
         suggestions: context.suggestedQuestions,
         context_title: context.title,
       })
     }
-  } catch {
-    // Gracefully fall back to local contextual guidance.
+
+    logger.warn(`[admin/help/ask] fallback branch used reason=${aiResult.failureReason || "unknown"}`)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logger.error(`[admin/help/ask] OpenAI error: ${errorMessage}`)
+    logger.warn("[admin/help/ask] fallback branch used reason=openai_exception")
   }
 
   return res.json({
     answer: createFallbackAnswer(pathname, question),
-    source: "fallback",
+    source: "Fallback",
     suggestions: context.suggestedQuestions,
     context_title: context.title,
   })
