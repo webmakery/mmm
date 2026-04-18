@@ -23,7 +23,7 @@ const Lead = model.define("lead", {
   source_detail: model.text().nullable(),
   category: model.text().nullable(),
   status: model.enum(LeadStatuses).default("new").index("IDX_LEAD_STATUS"),
-  lead_score: model.number().nullable().index("IDX_LEAD_SCORE"),
+  lead_score: model.number().index("IDX_LEAD_SCORE").nullable(),
   lead_score_notes: model.text().nullable(),
   pain_points: model.json().nullable(),
   owner_user_id: model.text().index("IDX_LEAD_OWNER").nullable(),
