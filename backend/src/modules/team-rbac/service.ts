@@ -61,7 +61,14 @@ class TeamRbacModuleService extends MedusaService({
   private getUserService(): IUserModuleService | null {
     const container = (this as any).__container__
 
-    const serviceKeys = [Modules.USER, "userModuleService", "userService"]
+    const serviceKeys = [
+      Modules.USER,
+      (Modules as any).USERS,
+      "user",
+      "users",
+      "userModuleService",
+      "userService",
+    ]
 
     for (const key of serviceKeys) {
       try {
