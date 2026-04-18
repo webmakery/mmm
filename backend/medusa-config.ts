@@ -171,6 +171,9 @@ module.exports = defineConfig({
       resolve: "./src/modules/booking",
     },
     {
+      resolve: "./src/modules/team-rbac",
+    },
+    {
       resolve: "./src/modules/customer-journey",
     },
   ],
