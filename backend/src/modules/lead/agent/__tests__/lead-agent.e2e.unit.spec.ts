@@ -1,4 +1,5 @@
 import { LeadAgentService } from "../service"
+import { LeadAgentInputError } from "../errors"
 import {
   LeadAgentLogger,
   LeadCalendarProvider,
@@ -98,5 +99,58 @@ describe("LeadAgentService end-to-end flow", () => {
         follow_up_status: "pending_approval",
       })
     )
+  })
+
+  it("does not retry validation/programming errors for discovery input", async () => {
+    const discoveryProvider: LeadDiscoveryProvider = {
+      fetchColdLeads: jest.fn(async () => {
+        throw new LeadAgentInputError("location is required")
+      }),
+    }
+
+    const service = new LeadAgentService(
+      discoveryProvider,
+      { scoreLeadQuality: jest.fn() } as unknown as LeadScoringProvider,
+      { createQualifiedLead: jest.fn(), updateLeadStatus: jest.fn() } as unknown as LeadCrmProvider,
+      { createFollowUpEvent: jest.fn() } as unknown as LeadCalendarProvider,
+      { sendOutreach: jest.fn() } as unknown as OutreachProvider,
+      { log: jest.fn() }
+    )
+
+    await expect(
+      service.discoverScoreAndQueue({
+        query: "dentist",
+        location: "Austin, TX",
+      })
+    ).rejects.toThrow("location is required")
+
+    expect(discoveryProvider.fetchColdLeads).toHaveBeenCalledTimes(1)
+  })
+
+  it("retries transient discovery errors", async () => {
+    const discoveryProvider: LeadDiscoveryProvider = {
+      fetchColdLeads: jest
+        .fn()
+        .mockRejectedValueOnce(Object.assign(new Error("temporary upstream failure"), { statusCode: 503 }))
+        .mockResolvedValueOnce([]),
+    }
+
+    const service = new LeadAgentService(
+      discoveryProvider,
+      { scoreLeadQuality: jest.fn() } as unknown as LeadScoringProvider,
+      { createQualifiedLead: jest.fn(), updateLeadStatus: jest.fn() } as unknown as LeadCrmProvider,
+      { createFollowUpEvent: jest.fn() } as unknown as LeadCalendarProvider,
+      { sendOutreach: jest.fn() } as unknown as OutreachProvider,
+      { log: jest.fn() }
+    )
+
+    await expect(
+      service.discoverScoreAndQueue({
+        query: "dentist",
+        location: "Austin, TX",
+      })
+    ).resolves.toEqual([])
+
+    expect(discoveryProvider.fetchColdLeads).toHaveBeenCalledTimes(2)
   })
 })

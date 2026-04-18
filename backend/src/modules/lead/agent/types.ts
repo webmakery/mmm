@@ -43,7 +43,7 @@ export type QualifiedLeadResult = {
 
 export type DiscoveryInput = {
   query: string
-  location?: string
+  location: string
   max_results?: number
   min_score?: number
   follow_up_owner_email?: string

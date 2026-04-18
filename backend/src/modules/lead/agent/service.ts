@@ -1,5 +1,6 @@
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import LeadModuleService from "../service"
+import { isRetryableError, LeadAgentInputError } from "./errors"
 import {
   DiscoveryInput,
   LeadAgentLogger,
@@ -30,6 +31,14 @@ const withRetry = async <T>(action: () => Promise<T>, retries: number, label: st
         attempt,
         error: error instanceof Error ? error.message : String(error),
       })
+
+      if (!isRetryableError(error)) {
+        logger.log("error", "retry_bail_non_retryable", {
+          label,
+          attempt,
+        })
+        throw error
+      }
     }
   }
 
@@ -101,8 +110,21 @@ export class LeadAgentService {
   async discoverScoreAndQueue(input: DiscoveryInput): Promise<QualifiedLeadResult[]> {
     this.logger.log("info", "discovery_start", { input })
 
+    if (!input?.location?.trim()) {
+      throw new LeadAgentInputError("location is required for lead discovery")
+    }
+
+    const discoveryInput: DiscoveryInput = {
+      query: input.query,
+      location: input.location.trim(),
+      max_results: input.max_results,
+      min_score: input.min_score,
+      follow_up_owner_email: input.follow_up_owner_email,
+    }
+    this.logger.log("info", "service_discovery_payload", { discoveryInput })
+
     const discovered = await withRetry(
-      () => this.discoveryProvider.fetchColdLeads(input),
+      () => this.discoveryProvider.fetchColdLeads(discoveryInput),
       2,
       "fetchColdLeads",
       this.logger
@@ -116,7 +138,7 @@ export class LeadAgentService {
       after: normalized.length,
     })
 
-    const minScore = Math.max(1, Math.min(100, input.min_score || 65))
+    const minScore = Math.max(1, Math.min(100, discoveryInput.min_score || 65))
     const qualifiedResults: QualifiedLeadResult[] = []
 
     for (const candidate of normalized) {
@@ -172,7 +194,7 @@ export class LeadAgentService {
               lead_id: crmLead.id,
               company: candidate.company,
               when: followUpAt,
-              owner_email: input.follow_up_owner_email,
+              owner_email: discoveryInput.follow_up_owner_email,
               notes: scoreResult.notes,
             }),
           2,
