@@ -41,11 +41,33 @@ export type QualifiedLeadResult = {
   follow_up_event_id?: string
 }
 
+export type LeadDisqualification = {
+  company: string
+  score: number
+  reasons: string[]
+}
+
+export type DiscoverySummary = {
+  discovered: number
+  deduped: number
+  qualified: number
+  inserted_into_crm: number
+  skipped_duplicates: number
+  disqualified: number
+}
+
+export type DiscoverScoreAndQueueResult = {
+  qualified: QualifiedLeadResult[]
+  disqualified: LeadDisqualification[]
+  summary: DiscoverySummary
+}
+
 export type DiscoveryInput = {
   query: string
   location: string
   max_results?: number
   min_score?: number
+  max_crm_imports?: number
   follow_up_owner_email?: string
 }
 

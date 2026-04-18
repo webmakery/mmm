@@ -8,6 +8,7 @@ export const PostAdminLeadAgentDiscoverSchema = z.object({
   location: z.string().trim().min(1, "location is required"),
   max_results: z.coerce.number().min(1).max(50).default(20),
   min_score: z.coerce.number().min(1).max(100).default(65),
+  max_crm_imports: z.coerce.number().min(1).max(100).default(20),
   follow_up_owner_email: z.string().email().optional(),
 })
 
@@ -27,10 +28,12 @@ export async function POST(
 
   const agentService = buildLeadAgentService(req.scope)
 
-  const qualified = await agentService.discoverScoreAndQueue(payload)
+  const result = await agentService.discoverScoreAndQueue(payload)
 
   res.json({
-    qualified,
-    count: qualified.length,
+    qualified: result.qualified,
+    disqualified: result.disqualified,
+    summary: result.summary,
+    count: result.summary.inserted_into_crm,
   })
 }
