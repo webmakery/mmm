@@ -1,5 +1,6 @@
-import { Container, Heading, StatusBadge, Text } from "@medusajs/ui"
+import { Button, Container, Heading, StatusBadge, Text } from "@medusajs/ui"
 import { Link } from "react-router-dom"
+import { AdminHelpDrawer, openAdminHelpDrawer } from "../../components/admin-help-drawer"
 import { useDashboardData } from "./hooks"
 
 const asCurrency = (amount: number, currencyCode?: string | null) => {
@@ -164,6 +165,10 @@ const DashboardPageContent = () => {
         <Text size="small" className="text-ui-fg-subtle">
           We could not load live admin metrics right now.
         </Text>
+        <Button size="small" variant="secondary" className="mt-3" onClick={openAdminHelpDrawer}>
+          Guide me
+        </Button>
+        <AdminHelpDrawer />
       </Container>
     )
   }
@@ -223,6 +228,7 @@ const DashboardPageContent = () => {
 
   return (
     <div className="flex flex-col gap-y-4">
+      <AdminHelpDrawer />
       <Container className="divide-y p-0">
         <div className="px-6 py-4">
           <Heading>Executive dashboard</Heading>
