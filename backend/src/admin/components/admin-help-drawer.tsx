@@ -1,6 +1,7 @@
 import { ChatBubbleLeftRight, Lifebuoy, Sparkles } from "@medusajs/icons"
 import { Badge, Button, Drawer, Heading, Input, Text, toast } from "@medusajs/ui"
 import { useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
 import { useLocation } from "react-router-dom"
 import { findHelpContextByPath } from "../lib/admin-help-context"
 import { sdk } from "../lib/sdk"
@@ -162,6 +163,7 @@ export const AdminHelpDrawer = () => {
   const [answer, setAnswer] = useState("")
   const [answerSource, setAnswerSource] = useState<"ai" | "fallback" | "AI" | "Fallback" | null>(null)
   const [isAnswering, setIsAnswering] = useState(false)
+  const [topbarTarget, setTopbarTarget] = useState<HTMLElement | null>(null)
 
   const context = useMemo(() => findHelpContextByPath(pathname), [pathname])
   const answerBlocks = useMemo(() => parseAnswerToBlocks(answer), [answer])
@@ -204,6 +206,32 @@ export const AdminHelpDrawer = () => {
     return () => window.removeEventListener(OPEN_DRAWER_EVENT, onOpenRequest)
   }, [])
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const resolveTarget = () => {
+      const notificationButton =
+        document.querySelector<HTMLElement>('button[aria-label*="Notification"]') ??
+        document.querySelector<HTMLElement>('button[aria-label*="notification"]')
+
+      if (!notificationButton?.parentElement) {
+        setTopbarTarget(null)
+        return
+      }
+
+      setTopbarTarget(notificationButton.parentElement)
+    }
+
+    resolveTarget()
+
+    const observer = new MutationObserver(resolveTarget)
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    return () => observer.disconnect()
+  }, [])
+
   if (!mounted) {
     return null
   }
@@ -241,17 +269,27 @@ export const AdminHelpDrawer = () => {
     }
   }
 
+  const trigger = (
+    <Drawer.Trigger asChild>
+      <Button size="small" variant="secondary" className="relative overflow-hidden pr-3">
+        <span className="absolute inset-0 rounded-md p-px">
+          <span className="absolute inset-0 rounded-md bg-[conic-gradient(from_0deg,transparent_0deg,#8ec5ff_96deg,transparent_180deg,#95f3ff_250deg,transparent_360deg)] opacity-70 animate-[spin_7s_linear_infinite]" />
+          <span className="absolute inset-[1px] rounded-[7px] bg-ui-bg-component" />
+        </span>
+        <span className="relative flex items-center gap-1.5">
+          <Lifebuoy />
+          Ask Webmakerr
+        </span>
+      </Button>
+    </Drawer.Trigger>
+  )
+
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <Drawer.Trigger asChild>
-        <Button size="small" variant="secondary">
-          <Lifebuoy />
-          Help / Ask Webmakerr
-        </Button>
-      </Drawer.Trigger>
+      {topbarTarget ? createPortal(trigger, topbarTarget) : trigger}
       <Drawer.Content className="flex h-full flex-col">
         <Drawer.Header>
-          <Drawer.Title>Help / Ask Webmakerr</Drawer.Title>
+          <Drawer.Title>Ask Webmakerr</Drawer.Title>
           <Drawer.Description>
             {context.title} guidance for {pathname}
           </Drawer.Description>
