@@ -28,6 +28,7 @@ import {
 } from "./admin/inbox/conversations/[id]/messages/route"
 import { PostAdminCustomDomainsSchema } from "./admin/custom-domains/route"
 import { PostAdminStoreBrandingSchema } from "./admin/store-branding/route"
+import { PostAdminHelpAskSchema } from "./admin/help/ask/route"
 import { PostAdminCreateLeadSchema, GetAdminLeadsSchema } from "./admin/leads/route"
 import { PostAdminUpdateLeadSchema } from "./admin/leads/[id]/route"
 import { PostAdminLeadActivitySchema } from "./admin/leads/[id]/activities/route"
@@ -204,6 +205,11 @@ export default defineMiddlewares({
       matcher: "/admin/store-branding",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostAdminStoreBrandingSchema)],
+    },
+    {
+      matcher: "/admin/help/ask",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAdminHelpAskSchema)],
     },
     {
       matcher: "/admin/inbox/conversations",
