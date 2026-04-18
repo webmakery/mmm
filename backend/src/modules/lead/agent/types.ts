@@ -31,6 +31,7 @@ export type LeadScoreResult = {
   pain_points: string[]
   qualified: boolean
   outreach_message_draft: string
+  qualification_reasons?: string[]
 }
 
 export type QualifiedLeadResult = {
@@ -54,6 +55,7 @@ export type DiscoverySummary = {
   inserted_into_crm: number
   skipped_duplicates: number
   disqualified: number
+  failed: number
 }
 
 export type DiscoverScoreAndQueueResult = {
@@ -69,6 +71,7 @@ export type DiscoveryInput = {
   min_score?: number
   max_crm_imports?: number
   follow_up_owner_email?: string
+  enforce_ai_qualified?: boolean
 }
 
 export interface LeadDiscoveryProvider {

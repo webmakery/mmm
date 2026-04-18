@@ -56,6 +56,64 @@ export class OpenAiLeadScoringProvider implements LeadScoringProvider {
     }
   }
 
+  private buildDeterministicAssessment(lead: NormalizedBusinessLead): {
+    score: number
+    qualified: boolean
+    reasons: string[]
+    notes: string
+  } {
+    const rating = Number(lead.metadata?.rating || 0)
+    const reviewCount = Number(lead.metadata?.review_count || 0)
+    const hasWebsite = Boolean(lead.website)
+    const hasHttpsWebsite = Boolean(lead.website?.startsWith("https://"))
+    const hasPhone = Boolean(lead.phone)
+
+    let score = 40
+    const reasons: string[] = ["base_score:40"]
+
+    if (hasWebsite) {
+      score += 20
+      reasons.push("has_website:+20")
+    } else {
+      score -= 20
+      reasons.push("missing_website:-20")
+    }
+
+    if (hasHttpsWebsite) {
+      score += 10
+      reasons.push("has_https:+10")
+    }
+
+    if (hasPhone) {
+      score += 10
+      reasons.push("has_phone:+10")
+    } else {
+      reasons.push("missing_phone:+0")
+    }
+
+    if (rating >= 4.2) {
+      score += 10
+      reasons.push("high_rating:+10")
+    } else if (rating > 0 && rating < 3.8) {
+      score -= 10
+      reasons.push("low_rating:-10")
+    }
+
+    if (reviewCount >= 30) {
+      score += 5
+      reasons.push("review_count_30_plus:+5")
+    }
+
+    const normalizedScore = Math.max(10, Math.min(95, Math.round(score)))
+
+    return {
+      score: normalizedScore,
+      qualified: normalizedScore >= 60,
+      reasons,
+      notes: `Deterministic fallback scoring (0-100 scale). ${reasons.join(", ")}.`,
+    }
+  }
+
   private async runWithTools(lead: NormalizedBusinessLead): Promise<LeadScoreResult | null> {
     let response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -158,14 +216,15 @@ export class OpenAiLeadScoringProvider implements LeadScoringProvider {
 
   async scoreLeadQuality(lead: NormalizedBusinessLead): Promise<LeadScoreResult> {
     const fallbackPainPoints = this.detectPainPoints(lead).pain_points
-    const fallbackScore = Math.max(30, Math.min(95, Math.round((lead.website ? 30 : 10) + (lead.phone ? 20 : 0) + 40)))
+    const deterministic = this.buildDeterministicAssessment(lead)
 
     if (!this.apiKey) {
       return {
-        score: fallbackScore,
-        notes: "Scored with deterministic fallback due to missing OpenAI API key.",
+        score: deterministic.score,
+        notes: `${deterministic.notes} OpenAI key missing.`,
         pain_points: fallbackPainPoints,
-        qualified: fallbackScore >= 60,
+        qualified: deterministic.qualified,
+        qualification_reasons: deterministic.reasons,
         outreach_message_draft: `Hi ${lead.company}, we noticed opportunities to improve your online lead conversion. Open to a short call this week?`,
       }
     }
@@ -174,19 +233,25 @@ export class OpenAiLeadScoringProvider implements LeadScoringProvider {
 
     if (!aiResult) {
       return {
-        score: fallbackScore,
-        notes: "Scored with fallback after AI tool-calling error.",
+        score: deterministic.score,
+        notes: `${deterministic.notes} OpenAI scoring fallback triggered after tool-calling error.`,
         pain_points: fallbackPainPoints,
-        qualified: fallbackScore >= 60,
+        qualified: deterministic.qualified,
+        qualification_reasons: deterministic.reasons,
         outreach_message_draft: `Hi ${lead.company}, we noticed opportunities to improve your online lead conversion. Open to a short call this week?`,
       }
     }
 
+    const normalizedScore = Number.isFinite(aiResult.score)
+      ? Math.max(0, Math.min(100, Math.round(aiResult.score)))
+      : deterministic.score
+
     return {
-      score: Math.max(0, Math.min(100, Math.round(aiResult.score))),
-      notes: aiResult.notes,
+      score: normalizedScore,
+      notes: `${aiResult.notes || "AI scoring completed."} Score scale: 0-100.`,
       pain_points: aiResult.pain_points || fallbackPainPoints,
-      qualified: Boolean(aiResult.qualified),
+      qualified: typeof aiResult.qualified === "boolean" ? aiResult.qualified : normalizedScore >= 60,
+      qualification_reasons: aiResult.qualification_reasons || deterministic.reasons,
       outreach_message_draft: aiResult.outreach_message_draft,
     }
   }
