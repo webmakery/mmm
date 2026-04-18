@@ -2,7 +2,7 @@ import { ChatBubbleLeftRight, Lifebuoy, Sparkles } from "@medusajs/icons"
 import { Button, Drawer, Heading, Input, Tabs, Text } from "@medusajs/ui"
 import { useEffect, useMemo, useState } from "react"
 import { useLocation } from "react-router-dom"
-import { findHelpTopicByPath } from "../lib/admin-help-drawer-content"
+import { findHelpTopicByPath, productHelpArticle } from "../lib/admin-help-drawer-content"
 
 declare global {
   interface Window {
@@ -71,12 +71,12 @@ export const AdminHelpDrawer = () => {
       <Drawer.Trigger asChild>
         <Button size="small" variant="secondary">
           <Lifebuoy />
-          Help / Ask Webhost
+          Help / Ask Webmakerr
         </Button>
       </Drawer.Trigger>
       <Drawer.Content>
         <Drawer.Header>
-          <Drawer.Title>Help / Ask Webhost</Drawer.Title>
+          <Drawer.Title>Help / Ask Webmakerr</Drawer.Title>
           <Drawer.Description>
             {topic ? `${topic.title} guidance for ${pathname}` : `Guidance for ${pathname}`}
           </Drawer.Description>
@@ -88,10 +88,66 @@ export const AdminHelpDrawer = () => {
               <Tabs.Trigger value="ask">Ask</Tabs.Trigger>
             </Tabs.List>
 
-            <Tabs.Content value="help" className="mt-4 space-y-3">
+            <Tabs.Content value="help" className="mt-4 space-y-4">
+              <div className="space-y-2">
+                <Heading level="h3">Product guide</Heading>
+                <Text size="small">{productHelpArticle.intro}</Text>
+              </div>
+
+              <div className="space-y-2">
+                <Heading level="h3">What a product is</Heading>
+                <Text size="small">{productHelpArticle.whatIsProduct}</Text>
+              </div>
+
+              <div className="space-y-2">
+                <Heading level="h3">Why products matter</Heading>
+                <ul className="list-disc space-y-2 pl-4">
+                  {productHelpArticle.whyProductsMatter.map((item) => (
+                    <li key={item}>
+                      <Text size="small">{item}</Text>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="space-y-2">
+                <Heading level="h3">Step-by-step: add a product</Heading>
+                <ol className="list-decimal space-y-2 pl-4">
+                  {productHelpArticle.addProductSteps.map((step) => (
+                    <li key={step}>
+                      <Text size="small">{step}</Text>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="space-y-2">
+                <Heading level="h3">Practical setup tips</Heading>
+                <ul className="list-disc space-y-2 pl-4">
+                  {productHelpArticle.practicalTips.map((tip) => (
+                    <li key={tip.label}>
+                      <Text size="small">
+                        <span className="font-medium">{tip.label}:</span> {tip.guidance}
+                      </Text>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="space-y-2">
+                <Heading level="h3">Troubleshooting</Heading>
+                <ul className="list-disc space-y-2 pl-4">
+                  {productHelpArticle.troubleshooting.map((item) => (
+                    <li key={item}>
+                      <Text size="small">{item}</Text>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
               {topic ? (
-                <>
-                  <Heading level="h3">{topic.title} onboarding</Heading>
+                <div className="space-y-2">
+                  <Heading level="h3">Context tips for this page</Heading>
                   <ul className="list-disc space-y-2 pl-4">
                     {topic.helpItems.map((item) => (
                       <li key={item}>
@@ -99,22 +155,13 @@ export const AdminHelpDrawer = () => {
                       </li>
                     ))}
                   </ul>
-                  <Button size="small" variant="secondary" onClick={() => setOpen(true)}>
-                    <Sparkles />
-                    Guide me
-                  </Button>
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    No page-specific help is configured yet for this screen.
-                  </Text>
-                  <Button size="small" variant="secondary" onClick={() => setOpen(true)}>
-                    <Sparkles />
-                    Guide me
-                  </Button>
                 </div>
-              )}
+              ) : null}
+
+              <Button size="small" variant="secondary" onClick={() => setOpen(true)}>
+                <Sparkles />
+                Guide me
+              </Button>
             </Tabs.Content>
 
             <Tabs.Content value="ask" className="mt-4 space-y-3">
