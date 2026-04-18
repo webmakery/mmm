@@ -1,80 +1,88 @@
 export type DashboardResponse = {
   generated_at: string
-  currency_code?: string | null
   timezone: string
-  revenue: {
-    today: number
-    this_week: number
-    this_month: number
-  }
-  leads: {
-    total: number
-    new_today: number
-    recent: Array<{
-      id: string
-      created_at: string
-      first_name?: string | null
-      last_name?: string | null
-      email?: string | null
-      company?: string | null
-      status?: string | null
-      owner_user_id?: string | null
-      next_follow_up_at?: string | null
-    }>
-  }
-  bookings: {
-    total: number
-    today: number
-    pending: number
-    upcoming: Array<{
-      id: string
-      reference?: string | null
-      customer_full_name: string
-      customer_email?: string | null
-      status?: string | null
-      scheduled_start_at: string
-      service_name?: string | null
-    }>
-  }
-  orders: {
-    total: number
-    today: number
-    this_week: number
-    this_month: number
-    recent: Array<{
-      id: string
-      display_id?: number | null
-      created_at: string
-      total: number
-      currency_code?: string | null
-      payment_status?: string | null
-      fulfillment_status?: string | null
-      status?: string | null
-      email?: string | null
-    }>
-  }
+  currency_code?: string | null
   customers: {
     total: number
-    today: number
-    this_week: number
-    this_month: number
   }
-  carts: {
-    open_count: number
+  executive_kpis: {
+    revenue_this_month: {
+      value: number
+      previous: number
+      change_percent: number
+    }
+    bookings_this_month: {
+      value: number
+      previous: number
+      change_percent: number
+    }
+    lead_to_booking_conversion: {
+      value: number
+      previous: number
+      change_percent: number
+    }
+    average_order_value: {
+      value: number
+      previous: number
+      change_percent: number
+    }
+    unpaid_amount: {
+      value: number
+      previous: number
+      change_percent: number
+      unpaid_orders: number
+    }
+    urgent_action_items: {
+      value: number
+      previous: number
+      change_percent: number
+    }
   }
-  statuses: {
-    refunded_orders: number
-    pending_fulfillment: number
-    unpaid_orders: number
-  }
-  charts: {
-    leads_last_7_days: Array<{ date: string; label: string; value: number }>
-    bookings_last_7_days: Array<{ date: string; label: string; value: number }>
-    revenue_last_30_days: Array<{ date: string; label: string; value: number }>
-  }
-  operational_alerts: Array<{
+  snapshot_insights: Array<{
     id: string
     title: string
-    value: number
+    detail: string
   }>
+  performance: {
+    revenue_trend_30_days: Array<{ date: string; label: string; value: number }>
+    leads_vs_bookings_30_days: Array<{ date: string; label: string; leads: number; bookings: number }>
+    funnel_conversion_by_stage: Array<{
+      stage: string
+      count: number
+      share: number
+      conversion_from_leads: number
+    }>
+    top_products_by_revenue: Array<{
+      label: string
+      revenue: number
+      bookings: number
+    }>
+    top_services_by_bookings: Array<{
+      label: string
+      revenue: number
+      bookings: number
+    }>
+  }
+  attention_required: {
+    unassigned_leads: {
+      value: number
+      preview: Array<{ id: string; label: string; context: string }>
+    }
+    overdue_follow_ups: {
+      value: number
+      preview: Array<{ id: string; label: string; context: string }>
+    }
+    unpaid_orders: {
+      value: number
+      preview: Array<{ id: string; label: string; context: string }>
+    }
+    low_stock: {
+      value: number
+      preview: Array<{ id: string; label: string; context: string }>
+    }
+    upcoming_confirmations: {
+      value: number
+      preview: Array<{ id: string; label: string; context: string }>
+    }
+  }
 }
