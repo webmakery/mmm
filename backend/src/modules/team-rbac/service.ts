@@ -27,6 +27,33 @@ const normalizeRoleKeys = (roles: unknown): string[] =>
     .map((role) => role.trim())
     .filter(Boolean))]
 
+const extractInviteRoleRefs = (invite: InviteDTO): string[] => {
+  const metadata = (invite.metadata || {}) as Record<string, unknown>
+  const rawRefs = [
+    ...(Array.isArray(invite.roles) ? invite.roles : []),
+    ...(Array.isArray(metadata.role_ids) ? metadata.role_ids : []),
+    ...(Array.isArray(metadata.roles) ? metadata.roles : []),
+  ]
+
+  return [...new Set(rawRefs
+    .map((ref) => {
+      if (typeof ref === "string") {
+        return ref.trim()
+      }
+
+      if (ref && typeof ref === "object" && "id" in ref && typeof (ref as any).id === "string") {
+        return (ref as any).id.trim()
+      }
+
+      if (ref && typeof ref === "object" && "key" in ref && typeof (ref as any).key === "string") {
+        return (ref as any).key.trim()
+      }
+
+      return ""
+    })
+    .filter(Boolean))]
+}
+
 class TeamRbacModuleService extends MedusaService({
   Role,
   UserRole,
@@ -297,9 +324,10 @@ class TeamRbacModuleService extends MedusaService({
   async listPendingInvites() {
     const userService = this.requireUserService()
     const [allInvites] = await userService.listAndCountInvites({} as any, { take: 200 })
-    const invites = allInvites.filter((invite) => !invite.accepted)
+    const invites = allInvites.filter((invite) => !invite.accepted && !invite.deleted_at)
 
-    const invitedRoleRefs = [...new Set(invites.flatMap((invite) => invite.roles || []))]
+    const inviteRoleRefsByInviteId = new Map(invites.map((invite) => [invite.id, extractInviteRoleRefs(invite)]))
+    const invitedRoleRefs = [...new Set(Array.from(inviteRoleRefsByInviteId.values()).flat())]
     const [rolesById, rolesByKey] = await Promise.all([
       invitedRoleRefs.length
         ? this.listRoles({ id: invitedRoleRefs as any }, { take: 200 })
@@ -313,7 +341,7 @@ class TeamRbacModuleService extends MedusaService({
 
     return invites.map((invite: InviteDTO) => ({
       ...invite,
-      assigned_roles: (invite.roles || [])
+      assigned_roles: (inviteRoleRefsByInviteId.get(invite.id) || [])
         .map((roleRef) => roleById.get(roleRef) || roleByKey.get(roleRef))
         .filter(Boolean),
     }))
