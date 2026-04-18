@@ -1,8 +1,8 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Trash } from "@medusajs/icons"
-import { Badge, Button, Container, Heading, Input, Table, Text, Textarea, toast } from "@medusajs/ui"
+import { Badge, Button, Container, Heading, Input, Select, Table, Text, Textarea, toast } from "@medusajs/ui"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { sdk } from "../../../lib/sdk"
 
 type Role = {
@@ -14,9 +14,12 @@ type Role = {
   is_system: boolean
 }
 
+const DEFAULT_PERMISSION_OPTIONS = ["*", "team.read", "team.manage", "roles.read", "roles.manage", "permissions.read"]
+
 const RolesPage = () => {
   const queryClient = useQueryClient()
-  const [form, setForm] = useState({ key: "", name: "", description: "", permissions: "" })
+  const [form, setForm] = useState({ key: "", name: "", description: "", permissions: [] as string[] })
+  const [selectedPermission, setSelectedPermission] = useState("")
 
   const { data } = useQuery<{ roles: Role[] }>({
     queryKey: ["rbac-roles"],
@@ -31,12 +34,12 @@ const RolesPage = () => {
           key: form.key.trim(),
           name: form.name.trim(),
           description: form.description.trim() || undefined,
-          permissions: form.permissions.split(",").map((p) => p.trim()).filter(Boolean),
+          permissions: form.permissions,
         },
       }),
     onSuccess: () => {
       toast.success("Role created")
-      setForm({ key: "", name: "", description: "", permissions: "" })
+      setForm({ key: "", name: "", description: "", permissions: [] })
       queryClient.invalidateQueries({ queryKey: ["rbac-roles"] })
     },
     onError: (error: any) => toast.error(error?.message || "Failed to create role"),
@@ -50,6 +53,24 @@ const RolesPage = () => {
     },
     onError: (error: any) => toast.error(error?.message || "Failed to delete role"),
   })
+
+  const permissionOptions = useMemo(() => {
+    const existingPermissions = (data?.roles || []).flatMap((role) => role.permissions || [])
+    return [...new Set([...DEFAULT_PERMISSION_OPTIONS, ...existingPermissions].filter(Boolean))].sort()
+  }, [data?.roles])
+
+  const addPermission = () => {
+    if (!selectedPermission || form.permissions.includes(selectedPermission)) {
+      return
+    }
+
+    setForm((prev) => ({ ...prev, permissions: [...prev.permissions, selectedPermission] }))
+    setSelectedPermission("")
+  }
+
+  const removePermission = (permission: string) => {
+    setForm((prev) => ({ ...prev, permissions: prev.permissions.filter((value) => value !== permission) }))
+  }
 
   return (
     <Container className="divide-y p-0">
@@ -66,11 +87,35 @@ const RolesPage = () => {
           value={form.description}
           onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
         />
-        <Input
-          placeholder="permissions.read, team.read"
-          value={form.permissions}
-          onChange={(e) => setForm((prev) => ({ ...prev, permissions: e.target.value }))}
-        />
+        <div className="flex gap-2">
+          <Select value={selectedPermission} onValueChange={setSelectedPermission}>
+            <Select.Trigger>
+              <Select.Value placeholder="Select permission" />
+            </Select.Trigger>
+            <Select.Content>
+              {permissionOptions.map((permission) => (
+                <Select.Item key={permission} value={permission}>
+                  {permission}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select>
+          <Button type="button" variant="secondary" disabled={!selectedPermission} onClick={addPermission}>
+            Add permission
+          </Button>
+        </div>
+        {!!form.permissions.length && (
+          <div className="flex flex-wrap gap-1">
+            {form.permissions.map((permission) => (
+              <Badge key={permission} size="2xsmall" color="grey" className="flex items-center gap-1">
+                {permission}
+                <button type="button" onClick={() => removePermission(permission)}>
+                  <Trash />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
         <Button disabled={!form.key.trim() || !form.name.trim()} onClick={() => createMutation.mutate()}>Create role</Button>
       </div>
 
