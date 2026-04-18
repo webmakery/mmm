@@ -297,8 +297,18 @@ class CustomerJourneyModuleService extends MedusaService({
         count(*)::int as total_events,
         count(distinct e.session_id)::int as total_sessions
       from journey_event e
-      where e.customer_id = ? and e.deleted_at is null`,
-      [customerId]
+      where e.deleted_at is null
+        and (
+          e.customer_id = ?
+          or exists (
+            select 1
+            from journey_identity_link l
+            where l.visitor_id = e.visitor_id
+              and l.customer_id = ?
+              and l.deleted_at is null
+          )
+        )`,
+      [customerId, customerId]
     )
 
     const summary = summaryRows?.[0]

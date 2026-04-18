@@ -9,7 +9,23 @@ type OrderPlacedEvent = {
 }
 
 export default async function customerJourneyOrderPlaced({ event, container }: SubscriberArgs<OrderPlacedEvent>) {
-  const customerId = event.data.customer_id
+  let customerId = event.data.customer_id ?? null
+
+  if (!customerId && event.data.id) {
+    const query = container.resolve("query")
+    const {
+      data: [order],
+    } = await query.graph({
+      entity: "order",
+      fields: ["id", "customer_id", "email"],
+      filters: {
+        id: event.data.id,
+      },
+    })
+
+    customerId = order?.customer_id ?? null
+    event.data.email = event.data.email ?? order?.email ?? null
+  }
 
   if (!customerId) {
     return
