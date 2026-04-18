@@ -137,6 +137,18 @@ class TeamRbacModuleService extends MedusaService({
     if (!userService) {
       const mappings = await this.listUserRoles({ user_id: actorId }, { relations: ["role"] })
 
+      if (!mappings.length) {
+        const superAdminCount = await this.countSuperAdmins()
+        const baselineRoleKey = superAdminCount === 0 ? SUPER_ADMIN_KEY : ADMIN_ROLE_KEY
+        const baselineRole = await this.getRoleByKey(baselineRoleKey)
+
+        if (baselineRole) {
+          await this.createUserRoles({ user_id: actorId, role_id: baselineRole.id } as any)
+
+          return [baselineRole]
+        }
+      }
+
       return mappings
         .map((mapping: any) => mapping.role)
         .filter(Boolean) as RoleRecord[]

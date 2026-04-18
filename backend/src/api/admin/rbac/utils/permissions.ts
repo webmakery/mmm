@@ -14,7 +14,13 @@ export const requirePermission = async (
   req: MedusaRequest,
   requiredPermission: string
 ): Promise<PermissionCheckResult> => {
-  const actorId = (req as any).auth_context?.actor_id
+  const authContext = (req as any).auth_context
+  const actorType = authContext?.actor_type
+  const actorIdFromMetadata = authContext?.app_metadata?.user_id
+  const actorId =
+    actorType === "user" && typeof actorIdFromMetadata === "string" && actorIdFromMetadata
+      ? actorIdFromMetadata
+      : authContext?.actor_id
 
   if (!actorId) {
     throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Authentication is required")
