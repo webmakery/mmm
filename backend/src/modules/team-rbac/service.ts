@@ -25,7 +25,7 @@ class TeamRbacModuleService extends MedusaService({
   UserRole,
 }) {
   private getUserService(): IUserModuleService {
-    return this.__container__[Modules.USER]
+    return this.__container__.resolve(Modules.USER)
   }
 
   async ensureDefaultRoles() {
