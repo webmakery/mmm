@@ -3,6 +3,14 @@ import LeadStage from "./lead-stage"
 import LeadActivity from "./lead-activity"
 
 export const LeadStatuses = ["new", "contacted", "qualified", "won", "lost"] as const
+export const LeadFollowUpStatuses = [
+  "not_scheduled",
+  "scheduled",
+  "pending_approval",
+  "approved",
+  "sent",
+  "failed",
+] as const
 
 const Lead = model.define("lead", {
   id: model.id().primaryKey(),
@@ -12,11 +20,24 @@ const Lead = model.define("lead", {
   phone: model.text().nullable(),
   company: model.text().index("IDX_LEAD_COMPANY").nullable(),
   source: model.text().index("IDX_LEAD_SOURCE").nullable(),
+  source_detail: model.text().nullable(),
+  category: model.text().nullable(),
   status: model.enum(LeadStatuses).default("new").index("IDX_LEAD_STATUS"),
+  lead_score: model.number().nullable().index("IDX_LEAD_SCORE"),
+  lead_score_notes: model.text().nullable(),
+  pain_points: model.json().nullable(),
   owner_user_id: model.text().index("IDX_LEAD_OWNER").nullable(),
   value_estimate: model.bigNumber().nullable(),
   notes_summary: model.text().nullable(),
   next_follow_up_at: model.dateTime().index("IDX_LEAD_NEXT_FOLLOW_UP").nullable(),
+  follow_up_status: model
+    .enum(LeadFollowUpStatuses)
+    .default("not_scheduled")
+    .index("IDX_LEAD_FOLLOW_UP_STATUS"),
+  follow_up_event_id: model.text().nullable(),
+  outreach_message_draft: model.text().nullable(),
+  outreach_approved_at: model.dateTime().nullable(),
+  outreach_sent_at: model.dateTime().nullable(),
   customer_id: model.text().index("IDX_LEAD_CUSTOMER_ID").nullable(),
   metadata: model.json().nullable(),
   stage: model.belongsTo(() => LeadStage, {

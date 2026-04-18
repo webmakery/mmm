@@ -326,6 +326,9 @@ const LeadsPage = () => {
         <Button size="small" variant="transparent" asChild>
           <Link to="/leads/pipeline">Pipeline board</Link>
         </Button>
+        <Button size="small" variant="transparent" asChild>
+          <Link to="/leads/agent">Lead agent review</Link>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-3">
