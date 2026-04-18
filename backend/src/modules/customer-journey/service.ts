@@ -199,6 +199,18 @@ class CustomerJourneyModuleService extends MedusaService({
     const eventId = input.event_id || `${input.event_name}:${input.anonymous_id}:${occurredAt.toISOString()}`
     const idempotencyKey =
       input.idempotency_key || `${input.event_name}:${input.anonymous_id}:${input.session_id || "no-session"}:${eventId}`
+    const linkedCustomerRows =
+      !input.customer_id && visitor?.id
+        ? await manager?.execute(
+            `select customer_id
+             from journey_identity_link
+             where visitor_id = ? and deleted_at is null
+             order by linked_at desc, created_at desc
+             limit 1`,
+            [visitor.id]
+          )
+        : []
+    const resolvedCustomerId = input.customer_id ?? linkedCustomerRows?.[0]?.customer_id ?? null
 
     const rows = await manager?.execute(
       `insert into journey_event (
@@ -217,7 +229,7 @@ class CustomerJourneyModuleService extends MedusaService({
         occurredAt,
         visitor.id,
         session?.id ?? null,
-        input.customer_id ?? null,
+        resolvedCustomerId,
         input.event_source ?? null,
         input.page_url ?? null,
         input.referrer ?? null,
@@ -424,8 +436,9 @@ class CustomerJourneyModuleService extends MedusaService({
   ) {
     const insertedEvent = await this.appendEvent(input, sharedContext)
 
-    if (input.customer_id) {
-      await this.recomputeCustomerRollup(input.customer_id, sharedContext)
+    const rollupCustomerId = input.customer_id ?? insertedEvent?.customer_id ?? null
+    if (rollupCustomerId) {
+      await this.recomputeCustomerRollup(rollupCustomerId, sharedContext)
     }
 
     return {
