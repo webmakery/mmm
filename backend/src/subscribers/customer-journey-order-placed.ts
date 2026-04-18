@@ -4,14 +4,25 @@ import CustomerJourneyModuleService from "../modules/customer-journey/service"
 
 type OrderPlacedEvent = {
   id: string
-  customer_id?: string | null
-  email?: string | null
 }
 
 export default async function customerJourneyOrderPlaced({ event, container }: SubscriberArgs<OrderPlacedEvent>) {
-  const customerId = event.data.customer_id
+  const logger = container.resolve("logger")
+  const query = container.resolve("query")
+  const {
+    data: [order],
+  } = await query.graph({
+    entity: "order",
+    fields: ["id", "customer_id", "email"],
+    filters: {
+      id: event.data.id,
+    },
+  })
+
+  const customerId = order?.customer_id
 
   if (!customerId) {
+    logger.info(`[customer-journey] order.placed skipped: no customer_id for order ${event.data.id}`)
     return
   }
 
@@ -26,10 +37,12 @@ export default async function customerJourneyOrderPlaced({ event, container }: S
     event_source: "subscriber:order.placed",
     payload: {
       order_id: event.data.id,
-      email: event.data.email,
+      email: order?.email,
       source_of_truth: true,
     },
   })
+
+  logger.info(`[customer-journey] order.placed ingested for order ${event.data.id}`)
 }
 
 export const config: SubscriberConfig = {
