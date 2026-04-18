@@ -55,14 +55,20 @@ const normalizeLead = (lead: RawBusinessLead): NormalizedBusinessLead => {
     dedupe_key: dedupeKey,
     first_name: normalizedCompany,
     company: normalizedCompany,
+    email: undefined,
     phone: normalizedPhone,
     website: lead.website || undefined,
     category: lead.category || undefined,
     source: "google_places",
-    source_detail: lead.external_id,
-    notes_summary: `Discovered via Google Places. Address: ${lead.address || "N/A"}. Rating: ${lead.rating || "N/A"}.`,
+    source_detail: lead.place_id || lead.external_id,
+    notes_summary: `Discovered via Google Places. Address: ${lead.address || "N/A"}. Rating: ${lead.rating || "N/A"}. Maps: ${lead.google_maps_uri || "N/A"}.`,
     metadata: {
+      place_id: lead.place_id || lead.external_id,
       address: lead.address,
+      google_maps_uri: lead.google_maps_uri,
+      primary_type: lead.primary_type,
+      place_types: lead.types || [],
+      website: lead.website || null,
       rating: lead.rating,
       review_count: lead.review_count,
       raw_source: lead.source,
@@ -222,6 +228,7 @@ export class LeadAgentService {
             this.crmProvider.createQualifiedLead({
               first_name: candidate.first_name,
               company: candidate.company,
+              email: candidate.email,
               phone: candidate.phone,
               source: candidate.source,
               source_detail: candidate.source_detail,
@@ -243,6 +250,16 @@ export class LeadAgentService {
 
         const followUpAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
         const followUpTask = `Follow up with ${candidate.company} regarding qualification notes: ${scoreResult.notes}`
+        const detailFieldCoverage = candidate.metadata?.source_place_details as
+          | { returned_fields?: string[]; missing_fields?: string[] }
+          | undefined
+
+        this.logger.log("info", "lead_place_details_coverage", {
+          company: candidate.company,
+          place_id: candidate.source_detail,
+          returned_fields: detailFieldCoverage?.returned_fields || [],
+          missing_fields: detailFieldCoverage?.missing_fields || [],
+        })
 
         await this.crmProvider.updateLeadStatus(crmLead.id, {
           follow_up_status: "pending_approval",

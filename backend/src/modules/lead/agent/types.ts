@@ -1,9 +1,13 @@
 export type RawBusinessLead = {
   external_id: string
   name: string
+  place_id?: string | null
   website?: string | null
   phone?: string | null
   address?: string | null
+  google_maps_uri?: string | null
+  primary_type?: string | null
+  types?: string[]
   category?: string | null
   rating?: number | null
   review_count?: number | null
@@ -88,6 +92,7 @@ export interface LeadCrmProvider {
   createQualifiedLead(input: {
     first_name: string
     company: string
+    email?: string
     phone?: string
     source: string
     source_detail: string
