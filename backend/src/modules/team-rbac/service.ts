@@ -21,6 +21,11 @@ const normalizeRole = (role: any): RoleRecord => ({
 })
 
 const ADMIN_ROLE_KEY = "admin"
+const normalizeRoleKeys = (roles: unknown): string[] =>
+  [...new Set((Array.isArray(roles) ? roles : [])
+    .filter((role): role is string => typeof role === "string")
+    .map((role) => role.trim())
+    .filter(Boolean))]
 
 class TeamRbacModuleService extends MedusaService({
   Role,
@@ -144,7 +149,14 @@ class TeamRbacModuleService extends MedusaService({
     }
 
     await this.bootstrapActorIfNeeded(user.id)
-    const resolvedRoleKeys = await this.ensureActorHasBaselineRole(user.id, user.roles || [])
+    const userRoleKeys = normalizeRoleKeys(user.roles)
+    const definedRoles = userRoleKeys.length
+      ? await this.listRoles({ key: userRoleKeys as any }, { take: userRoleKeys.length })
+      : []
+    const resolvedRoleKeys = await this.ensureActorHasBaselineRole(
+      user.id,
+      normalizeRoleKeys(definedRoles.map((role: any) => role.key))
+    )
     await this.syncUserRoleMappings({ id: user.id, roles: resolvedRoleKeys })
 
     const mappings = await this.listUserRoles({ user_id: actorId }, { relations: ["role"] })
@@ -170,7 +182,7 @@ class TeamRbacModuleService extends MedusaService({
   }
 
   async syncUserRoleMappings(user: Pick<UserDTO, "id" | "roles">) {
-    const roleKeys = [...new Set((user.roles || []).filter(Boolean))]
+    const roleKeys = normalizeRoleKeys(user.roles)
 
     if (!roleKeys.length) {
       return
@@ -178,27 +190,12 @@ class TeamRbacModuleService extends MedusaService({
 
     const roles = await this.listRoles({ key: roleKeys as any }, { take: roleKeys.length })
     const roleByKey = new Map(roles.map((role: any) => [role.key, normalizeRole(role)]))
-
-    const missingRoleDefinitions = roleKeys.filter((key) => !roleByKey.has(key))
-    if (missingRoleDefinitions.length) {
-      await this.createRoles(
-        missingRoleDefinitions.map((key) => ({
-          key,
-          name: key,
-          description: null,
-          permissions: [],
-          is_system: false,
-        })) as any[]
-      )
-
-      const refreshedRoles = await this.listRoles({ key: roleKeys as any }, { take: roleKeys.length })
-      refreshedRoles.forEach((role: any) => roleByKey.set(role.key, normalizeRole(role)))
-    }
+    const resolvedRoleKeys = roleKeys.filter((key) => roleByKey.has(key))
 
     const currentMappings = await this.listUserRoles({ user_id: user.id }, { relations: ["role"] })
     const mappedKeys = new Set(currentMappings.map((mapping: any) => mapping.role?.key).filter(Boolean))
 
-    const toCreate = roleKeys
+    const toCreate = resolvedRoleKeys
       .filter((key) => !mappedKeys.has(key))
       .map((key) => ({ user_id: user.id, role_id: roleByKey.get(key)!.id }))
 
@@ -207,7 +204,7 @@ class TeamRbacModuleService extends MedusaService({
     }
 
     const staleIds = currentMappings
-      .filter((mapping: any) => mapping.role?.key && !roleKeys.includes(mapping.role.key))
+      .filter((mapping: any) => mapping.role?.key && !resolvedRoleKeys.includes(mapping.role.key))
       .map((mapping: any) => mapping.id)
 
     if (staleIds.length) {
