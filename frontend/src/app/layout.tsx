@@ -4,6 +4,7 @@ import { Inter, Roboto_Mono } from "next/font/google"
 import "styles/globals.css"
 import MetaPixelProvider from "@modules/layout/components/meta-pixel-provider"
 import CookieConsent from "@modules/layout/components/cookie-consent"
+import CustomerJourneyTracker from "@modules/layout/components/customer-journey-tracker"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -26,6 +27,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
     <html lang="en" data-mode="light">
       <body className={`${inter.className} ${inter.variable} ${robotoMono.variable}`}>
         <MetaPixelProvider />
+        <CustomerJourneyTracker />
         <main className="relative">{props.children}</main>
         <CookieConsent />
       </body>

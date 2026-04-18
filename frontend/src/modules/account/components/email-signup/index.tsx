@@ -8,6 +8,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { Button } from "@medusajs/ui"
 import ReactCountryFlag from "react-country-flag"
+import { trackJourneyEvent } from "@lib/analytics/customer-journey"
 
 type Props = {
   storeName: string
@@ -53,7 +54,13 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
         </div>
 
         <div className="relative w-full border border-ui-border-base bg-ui-bg-base rounded-rounded p-5 small:p-6 flex flex-col gap-y-3 text-ui-fg-base">
-          <form className="w-full flex flex-col gap-y-3" action={formAction}>
+          <form
+            className="w-full flex flex-col gap-y-3"
+            action={formAction}
+            onSubmitCapture={() => {
+              void trackJourneyEvent("signup_started", {}, { debounceMs: 5000 })
+            }}
+          >
             <Input
               label="Email address"
               name="email"

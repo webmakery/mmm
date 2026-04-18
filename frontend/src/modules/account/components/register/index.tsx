@@ -7,6 +7,7 @@ import ErrorMessage from "@modules/checkout/components/error-message"
 import { SubmitButton } from "@modules/checkout/components/submit-button"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { signup } from "@lib/data/customer"
+import { trackJourneyEvent } from "@lib/analytics/customer-journey"
 
 type Props = {
   setCurrentView: (view: LOGIN_VIEW) => void
@@ -28,7 +29,13 @@ const Register = ({ setCurrentView, storeName }: Props) => {
         Create your {storeName} Member profile, and get access to an enhanced
         shopping experience.
       </p>
-      <form className="w-full flex flex-col" action={formAction}>
+      <form
+        className="w-full flex flex-col"
+        action={formAction}
+        onSubmitCapture={() => {
+          void trackJourneyEvent("signup_started", {}, { debounceMs: 5000 })
+        }}
+      >
         <div className="flex flex-col w-full gap-y-2">
           <Input
             label="First name"

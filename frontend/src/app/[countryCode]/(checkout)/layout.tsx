@@ -1,6 +1,7 @@
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ChevronDown from "@modules/common/icons/chevron-down"
 import { getStoreBranding } from "@lib/data/store-branding"
+import CheckoutStartedTracker from "@modules/checkout/components/checkout-started-tracker"
 
 export default async function CheckoutLayout({
   children,
@@ -11,6 +12,7 @@ export default async function CheckoutLayout({
 
   return (
     <div className="w-full bg-white relative small:min-h-screen">
+      <CheckoutStartedTracker />
       <div className="h-16 bg-white border-b ">
         <nav className="flex h-full items-center content-container justify-between">
           <LocalizedClientLink
