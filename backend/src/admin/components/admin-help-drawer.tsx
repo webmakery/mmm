@@ -306,7 +306,7 @@ export const AdminHelpDrawer = () => {
           </div>
 
           {answer ? (
-            <div className="space-y-3 rounded-lg border border-ui-border-base bg-ui-bg-field p-4">
+            <div className="flex max-h-[360px] flex-col overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-field p-4">
               <div className="flex items-center justify-between gap-2">
                 <Text size="small" weight="plus" className="text-ui-fg-base">
                   Assistant response
@@ -315,55 +315,62 @@ export const AdminHelpDrawer = () => {
                   {answerSource?.toLowerCase() === "ai" ? "AI powered" : "Fallback"}
                 </Badge>
               </div>
-              <div className="space-y-3">
-                {answerBlocks.map((block, blockIndex) => {
-                  if (block.type === "heading") {
+              <div className="mt-3 flex-1 min-h-0 overflow-y-auto pr-1">
+                <div className="space-y-3 break-words">
+                  {answerBlocks.map((block, blockIndex) => {
+                    if (block.type === "heading") {
+                      return (
+                        <Text
+                          key={`heading-${blockIndex}`}
+                          size={block.level === 1 ? "small" : "xsmall"}
+                          weight="plus"
+                          className="text-ui-fg-base"
+                        >
+                          <InlineText content={block.content} />
+                        </Text>
+                      )
+                    }
+
+                    if (block.type === "ordered-list") {
+                      return (
+                        <ol key={`ordered-${blockIndex}`} className="list-decimal space-y-2 pl-5 text-ui-fg-subtle">
+                          {block.items.map((item, itemIndex) => (
+                            <li key={`ordered-${blockIndex}-item-${itemIndex}`}>
+                              <Text as="span" size="small" className="text-ui-fg-subtle">
+                                <InlineText content={item} />
+                              </Text>
+                            </li>
+                          ))}
+                        </ol>
+                      )
+                    }
+
+                    if (block.type === "unordered-list") {
+                      return (
+                        <ul key={`unordered-${blockIndex}`} className="list-disc space-y-2 pl-5 text-ui-fg-subtle">
+                          {block.items.map((item, itemIndex) => (
+                            <li key={`unordered-${blockIndex}-item-${itemIndex}`}>
+                              <Text as="span" size="small" className="text-ui-fg-subtle">
+                                <InlineText content={item} />
+                              </Text>
+                            </li>
+                          ))}
+                        </ul>
+                      )
+                    }
+
                     return (
-                      <Text
-                        key={`heading-${blockIndex}`}
-                        size={block.level === 1 ? "small" : "xsmall"}
-                        weight="plus"
-                        className="text-ui-fg-base"
-                      >
+                      <Text key={`paragraph-${blockIndex}`} size="small" className="text-ui-fg-subtle">
                         <InlineText content={block.content} />
                       </Text>
                     )
-                  }
-
-                  if (block.type === "ordered-list") {
-                    return (
-                      <ol key={`ordered-${blockIndex}`} className="list-decimal space-y-2 pl-5 text-ui-fg-subtle">
-                        {block.items.map((item, itemIndex) => (
-                          <li key={`ordered-${blockIndex}-item-${itemIndex}`}>
-                            <Text as="span" size="small" className="text-ui-fg-subtle">
-                              <InlineText content={item} />
-                            </Text>
-                          </li>
-                        ))}
-                      </ol>
-                    )
-                  }
-
-                  if (block.type === "unordered-list") {
-                    return (
-                      <ul key={`unordered-${blockIndex}`} className="list-disc space-y-2 pl-5 text-ui-fg-subtle">
-                        {block.items.map((item, itemIndex) => (
-                          <li key={`unordered-${blockIndex}-item-${itemIndex}`}>
-                            <Text as="span" size="small" className="text-ui-fg-subtle">
-                              <InlineText content={item} />
-                            </Text>
-                          </li>
-                        ))}
-                      </ul>
-                    )
-                  }
-
-                  return (
-                    <Text key={`paragraph-${blockIndex}`} size="small" className="text-ui-fg-subtle">
-                      <InlineText content={block.content} />
-                    </Text>
-                  )
-                })}
+                  })}
+                </div>
+              </div>
+              <div className="mt-3 border-t border-ui-border-base pt-2">
+                <Text size="xsmall" className="text-ui-fg-muted">
+                  Powered by Webmakerr Technology
+                </Text>
               </div>
             </div>
           ) : null}
