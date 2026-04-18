@@ -1,4 +1,4 @@
-export const RBAC_MODULE = "team_rbac"
+export const RBAC_MODULE = "rbac"
 
 export const DEFAULT_ROLE_DEFINITIONS = [
   {
