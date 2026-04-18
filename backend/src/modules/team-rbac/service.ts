@@ -72,6 +72,41 @@ const extractInviteRoleRefs = (invite: InviteDTO): string[] => {
   ]
 }
 
+const isPendingInvite = (invite: any): boolean => {
+  if (!invite) {
+    return false
+  }
+
+  if (invite.deleted_at) {
+    return false
+  }
+
+  const acceptedMarkers = [
+    invite.accepted,
+    invite.accepted_at,
+    invite.acceptedAt,
+    invite.accepted_by,
+    invite.acceptedBy,
+  ]
+
+  if (acceptedMarkers.some(Boolean)) {
+    return false
+  }
+
+  const status = typeof invite.status === "string" ? invite.status.toLowerCase().trim() : ""
+  const state = typeof invite.state === "string" ? invite.state.toLowerCase().trim() : ""
+
+  if (["accepted", "revoked", "deleted", "expired", "cancelled", "canceled"].includes(status)) {
+    return false
+  }
+
+  if (["accepted", "revoked", "deleted", "expired", "cancelled", "canceled"].includes(state)) {
+    return false
+  }
+
+  return true
+}
+
 class TeamRbacModuleService extends MedusaService({
   Role,
   UserRole,
@@ -467,7 +502,7 @@ class TeamRbacModuleService extends MedusaService({
     }
 
     const [allInvites] = await userService.listAndCountInvites({} as any, { take: 200 })
-    const invites = allInvites.filter((invite: any) => !invite.accepted && !invite.deleted_at)
+    const invites = (allInvites || []).filter(isPendingInvite)
 
     const inviteRoleRefsByInviteId = new Map(
       invites.map((invite: InviteDTO) => [invite.id, extractInviteRoleRefs(invite)])
