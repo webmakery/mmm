@@ -11,19 +11,11 @@ type DashboardOrder = {
   fulfillment_status?: string | null
   status?: string | null
   email?: string | null
-}
-
-type DashboardCart = {
-  id: string
-  created_at: string
-  updated_at: string
-  completed_at?: string | null
-  email?: string | null
-}
-
-type DashboardCustomer = {
-  id: string
-  created_at: string
+  items?: Array<{
+    title?: string | null
+    quantity?: number | null
+    total?: number | null
+  }> | null
 }
 
 type DashboardLead = {
@@ -47,16 +39,22 @@ type DashboardBooking = {
   scheduled_start_at: string
   created_at: string
   service?: {
+    id?: string | null
     name?: string | null
   } | null
 }
 
 type DashboardVariant = {
   id: string
+  title?: string | null
   inventory_quantity?: number | null
 }
 
-const toDate = (value: string) => {
+const toDate = (value?: string | null) => {
+  if (!value) {
+    return null
+  }
+
   const date = new Date(value)
 
   if (Number.isNaN(date.getTime())) {
@@ -78,16 +76,13 @@ const addUtcDays = (date: Date, days: number) => {
 const getUtcMonthStart = (date: Date) =>
   new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1))
 
-const getUtcWeekStart = (date: Date) => {
-  const dayStart = getUtcDayStart(date)
-  const weekDay = dayStart.getUTCDay() || 7
-  return addUtcDays(dayStart, 1 - weekDay)
-}
+const getPreviousUtcMonthStart = (date: Date) =>
+  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() - 1, 1))
 
-const inRange = (dateValue: string, rangeStart: Date, rangeEndExclusive: Date) => {
+const inRange = (dateValue?: string | null, rangeStart?: Date, rangeEndExclusive?: Date) => {
   const date = toDate(dateValue)
 
-  if (!date) {
+  if (!date || !rangeStart || !rangeEndExclusive) {
     return false
   }
 
@@ -106,12 +101,12 @@ const toMoneyAmount = (value?: number | null) => {
 
 const formatUtcDayKey = (date: Date) => date.toISOString().slice(0, 10)
 
-const buildDailySeries = (
+const buildDailySeries = <TItem>(
   days: number,
   now: Date,
-  getSourceDate: (item: any) => string,
-  source: any[],
-  getValue?: (item: any) => number
+  getSourceDate: (item: TItem) => string | null | undefined,
+  source: TItem[],
+  getValue?: (item: TItem) => number
 ) => {
   const dayStart = getUtcDayStart(now)
   const series = Array.from({ length: days }).map((_, index) => {
@@ -127,7 +122,8 @@ const buildDailySeries = (
   const seriesIndex = new Map(series.map((item, index) => [item.date, index]))
 
   source.forEach((item) => {
-    const date = toDate(getSourceDate(item))
+    const sourceDate = getSourceDate(item)
+    const date = toDate(sourceDate)
 
     if (!date) {
       return
@@ -146,6 +142,24 @@ const buildDailySeries = (
   return series
 }
 
+const toPercent = (numerator: number, denominator: number) => {
+  if (!denominator || denominator <= 0) {
+    return 0
+  }
+
+  return (numerator / denominator) * 100
+}
+
+const getChangePercent = (current: number, previous: number) => {
+  if (!previous) {
+    return current > 0 ? 100 : 0
+  }
+
+  return ((current - previous) / previous) * 100
+}
+
+const roundTwo = (value: number) => Number(value.toFixed(2))
+
 export const GET = async (
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
@@ -154,11 +168,10 @@ export const GET = async (
 
   const now = new Date()
   const dayStart = getUtcDayStart(now)
-  const dayEnd = addUtcDays(dayStart, 1)
-  const weekStart = getUtcWeekStart(now)
   const monthStart = getUtcMonthStart(now)
+  const previousMonthStart = getPreviousUtcMonthStart(now)
 
-  const [orderResult, customerResult, cartResult, variantResult, leadResult, bookingResult] =
+  const [orderResult, customerResult, variantResult, leadResult, bookingResult] =
     await Promise.all([
       query.graph({
         entity: "order",
@@ -172,6 +185,9 @@ export const GET = async (
           "fulfillment_status",
           "status",
           "email",
+          "items.title",
+          "items.quantity",
+          "items.total",
         ],
         pagination: {
           order: {
@@ -183,32 +199,15 @@ export const GET = async (
       }),
       query.graph({
         entity: "customer",
-        fields: ["id", "created_at"],
+        fields: ["id"],
         pagination: {
-          order: {
-            created_at: "DESC",
-          },
           skip: 0,
           take: 500,
         },
       }),
       query.graph({
-        entity: "cart",
-        fields: ["id", "email", "created_at", "updated_at", "completed_at"],
-        filters: {
-          completed_at: null,
-        },
-        pagination: {
-          order: {
-            updated_at: "DESC",
-          },
-          skip: 0,
-          take: 200,
-        },
-      }),
-      query.graph({
         entity: "product_variant",
-        fields: ["id", "inventory_quantity"],
+        fields: ["id", "title", "inventory_quantity"],
         pagination: {
           skip: 0,
           take: 500,
@@ -245,6 +244,7 @@ export const GET = async (
           "status",
           "scheduled_start_at",
           "created_at",
+          "service.id",
           "service.name",
         ],
         pagination: {
@@ -258,167 +258,260 @@ export const GET = async (
     ])
 
   const orderList = (orderResult.data as DashboardOrder[]) || []
-  const customerList = (customerResult.data as DashboardCustomer[]) || []
-  const cartList = (cartResult.data as DashboardCart[]) || []
+  const customerList = (customerResult.data as Array<{ id: string }>) || []
   const variantList = (variantResult.data as DashboardVariant[]) || []
   const leadList = (leadResult.data as DashboardLead[]) || []
   const bookingList = (bookingResult.data as DashboardBooking[]) || []
 
-  const ordersToday = orderList.filter((order) => inRange(order.created_at, dayStart, dayEnd))
-  const ordersThisWeek = orderList.filter((order) => inRange(order.created_at, weekStart, dayEnd))
-  const ordersThisMonth = orderList.filter((order) => inRange(order.created_at, monthStart, dayEnd))
+  const ordersThisMonth = orderList.filter((order) => inRange(order.created_at, monthStart, now))
+  const ordersPreviousMonth = orderList.filter((order) => inRange(order.created_at, previousMonthStart, monthStart))
 
-  const revenueToday = ordersToday.reduce((sum, order) => sum + toMoneyAmount(order.total), 0)
-  const revenueThisWeek = ordersThisWeek.reduce((sum, order) => sum + toMoneyAmount(order.total), 0)
+  const leadsThisMonth = leadList.filter((lead) => inRange(lead.created_at, monthStart, now))
+  const leadsPreviousMonth = leadList.filter((lead) => inRange(lead.created_at, previousMonthStart, monthStart))
+
+  const bookingsThisMonth = bookingList.filter((booking) =>
+    inRange(booking.scheduled_start_at || booking.created_at, monthStart, now)
+  )
+  const bookingsPreviousMonth = bookingList.filter((booking) =>
+    inRange(booking.scheduled_start_at || booking.created_at, previousMonthStart, monthStart)
+  )
+
   const revenueThisMonth = ordersThisMonth.reduce((sum, order) => sum + toMoneyAmount(order.total), 0)
+  const revenuePreviousMonth = ordersPreviousMonth.reduce((sum, order) => sum + toMoneyAmount(order.total), 0)
 
-  const customersToday = customerList.filter((customer) => inRange(customer.created_at, dayStart, dayEnd)).length
-  const customersThisWeek = customerList.filter((customer) => inRange(customer.created_at, weekStart, dayEnd)).length
-  const customersThisMonth = customerList.filter((customer) => inRange(customer.created_at, monthStart, dayEnd)).length
+  const avgOrderThisMonth = ordersThisMonth.length ? revenueThisMonth / ordersThisMonth.length : 0
+  const avgOrderPreviousMonth = ordersPreviousMonth.length ? revenuePreviousMonth / ordersPreviousMonth.length : 0
 
-  const leadsToday = leadList.filter((lead) => inRange(lead.created_at, dayStart, dayEnd)).length
-  const newOrUnassignedLeads = leadList.filter((lead) => {
-    const status = (lead.status || "").toLowerCase()
-    return status === "new" || !lead.owner_user_id
-  }).length
-
-  const bookingsToday = bookingList.filter((booking) =>
-    inRange(booking.scheduled_start_at || booking.created_at, dayStart, dayEnd)
-  ).length
-  const pendingBookings = bookingList.filter((booking) => (booking.status || "").toLowerCase() === "pending").length
-
-  const upcomingBookings = bookingList
-    .filter((booking) => {
-      const scheduledAt = toDate(booking.scheduled_start_at)
-      return Boolean(scheduledAt && scheduledAt.getTime() >= dayStart.getTime())
-    })
-    .sort((a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime())
-    .slice(0, 8)
-
-  const outOfStockCount = variantList.filter((variant) => (variant.inventory_quantity || 0) <= 0).length
-
-  const unpaidOrders = orderList.filter((order) => {
+  const unpaidOrderList = orderList.filter((order) => {
     const status = (order.payment_status || "").toLowerCase()
     return status === "awaiting" || status === "not_paid" || status === "partially_paid"
-  }).length
+  })
 
-  const refundedOrders = orderList.filter((order) => {
-    const status = (order.payment_status || "").toLowerCase()
-    return status === "refunded" || status === "partially_refunded"
-  }).length
+  const unpaidAmountThisMonth = ordersThisMonth
+    .filter((order) => unpaidOrderList.some((unpaid) => unpaid.id === order.id))
+    .reduce((sum, order) => sum + toMoneyAmount(order.total), 0)
 
-  const pendingFulfillment = orderList.filter((order) => {
-    const status = (order.fulfillment_status || "").toLowerCase()
-    return status === "not_fulfilled" || status === "partially_fulfilled"
-  }).length
+  const unpaidAmountPreviousMonth = ordersPreviousMonth
+    .filter((order) => {
+      const status = (order.payment_status || "").toLowerCase()
+      return status === "awaiting" || status === "not_paid" || status === "partially_paid"
+    })
+    .reduce((sum, order) => sum + toMoneyAmount(order.total), 0)
 
-  const operationalAlerts = [
+  const conversionThisMonth = toPercent(bookingsThisMonth.length, leadsThisMonth.length)
+  const conversionPreviousMonth = toPercent(bookingsPreviousMonth.length, leadsPreviousMonth.length)
+
+  const unassignedLeads = leadList
+    .filter((lead) => !lead.owner_user_id)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+  const overdueFollowUps = leadList
+    .filter((lead) => {
+      if (!lead.next_follow_up_at) {
+        return false
+      }
+
+      return (toDate(lead.next_follow_up_at)?.getTime() || 0) < now.getTime()
+    })
+    .sort((a, b) => new Date(a.next_follow_up_at || 0).getTime() - new Date(b.next_follow_up_at || 0).getTime())
+
+  const lowStockVariants = variantList
+    .filter((variant) => (variant.inventory_quantity || 0) <= 0)
+    .slice(0, 3)
+
+  const pendingConfirmations = bookingList
+    .filter((booking) => {
+      const status = (booking.status || "").toLowerCase()
+      const bookingDate = toDate(booking.scheduled_start_at)
+      if (!bookingDate) {
+        return false
+      }
+
+      return status === "pending" && bookingDate.getTime() >= dayStart.getTime() && bookingDate.getTime() <= addUtcDays(dayStart, 7).getTime()
+    })
+    .sort((a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime())
+
+  const urgentActionItems =
+    unassignedLeads.length + overdueFollowUps.length + unpaidOrderList.length + lowStockVariants.length + pendingConfirmations.length
+
+  const leadsSeries30 = buildDailySeries(30, now, (lead) => lead.created_at, leadList)
+  const bookingsSeries30 = buildDailySeries(30, now, (booking) => booking.scheduled_start_at, bookingList)
+  const revenueSeries30 = buildDailySeries(30, now, (order) => order.created_at, orderList, (order) => toMoneyAmount(order.total))
+
+  const leadFunnelRaw = leadList.reduce((acc, lead) => {
+    const stage = (lead.status || "new").toLowerCase()
+    acc.set(stage, (acc.get(stage) || 0) + 1)
+    return acc
+  }, new Map<string, number>())
+
+  const funnelByStage = Array.from(leadFunnelRaw.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([stage, count]) => ({
+      stage,
+      count,
+      share: roundTwo(toPercent(count, leadList.length)),
+      conversion_from_leads: roundTwo(toPercent(count, leadList.length)),
+    }))
+
+  const topProductsByRevenue = orderList.reduce((acc, order) => {
+    ;(order.items || []).forEach((item) => {
+      const key = (item.title || "Untitled item").trim() || "Untitled item"
+      const revenue = toMoneyAmount(item.total)
+      const quantity = item.quantity || 0
+      const existing = acc.get(key) || { label: key, revenue: 0, bookings: 0 }
+      existing.revenue += revenue
+      existing.bookings += quantity
+      acc.set(key, existing)
+    })
+
+    return acc
+  }, new Map<string, { label: string; revenue: number; bookings: number }>())
+
+  const topServicesByBookings = bookingList.reduce((acc, booking) => {
+    const key = (booking.service?.name || "Unspecified service").trim() || "Unspecified service"
+    const existing = acc.get(key) || { label: key, revenue: 0, bookings: 0 }
+    existing.bookings += 1
+    acc.set(key, existing)
+    return acc
+  }, new Map<string, { label: string; revenue: number; bookings: number }>())
+
+  const topProducts = Array.from(topProductsByRevenue.values())
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
+
+  const topServices = Array.from(topServicesByBookings.values())
+    .sort((a, b) => b.bookings - a.bookings)
+    .slice(0, 5)
+
+  const snapshotInsights = [
     {
-      id: "out_of_stock",
-      title: "Out of stock variants",
-      value: outOfStockCount,
+      id: "revenue_momentum",
+      title: "Revenue momentum",
+      detail:
+        getChangePercent(revenueThisMonth, revenuePreviousMonth) >= 0
+          ? `Revenue is up ${Math.abs(roundTwo(getChangePercent(revenueThisMonth, revenuePreviousMonth)))}% vs previous month.`
+          : `Revenue is down ${Math.abs(roundTwo(getChangePercent(revenueThisMonth, revenuePreviousMonth)))}% vs previous month.`,
     },
     {
-      id: "unpaid_orders",
-      title: "Unpaid orders",
-      value: unpaidOrders,
+      id: "conversion_health",
+      title: "Lead conversion",
+      detail:
+        getChangePercent(conversionThisMonth, conversionPreviousMonth) >= 0
+          ? `Lead-to-booking conversion improved by ${Math.abs(roundTwo(getChangePercent(conversionThisMonth, conversionPreviousMonth)))}% month over month.`
+          : `Lead-to-booking conversion declined by ${Math.abs(roundTwo(getChangePercent(conversionThisMonth, conversionPreviousMonth)))}% month over month.`,
     },
     {
-      id: "open_carts",
-      title: "Open carts",
-      value: cartList.length,
+      id: "backlog_watch",
+      title: "Lead backlog risk",
+      detail:
+        unassignedLeads.length > 0
+          ? `${unassignedLeads.length} leads are unassigned and require owner assignment.`
+          : "All leads currently have owners assigned.",
     },
     {
-      id: "pending_fulfillment",
-      title: "Pending fulfillment",
-      value: pendingFulfillment,
-    },
-    {
-      id: "unassigned_or_new_leads",
-      title: "Unassigned or new leads",
-      value: newOrUnassignedLeads,
-    },
-    {
-      id: "pending_bookings",
-      title: "Pending bookings",
-      value: pendingBookings,
+      id: "operations",
+      title: "Operational stability",
+      detail:
+        pendingConfirmations.length > 0 || unpaidOrderList.length > 0
+          ? `${pendingConfirmations.length + unpaidOrderList.length} operational exceptions need immediate follow-up.`
+          : "No immediate operational exceptions detected.",
     },
   ]
 
-  const leadsSeries = buildDailySeries(7, now, (lead: DashboardLead) => lead.created_at, leadList)
-  const bookingsSeries = buildDailySeries(7, now, (booking: DashboardBooking) => booking.scheduled_start_at, bookingList)
-  const revenueSeries = buildDailySeries(
-    30,
-    now,
-    (order: DashboardOrder) => order.created_at,
-    orderList,
-    (order: DashboardOrder) => toMoneyAmount(order.total)
-  )
-
   res.json({
     generated_at: now.toISOString(),
-    currency_code: orderList.find((order) => order.currency_code)?.currency_code || null,
     timezone: "UTC",
-    revenue: {
-      today: revenueToday,
-      this_week: revenueThisWeek,
-      this_month: revenueThisMonth,
-    },
-    leads: {
-      total: leadList.length,
-      new_today: leadsToday,
-      recent: leadList.slice(0, 10),
-    },
-    bookings: {
-      total: bookingList.length,
-      today: bookingsToday,
-      pending: pendingBookings,
-      upcoming: upcomingBookings.map((booking) => ({
-        id: booking.id,
-        reference: booking.reference,
-        customer_full_name: booking.customer_full_name,
-        customer_email: booking.customer_email,
-        status: booking.status,
-        scheduled_start_at: booking.scheduled_start_at,
-        service_name: booking.service?.name || null,
-      })),
-    },
-    orders: {
-      total: orderList.length,
-      today: ordersToday.length,
-      this_week: ordersThisWeek.length,
-      this_month: ordersThisMonth.length,
-      recent: orderList.slice(0, 10).map((order) => ({
-        id: order.id,
-        display_id: order.display_id,
-        created_at: order.created_at,
-        total: toMoneyAmount(order.total),
-        currency_code: order.currency_code,
-        payment_status: order.payment_status,
-        fulfillment_status: order.fulfillment_status,
-        status: order.status,
-        email: order.email,
-      })),
-    },
+    currency_code: orderList.find((order) => order.currency_code)?.currency_code || null,
     customers: {
       total: customerList.length,
-      today: customersToday,
-      this_week: customersThisWeek,
-      this_month: customersThisMonth,
     },
-    carts: {
-      open_count: cartList.length,
+    executive_kpis: {
+      revenue_this_month: {
+        value: revenueThisMonth,
+        previous: revenuePreviousMonth,
+        change_percent: roundTwo(getChangePercent(revenueThisMonth, revenuePreviousMonth)),
+      },
+      bookings_this_month: {
+        value: bookingsThisMonth.length,
+        previous: bookingsPreviousMonth.length,
+        change_percent: roundTwo(getChangePercent(bookingsThisMonth.length, bookingsPreviousMonth.length)),
+      },
+      lead_to_booking_conversion: {
+        value: roundTwo(conversionThisMonth),
+        previous: roundTwo(conversionPreviousMonth),
+        change_percent: roundTwo(getChangePercent(conversionThisMonth, conversionPreviousMonth)),
+      },
+      average_order_value: {
+        value: roundTwo(avgOrderThisMonth),
+        previous: roundTwo(avgOrderPreviousMonth),
+        change_percent: roundTwo(getChangePercent(avgOrderThisMonth, avgOrderPreviousMonth)),
+      },
+      unpaid_amount: {
+        value: unpaidAmountThisMonth,
+        previous: unpaidAmountPreviousMonth,
+        change_percent: roundTwo(getChangePercent(unpaidAmountThisMonth, unpaidAmountPreviousMonth)),
+        unpaid_orders: unpaidOrderList.length,
+      },
+      urgent_action_items: {
+        value: urgentActionItems,
+        previous: 0,
+        change_percent: 0,
+      },
     },
-    statuses: {
-      refunded_orders: refundedOrders,
-      pending_fulfillment: pendingFulfillment,
-      unpaid_orders: unpaidOrders,
+    snapshot_insights: snapshotInsights,
+    performance: {
+      revenue_trend_30_days: revenueSeries30,
+      leads_vs_bookings_30_days: leadsSeries30.map((point, index) => ({
+        date: point.date,
+        label: point.label,
+        leads: point.value,
+        bookings: bookingsSeries30[index]?.value || 0,
+      })),
+      funnel_conversion_by_stage: funnelByStage,
+      top_products_by_revenue: topProducts,
+      top_services_by_bookings: topServices,
     },
-    charts: {
-      leads_last_7_days: leadsSeries,
-      bookings_last_7_days: bookingsSeries,
-      revenue_last_30_days: revenueSeries,
+    attention_required: {
+      unassigned_leads: {
+        value: unassignedLeads.length,
+        preview: unassignedLeads.slice(0, 3).map((lead) => ({
+          id: lead.id,
+          label: [lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.email || "Unnamed lead",
+          context: lead.company || "No company",
+        })),
+      },
+      overdue_follow_ups: {
+        value: overdueFollowUps.length,
+        preview: overdueFollowUps.slice(0, 3).map((lead) => ({
+          id: lead.id,
+          label: [lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.email || "Unnamed lead",
+          context: lead.next_follow_up_at || "",
+        })),
+      },
+      unpaid_orders: {
+        value: unpaidOrderList.length,
+        preview: unpaidOrderList.slice(0, 3).map((order) => ({
+          id: order.id,
+          label: `#${order.display_id || order.id.slice(0, 8)}`,
+          context: `${toMoneyAmount(order.total)}`,
+        })),
+      },
+      low_stock: {
+        value: lowStockVariants.length,
+        preview: lowStockVariants.map((variant) => ({
+          id: variant.id,
+          label: variant.title || variant.id,
+          context: `Inventory ${variant.inventory_quantity || 0}`,
+        })),
+      },
+      upcoming_confirmations: {
+        value: pendingConfirmations.length,
+        preview: pendingConfirmations.slice(0, 3).map((booking) => ({
+          id: booking.id,
+          label: booking.reference || booking.customer_full_name || booking.id,
+          context: booking.scheduled_start_at,
+        })),
+      },
     },
-    operational_alerts: operationalAlerts,
   })
 }
