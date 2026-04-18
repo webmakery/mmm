@@ -11,11 +11,6 @@ type DashboardOrder = {
   fulfillment_status?: string | null
   status?: string | null
   email?: string | null
-  items?: Array<{
-    title?: string | null
-    variant_title?: string | null
-    quantity?: number | null
-  }>
 }
 
 type DashboardCart = {
@@ -26,19 +21,39 @@ type DashboardCart = {
   email?: string | null
 }
 
-type DashboardVariant = {
-  id: string
-  title?: string | null
-  sku?: string | null
-  inventory_quantity?: number | null
-  product?: {
-    title?: string | null
-  } | null
-}
-
 type DashboardCustomer = {
   id: string
   created_at: string
+}
+
+type DashboardLead = {
+  id: string
+  created_at: string
+  first_name?: string | null
+  last_name?: string | null
+  email?: string | null
+  company?: string | null
+  status?: string | null
+  owner_user_id?: string | null
+  next_follow_up_at?: string | null
+}
+
+type DashboardBooking = {
+  id: string
+  reference?: string | null
+  customer_full_name: string
+  customer_email?: string | null
+  status?: string | null
+  scheduled_start_at: string
+  created_at: string
+  service?: {
+    name?: string | null
+  } | null
+}
+
+type DashboardVariant = {
+  id: string
+  inventory_quantity?: number | null
 }
 
 const toDate = (value: string) => {
@@ -89,6 +104,48 @@ const toMoneyAmount = (value?: number | null) => {
   return value
 }
 
+const formatUtcDayKey = (date: Date) => date.toISOString().slice(0, 10)
+
+const buildDailySeries = (
+  days: number,
+  now: Date,
+  getSourceDate: (item: any) => string,
+  source: any[],
+  getValue?: (item: any) => number
+) => {
+  const dayStart = getUtcDayStart(now)
+  const series = Array.from({ length: days }).map((_, index) => {
+    const date = addUtcDays(dayStart, -(days - index - 1))
+
+    return {
+      date: formatUtcDayKey(date),
+      label: date.toISOString().slice(5, 10),
+      value: 0,
+    }
+  })
+
+  const seriesIndex = new Map(series.map((item, index) => [item.date, index]))
+
+  source.forEach((item) => {
+    const date = toDate(getSourceDate(item))
+
+    if (!date) {
+      return
+    }
+
+    const key = formatUtcDayKey(getUtcDayStart(date))
+    const index = seriesIndex.get(key)
+
+    if (index === undefined) {
+      return
+    }
+
+    series[index].value += getValue ? getValue(item) : 1
+  })
+
+  return series
+}
+
 export const GET = async (
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
@@ -101,7 +158,7 @@ export const GET = async (
   const weekStart = getUtcWeekStart(now)
   const monthStart = getUtcMonthStart(now)
 
-  const [{ data: orders }, { data: customers }, { data: carts }, { data: variants }] =
+  const [orderResult, customerResult, cartResult, variantResult, leadResult, bookingResult] =
     await Promise.all([
       query.graph({
         entity: "order",
@@ -115,9 +172,6 @@ export const GET = async (
           "fulfillment_status",
           "status",
           "email",
-          "items.title",
-          "items.variant_title",
-          "items.quantity",
         ],
         pagination: {
           order: {
@@ -154,18 +208,61 @@ export const GET = async (
       }),
       query.graph({
         entity: "product_variant",
-        fields: ["id", "title", "sku", "inventory_quantity", "product.title"],
+        fields: ["id", "inventory_quantity"],
         pagination: {
+          skip: 0,
+          take: 500,
+        },
+      }),
+      query.graph({
+        entity: "lead",
+        fields: [
+          "id",
+          "created_at",
+          "first_name",
+          "last_name",
+          "email",
+          "company",
+          "status",
+          "owner_user_id",
+          "next_follow_up_at",
+        ],
+        pagination: {
+          order: {
+            created_at: "DESC",
+          },
+          skip: 0,
+          take: 500,
+        },
+      }),
+      query.graph({
+        entity: "booking",
+        fields: [
+          "id",
+          "reference",
+          "customer_full_name",
+          "customer_email",
+          "status",
+          "scheduled_start_at",
+          "created_at",
+          "service.name",
+        ],
+        pagination: {
+          order: {
+            scheduled_start_at: "ASC",
+          },
           skip: 0,
           take: 500,
         },
       }),
     ])
 
-  const orderList = (orders as DashboardOrder[]) || []
-  const customerList = (customers as DashboardCustomer[]) || []
-  const cartList = (carts as DashboardCart[]) || []
-  const variantList = (variants as DashboardVariant[]) || []
+  const orderList = (orderResult.data as DashboardOrder[]) || []
+  const customerList = (customerResult.data as DashboardCustomer[]) || []
+  const cartList = (cartResult.data as DashboardCart[]) || []
+  const variantList = (variantResult.data as DashboardVariant[]) || []
+  const leadList = (leadResult.data as DashboardLead[]) || []
+  const bookingList = (bookingResult.data as DashboardBooking[]) || []
 
   const ordersToday = orderList.filter((order) => inRange(order.created_at, dayStart, dayEnd))
   const ordersThisWeek = orderList.filter((order) => inRange(order.created_at, weekStart, dayEnd))
@@ -179,40 +276,24 @@ export const GET = async (
   const customersThisWeek = customerList.filter((customer) => inRange(customer.created_at, weekStart, dayEnd)).length
   const customersThisMonth = customerList.filter((customer) => inRange(customer.created_at, monthStart, dayEnd)).length
 
-  const topProductMap = new Map<string, { title: string; quantity: number }>()
-  const topVariantMap = new Map<string, { title: string; quantity: number }>()
+  const leadsToday = leadList.filter((lead) => inRange(lead.created_at, dayStart, dayEnd)).length
+  const newOrUnassignedLeads = leadList.filter((lead) => {
+    const status = (lead.status || "").toLowerCase()
+    return status === "new" || !lead.owner_user_id
+  }).length
 
-  ordersThisMonth.forEach((order) => {
-    order.items?.forEach((item) => {
-      const quantity = Number(item.quantity || 0)
-      if (!quantity) {
-        return
-      }
+  const bookingsToday = bookingList.filter((booking) =>
+    inRange(booking.scheduled_start_at || booking.created_at, dayStart, dayEnd)
+  ).length
+  const pendingBookings = bookingList.filter((booking) => (booking.status || "").toLowerCase() === "pending").length
 
-      const productTitle = item.title?.trim() || "Untitled product"
-      const variantTitle = item.variant_title?.trim() || "Default variant"
-
-      const productCurrent = topProductMap.get(productTitle) || {
-        title: productTitle,
-        quantity: 0,
-      }
-      productCurrent.quantity += quantity
-      topProductMap.set(productTitle, productCurrent)
-
-      const variantKey = `${productTitle}::${variantTitle}`
-      const variantCurrent = topVariantMap.get(variantKey) || {
-        title: `${productTitle} / ${variantTitle}`,
-        quantity: 0,
-      }
-      variantCurrent.quantity += quantity
-      topVariantMap.set(variantKey, variantCurrent)
+  const upcomingBookings = bookingList
+    .filter((booking) => {
+      const scheduledAt = toDate(booking.scheduled_start_at)
+      return Boolean(scheduledAt && scheduledAt.getTime() >= dayStart.getTime())
     })
-  })
-
-  const lowStockVariants = variantList
-    .filter((variant) => typeof variant.inventory_quantity === "number" && variant.inventory_quantity <= 5)
-    .sort((a, b) => (a.inventory_quantity || 0) - (b.inventory_quantity || 0))
-    .slice(0, 10)
+    .sort((a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime())
+    .slice(0, 8)
 
   const outOfStockCount = variantList.filter((variant) => (variant.inventory_quantity || 0) <= 0).length
 
@@ -252,7 +333,27 @@ export const GET = async (
       title: "Pending fulfillment",
       value: pendingFulfillment,
     },
+    {
+      id: "unassigned_or_new_leads",
+      title: "Unassigned or new leads",
+      value: newOrUnassignedLeads,
+    },
+    {
+      id: "pending_bookings",
+      title: "Pending bookings",
+      value: pendingBookings,
+    },
   ]
+
+  const leadsSeries = buildDailySeries(7, now, (lead: DashboardLead) => lead.created_at, leadList)
+  const bookingsSeries = buildDailySeries(7, now, (booking: DashboardBooking) => booking.scheduled_start_at, bookingList)
+  const revenueSeries = buildDailySeries(
+    30,
+    now,
+    (order: DashboardOrder) => order.created_at,
+    orderList,
+    (order: DashboardOrder) => toMoneyAmount(order.total)
+  )
 
   res.json({
     generated_at: now.toISOString(),
@@ -263,7 +364,27 @@ export const GET = async (
       this_week: revenueThisWeek,
       this_month: revenueThisMonth,
     },
+    leads: {
+      total: leadList.length,
+      new_today: leadsToday,
+      recent: leadList.slice(0, 10),
+    },
+    bookings: {
+      total: bookingList.length,
+      today: bookingsToday,
+      pending: pendingBookings,
+      upcoming: upcomingBookings.map((booking) => ({
+        id: booking.id,
+        reference: booking.reference,
+        customer_full_name: booking.customer_full_name,
+        customer_email: booking.customer_email,
+        status: booking.status,
+        scheduled_start_at: booking.scheduled_start_at,
+        service_name: booking.service?.name || null,
+      })),
+    },
     orders: {
+      total: orderList.length,
       today: ordersToday.length,
       this_week: ordersThisWeek.length,
       this_month: ordersThisMonth.length,
@@ -279,22 +400,6 @@ export const GET = async (
         email: order.email,
       })),
     },
-    top_products: Array.from(topProductMap.values())
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5),
-    top_variants: Array.from(topVariantMap.values())
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5),
-    inventory: {
-      out_of_stock_count: outOfStockCount,
-      low_stock: lowStockVariants.map((variant) => ({
-        id: variant.id,
-        product_title: variant.product?.title || "Untitled product",
-        variant_title: variant.title || "Default variant",
-        sku: variant.sku,
-        inventory_quantity: variant.inventory_quantity || 0,
-      })),
-    },
     customers: {
       total: customerList.length,
       today: customersToday,
@@ -303,17 +408,16 @@ export const GET = async (
     },
     carts: {
       open_count: cartList.length,
-      recent_open: cartList.slice(0, 10).map((cart) => ({
-        id: cart.id,
-        email: cart.email,
-        created_at: cart.created_at,
-        updated_at: cart.updated_at,
-      })),
     },
     statuses: {
       refunded_orders: refundedOrders,
       pending_fulfillment: pendingFulfillment,
       unpaid_orders: unpaidOrders,
+    },
+    charts: {
+      leads_last_7_days: leadsSeries,
+      bookings_last_7_days: bookingsSeries,
+      revenue_last_30_days: revenueSeries,
     },
     operational_alerts: operationalAlerts,
   })
