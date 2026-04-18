@@ -249,15 +249,15 @@ export const AdminHelpDrawer = () => {
           Help / Ask Webmakerr
         </Button>
       </Drawer.Trigger>
-      <Drawer.Content>
+      <Drawer.Content className="flex h-full flex-col">
         <Drawer.Header>
           <Drawer.Title>Help / Ask Webmakerr</Drawer.Title>
           <Drawer.Description>
             {context.title} guidance for {pathname}
           </Drawer.Description>
         </Drawer.Header>
-        <Drawer.Body className="flex flex-col gap-y-4">
-          <div className="space-y-2">
+        <Drawer.Body className="flex min-h-0 flex-1 flex-col gap-y-3">
+          <div className="space-y-1">
             <Heading level="h3">{context.title}</Heading>
             <Text size="small" className="text-ui-fg-subtle">
               {context.intro}
@@ -266,7 +266,7 @@ export const AdminHelpDrawer = () => {
 
           <div className="space-y-2">
             <Heading level="h3">Suggested questions</Heading>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {context.suggestedQuestions.map((prompt) => (
                 <Button
                   key={prompt}
@@ -288,26 +288,28 @@ export const AdminHelpDrawer = () => {
 
           <div className="space-y-2">
             <Heading level="h3">Ask Webmakerr</Heading>
-            <Input
-              placeholder="Ask about this page..."
-              value={askQuery}
-              onChange={(event) => setAskQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault()
-                  onAsk(askQuery)
-                }
-              }}
-            />
-            <Button size="small" variant="secondary" onClick={() => onAsk(askQuery)} isLoading={isAnswering}>
-              <Sparkles />
-              Ask
-            </Button>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Ask about this page..."
+                value={askQuery}
+                onChange={(event) => setAskQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    onAsk(askQuery)
+                  }
+                }}
+              />
+              <Button size="small" variant="secondary" onClick={() => onAsk(askQuery)} isLoading={isAnswering}>
+                <Sparkles />
+                Ask
+              </Button>
+            </div>
           </div>
 
           {answer ? (
-            <div className="flex max-h-[360px] flex-col overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-field p-4">
-              <div className="flex items-center justify-between gap-2">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-field">
+              <div className="flex items-center justify-between gap-2 border-b border-ui-border-base px-4 py-3">
                 <Text size="small" weight="plus" className="text-ui-fg-base">
                   Assistant response
                 </Text>
@@ -315,7 +317,7 @@ export const AdminHelpDrawer = () => {
                   {answerSource?.toLowerCase() === "ai" ? "AI powered" : "Fallback"}
                 </Badge>
               </div>
-              <div className="mt-3 flex-1 min-h-0 overflow-y-auto pr-1">
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
                 <div className="space-y-3 break-words">
                   {answerBlocks.map((block, blockIndex) => {
                     if (block.type === "heading") {
@@ -367,7 +369,7 @@ export const AdminHelpDrawer = () => {
                   })}
                 </div>
               </div>
-              <div className="mt-3 border-t border-ui-border-base pt-2">
+              <div className="border-t border-ui-border-base px-4 py-2">
                 <Text size="xsmall" className="text-ui-fg-muted">
                   Powered by Webmakerr Technology
                 </Text>
