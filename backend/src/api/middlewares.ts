@@ -55,6 +55,7 @@ import {
 import { PostStoreJourneyEventSchema } from "./store/journey/events/route"
 import { PostStoreJourneyIdentifySchema } from "./store/journey/identify/route"
 import { PostStoreJourneySignupCompletedSchema } from "./store/journey/signup-completed/route"
+import { PostCreateRoleSchema, PostUpdateRoleSchema, PostInviteWithRolesSchema, PostAssignRolesSchema } from "./admin/rbac/utils/schemas"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -433,6 +434,27 @@ export default defineMiddlewares({
       middlewares: [
         validateAndTransformBody(PostAdminUpdateReviewsStatusSchema),
       ],
+    },
+
+    {
+      matcher: "/admin/rbac/roles",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostCreateRoleSchema)],
+    },
+    {
+      matcher: "/admin/rbac/roles/:id",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostUpdateRoleSchema)],
+    },
+    {
+      matcher: "/admin/rbac/team/invites",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostInviteWithRolesSchema)],
+    },
+    {
+      matcher: "/admin/rbac/team/:user_id/roles",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostAssignRolesSchema)],
     },
 
     {
