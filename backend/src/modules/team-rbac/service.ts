@@ -20,6 +20,8 @@ const normalizeRole = (role: any): RoleRecord => ({
   permissions: Array.isArray(role?.permissions) ? role.permissions : [],
 })
 
+const ADMIN_ROLE_KEY = "admin"
+
 class TeamRbacModuleService extends MedusaService({
   Role,
   UserRole,
@@ -142,7 +144,8 @@ class TeamRbacModuleService extends MedusaService({
     }
 
     await this.bootstrapActorIfNeeded(user.id)
-    await this.syncUserRoleMappings(user)
+    const resolvedRoleKeys = await this.ensureActorHasBaselineRole(user.id, user.roles || [])
+    await this.syncUserRoleMappings({ id: user.id, roles: resolvedRoleKeys })
 
     const mappings = await this.listUserRoles({ user_id: actorId }, { relations: ["role"] })
 
@@ -325,6 +328,25 @@ class TeamRbacModuleService extends MedusaService({
     const nextRoles = [...new Set([...(user.roles || []), SUPER_ADMIN_KEY])]
     await userService.updateUsers({ id: user.id, roles: nextRoles })
     await this.createUserRoles({ user_id: user.id, role_id: role.id } as any)
+  }
+
+  async ensureActorHasBaselineRole(actorId: string, existingRoleKeys: string[]) {
+    if (existingRoleKeys.length) {
+      return existingRoleKeys
+    }
+
+    const userService = this.getUserService()
+
+    if (!userService) {
+      return existingRoleKeys
+    }
+
+    const superAdminCount = await this.countSuperAdmins()
+    const baselineRoleKey = superAdminCount === 0 ? SUPER_ADMIN_KEY : ADMIN_ROLE_KEY
+    const nextRoles = [baselineRoleKey]
+
+    await userService.updateUsers({ id: actorId, roles: nextRoles })
+    return nextRoles
   }
 
   @InjectManager()
