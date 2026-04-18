@@ -38,6 +38,7 @@ export class MedusaLeadCrmProvider implements LeadCrmProvider {
   async createQualifiedLead(input: {
     first_name: string
     company: string
+    email?: string
     phone?: string
     source: string
     source_detail: string
@@ -54,6 +55,7 @@ export class MedusaLeadCrmProvider implements LeadCrmProvider {
     const lead = await this.leadService.createLeads({
       first_name: input.first_name,
       company: input.company,
+      email: input.email,
       phone: input.phone,
       source: input.source,
       source_detail: input.source_detail,
