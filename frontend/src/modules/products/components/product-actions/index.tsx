@@ -2,6 +2,7 @@
 
 import { getMetaBrowserIds, trackMetaEvent } from "@lib/analytics/meta"
 import { resolveMetaValue } from "@lib/analytics/meta-value"
+import { trackJourneyEvent } from "@lib/analytics/customer-journey"
 import {
   addBuilderProductToCart,
   addToCart,
@@ -207,6 +208,12 @@ export default function ProductActions({
           }
         })
       }
+
+      await trackJourneyEvent("add_to_cart", {
+        variant_id: selectedVariant.id,
+        product_id: product.id,
+        quantity,
+      }, { debounceMs: 2000 })
 
       router.push(`/${countryCode}/checkout`)
     } catch (error) {

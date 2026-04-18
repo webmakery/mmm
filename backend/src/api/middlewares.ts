@@ -52,6 +52,9 @@ import {
   GetStoreWebChatMessagesSchema,
   PostStoreWebChatMessageSchema,
 } from "./store/inbox/web-chat/messages/route"
+import { PostStoreJourneyEventSchema } from "./store/journey/events/route"
+import { PostStoreJourneyIdentifySchema } from "./store/journey/identify/route"
+import { PostStoreJourneySignupCompletedSchema } from "./store/journey/signup-completed/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -356,6 +359,21 @@ export default defineMiddlewares({
       matcher: "/store/inbox/web-chat/messages",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostStoreWebChatMessageSchema)],
+    },
+    {
+      matcher: "/store/journey/events",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostStoreJourneyEventSchema)],
+    },
+    {
+      matcher: "/store/journey/identify",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostStoreJourneyIdentifySchema)],
+    },
+    {
+      matcher: "/store/journey/signup-completed",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostStoreJourneySignupCompletedSchema)],
     },
     {
       matcher: "/admin/invoice-config",
