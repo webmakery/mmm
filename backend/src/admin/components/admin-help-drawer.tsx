@@ -19,7 +19,7 @@ export const AdminHelpDrawer = () => {
   const [mounted, setMounted] = useState(false)
   const [askQuery, setAskQuery] = useState("")
   const [answer, setAnswer] = useState("")
-  const [answerSource, setAnswerSource] = useState<"ai" | "fallback" | null>(null)
+  const [answerSource, setAnswerSource] = useState<"ai" | "fallback" | "AI" | "Fallback" | null>(null)
   const [isAnswering, setIsAnswering] = useState(false)
 
   const context = useMemo(() => findHelpContextByPath(pathname), [pathname])
@@ -80,7 +80,7 @@ export const AdminHelpDrawer = () => {
     try {
       const response = await sdk.client.fetch<{
         answer: string
-        source: "ai" | "fallback"
+        source: "ai" | "fallback" | "AI" | "Fallback"
         suggestions: string[]
       }>("/admin/help/ask", {
         method: "POST",
@@ -167,8 +167,8 @@ export const AdminHelpDrawer = () => {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Heading level="h3">Answer</Heading>
-                <Badge size="2xsmall" color={answerSource === "ai" ? "green" : "orange"}>
-                  {answerSource === "ai" ? "AI" : "Fallback"}
+                <Badge size="2xsmall" color={answerSource?.toLowerCase() === "ai" ? "green" : "orange"}>
+                  {answerSource?.toLowerCase() === "ai" ? "AI" : "Fallback"}
                 </Badge>
               </div>
               <Text size="small" className="text-ui-fg-subtle">
