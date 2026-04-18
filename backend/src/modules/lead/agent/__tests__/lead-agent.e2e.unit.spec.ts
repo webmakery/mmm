@@ -99,4 +99,35 @@ describe("LeadAgentService end-to-end flow", () => {
       })
     )
   })
+
+
+  it("blocks outreach approval unless lead status is pending_approval", async () => {
+    const service = new LeadAgentService(
+      { fetchColdLeads: jest.fn() },
+      { scoreLeadQuality: jest.fn() },
+      {
+        createQualifiedLead: jest.fn(),
+        updateLeadStatus: jest.fn(async () => undefined),
+      },
+      { createFollowUpEvent: jest.fn() },
+      { sendOutreach: jest.fn(async () => ({ provider_id: "out_123" })) },
+      { log: jest.fn() }
+    )
+
+    const leadService = {
+      listLeads: jest.fn(async () => [
+        {
+          id: "lead_approved",
+          company: "Acme Dental",
+          follow_up_status: "approved",
+          outreach_message_draft: "Hello",
+        },
+      ]),
+    } as any
+
+    await expect(service.approveAndSendOutreach(leadService, "lead_approved")).rejects.toThrow(
+      "not pending outreach approval"
+    )
+  })
+
 })
