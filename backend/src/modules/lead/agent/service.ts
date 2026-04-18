@@ -6,7 +6,6 @@ import {
   DiscoverScoreAndQueueResult,
   LeadDisqualification,
   LeadAgentLogger,
-  LeadCalendarProvider,
   LeadCrmProvider,
   LeadDiscoveryProvider,
   LeadScoringProvider,
@@ -112,7 +111,6 @@ export class LeadAgentService {
     private readonly discoveryProvider: LeadDiscoveryProvider,
     private readonly scoringProvider: LeadScoringProvider,
     private readonly crmProvider: LeadCrmProvider,
-    private readonly calendarProvider: LeadCalendarProvider,
     private readonly outreachProvider: OutreachProvider,
     private readonly logger: LeadAgentLogger
   ) {}
@@ -244,25 +242,17 @@ export class LeadAgentService {
         )
 
         const followUpAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
-        const followUpEvent = await withRetry(
-          () =>
-            this.calendarProvider.createFollowUpEvent({
-              lead_id: crmLead.id,
-              company: candidate.company,
-              when: followUpAt,
-              owner_email: discoveryInput.follow_up_owner_email,
-              notes: scoreResult.notes,
-            }),
-          2,
-          "createFollowUpEvent",
-          this.logger
-        )
+        const followUpTask = `Follow up with ${candidate.company} regarding qualification notes: ${scoreResult.notes}`
 
         await this.crmProvider.updateLeadStatus(crmLead.id, {
           follow_up_status: "pending_approval",
-          follow_up_event_id: followUpEvent.event_id,
+          next_follow_up_at: followUpAt,
+          owner_user_id: discoveryInput.follow_up_owner_email || null,
+          notes_summary: `${candidate.notes_summary}\n\nTask: ${followUpTask}`,
           metadata_patch: {
             outreach_message_draft: scoreResult.outreach_message_draft,
+            follow_up_task: followUpTask,
+            follow_up_scheduling_source: "crm",
           },
         })
 
@@ -271,14 +261,19 @@ export class LeadAgentService {
           company: candidate.company,
           score: scoreResult.score,
           outreach_message_draft: scoreResult.outreach_message_draft,
-          follow_up_event_id: followUpEvent.event_id,
+          next_follow_up_at: followUpAt.toISOString(),
+          follow_up_status: "pending_approval",
+          owner_user_id: discoveryInput.follow_up_owner_email,
         })
         insertedIntoCrm += 1
 
-        this.logger.log("info", "lead_qualified_and_queued", {
+        this.logger.log("info", "lead_qualified_and_follow_up_scheduled", {
           lead_id: crmLead.id,
           company: candidate.company,
-          follow_up_event_id: followUpEvent.event_id,
+          next_follow_up_at: followUpAt.toISOString(),
+          follow_up_status: "pending_approval",
+          owner_user_id: discoveryInput.follow_up_owner_email || null,
+          scheduling_target: "crm",
         })
       } catch (error) {
         failedCount += 1
@@ -356,21 +351,17 @@ export const buildLeadAgentService = (container: { resolve: <T>(name: string) =>
   const logger = new DefaultLeadAgentLogger(medusaLogger)
 
   const placesApiKey = process.env.GOOGLE_PLACES_API_KEY?.trim() || ""
-  const calendarAccessToken = process.env.GOOGLE_CALENDAR_ACCESS_TOKEN?.trim() || ""
-  const calendarId = process.env.GOOGLE_CALENDAR_ID?.trim() || "primary"
   const openAiApiKey = process.env.OPENAI_API_KEY?.trim() || ""
 
   const { GooglePlacesLeadDiscoveryProvider } = require("./providers/google-places-provider")
   const { OpenAiLeadScoringProvider } = require("./providers/openai-lead-scoring-provider")
   const { MedusaLeadCrmProvider } = require("./providers/medusa-lead-crm-provider")
-  const { GoogleCalendarProvider } = require("./providers/google-calendar-provider")
   const { StubOutreachProvider } = require("./providers/stub-outreach-provider")
 
   return new LeadAgentService(
     new GooglePlacesLeadDiscoveryProvider(placesApiKey),
     new OpenAiLeadScoringProvider(openAiApiKey),
     new MedusaLeadCrmProvider(leadService),
-    new GoogleCalendarProvider(calendarAccessToken, calendarId),
     new StubOutreachProvider(),
     logger
   )

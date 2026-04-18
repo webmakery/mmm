@@ -2,7 +2,6 @@ import { LeadAgentService } from "../service"
 import { LeadAgentInputError } from "../errors"
 import {
   LeadAgentLogger,
-  LeadCalendarProvider,
   LeadCrmProvider,
   LeadDiscoveryProvider,
   LeadScoringProvider,
@@ -11,7 +10,7 @@ import {
 } from "../types"
 
 describe("LeadAgentService end-to-end flow", () => {
-  it("discovers, deduplicates, scores, creates CRM leads, schedules follow-up, and requires approval before outreach send", async () => {
+  it("discovers, deduplicates, scores, creates CRM leads, schedules follow-up in CRM, and requires approval before outreach send", async () => {
     const discoveryProvider: LeadDiscoveryProvider = {
       fetchColdLeads: jest.fn(async () => {
         const leads: RawBusinessLead[] = [
@@ -52,10 +51,6 @@ describe("LeadAgentService end-to-end flow", () => {
       updateLeadStatus: jest.fn(async () => undefined),
     }
 
-    const calendarProvider: LeadCalendarProvider = {
-      createFollowUpEvent: jest.fn(async () => ({ event_id: "evt_123" })),
-    }
-
     const outreachProvider: OutreachProvider = {
       sendOutreach: jest.fn(async () => ({ provider_id: "out_123" })),
     }
@@ -68,7 +63,6 @@ describe("LeadAgentService end-to-end flow", () => {
       discoveryProvider,
       scoringProvider,
       crmProvider,
-      calendarProvider,
       outreachProvider,
       logger
     )
@@ -82,14 +76,13 @@ describe("LeadAgentService end-to-end flow", () => {
     expect(discoveryProvider.fetchColdLeads).toHaveBeenCalledTimes(1)
     expect(scoringProvider.scoreLeadQuality).toHaveBeenCalledTimes(1)
     expect(crmProvider.createQualifiedLead).toHaveBeenCalledTimes(1)
-    expect(calendarProvider.createFollowUpEvent).toHaveBeenCalledTimes(1)
     expect(outreachProvider.sendOutreach).toHaveBeenCalledTimes(0)
 
     expect(result.qualified).toHaveLength(1)
     expect(result.qualified[0]).toEqual(
       expect.objectContaining({
         lead_id: "lead_123",
-        follow_up_event_id: "evt_123",
+        follow_up_status: "pending_approval",
       })
     )
     expect(result.summary).toEqual(
@@ -108,6 +101,7 @@ describe("LeadAgentService end-to-end flow", () => {
       "lead_123",
       expect.objectContaining({
         follow_up_status: "pending_approval",
+        next_follow_up_at: expect.any(Date),
       })
     )
   })
@@ -123,7 +117,6 @@ describe("LeadAgentService end-to-end flow", () => {
       discoveryProvider,
       { scoreLeadQuality: jest.fn() } as unknown as LeadScoringProvider,
       { createQualifiedLead: jest.fn(), updateLeadStatus: jest.fn() } as unknown as LeadCrmProvider,
-      { createFollowUpEvent: jest.fn() } as unknown as LeadCalendarProvider,
       { sendOutreach: jest.fn() } as unknown as OutreachProvider,
       { log: jest.fn() }
     )
@@ -150,7 +143,6 @@ describe("LeadAgentService end-to-end flow", () => {
       discoveryProvider,
       { scoreLeadQuality: jest.fn() } as unknown as LeadScoringProvider,
       { createQualifiedLead: jest.fn(), updateLeadStatus: jest.fn() } as unknown as LeadCrmProvider,
-      { createFollowUpEvent: jest.fn() } as unknown as LeadCalendarProvider,
       { sendOutreach: jest.fn() } as unknown as OutreachProvider,
       { log: jest.fn() }
     )
@@ -249,7 +241,6 @@ describe("LeadAgentService end-to-end flow", () => {
       discoveryProvider,
       scoringProvider,
       crmProvider,
-      { createFollowUpEvent: jest.fn(async () => ({ event_id: "evt" })) },
       { sendOutreach: jest.fn() } as unknown as OutreachProvider,
       { log: jest.fn() }
     )
@@ -314,7 +305,6 @@ describe("LeadAgentService end-to-end flow", () => {
       discoveryProvider,
       scoringProvider,
       crmProvider,
-      { createFollowUpEvent: jest.fn(async () => ({ event_id: "evt" })) },
       { sendOutreach: jest.fn() } as unknown as OutreachProvider,
       { log: jest.fn() }
     )

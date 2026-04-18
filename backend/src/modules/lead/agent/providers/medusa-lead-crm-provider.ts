@@ -82,7 +82,8 @@ export class MedusaLeadCrmProvider implements LeadCrmProvider {
     leadId: string,
     input: {
       follow_up_status?: string
-      follow_up_event_id?: string | null
+      next_follow_up_at?: Date | null
+      owner_user_id?: string | null
       outreach_approved_at?: Date | null
       outreach_sent_at?: Date | null
       notes_summary?: string
@@ -94,7 +95,8 @@ export class MedusaLeadCrmProvider implements LeadCrmProvider {
     await this.leadService.updateLeads({
       id: leadId,
       follow_up_status: input.follow_up_status,
-      follow_up_event_id: input.follow_up_event_id,
+      next_follow_up_at: input.next_follow_up_at,
+      owner_user_id: input.owner_user_id,
       outreach_approved_at: input.outreach_approved_at,
       outreach_sent_at: input.outreach_sent_at,
       notes_summary: input.notes_summary,
