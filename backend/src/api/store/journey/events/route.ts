@@ -10,7 +10,6 @@ export const PostStoreJourneyEventSchema = z.object({
   event_id: z.string().min(1).optional(),
   idempotency_key: z.string().min(1).optional(),
   occurred_at: z.string().datetime().optional(),
-  customer_id: z.string().optional(),
   event_source: z.string().optional(),
   page_url: z.string().optional(),
   referrer: z.string().optional(),
@@ -18,7 +17,7 @@ export const PostStoreJourneyEventSchema = z.object({
   utm_medium: z.string().optional(),
   utm_campaign: z.string().optional(),
   payload: z.record(z.any()).optional(),
-})
+}).strict()
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const payload = PostStoreJourneyEventSchema.parse(req.body ?? {})
