@@ -28,18 +28,30 @@ describe("MedusaLeadCrmProvider", () => {
       metadata: { city: "Austin" },
     })
 
-    expect(leadService.createLeads).toHaveBeenCalledWith(
-      expect.objectContaining({
-        stage_id: "stage_1",
-        website: "https://acme.example",
-        google_maps_uri: "https://maps.google.com/?cid=123",
-        metadata: expect.objectContaining({
-          city: "Austin",
-          tags: ["Google Map Leads"],
-          primary_tag: "Google Map Leads",
-        }),
-      })
-    )
+    expect(leadService.createLeads).toHaveBeenCalledWith({
+      first_name: "Acme Dental",
+      company: "Acme Dental",
+      email: undefined,
+      phone: undefined,
+      website: "https://acme.example",
+      google_maps_uri: "https://maps.google.com/?cid=123",
+      source: "google_places",
+      source_detail: "g_1",
+      category: undefined,
+      notes_summary: "note",
+      lead_score: 85,
+      lead_score_notes: "strong fit",
+      pain_points: ["No website"],
+      outreach_message_draft: "draft",
+      status: "qualified",
+      stage_id: "stage_1",
+      follow_up_status: "not_scheduled",
+      metadata: {
+        city: "Austin",
+        tags: ["Google Map Leads"],
+        primary_tag: "Google Map Leads",
+      },
+    })
   })
 
   it("creates a fallback New stage when no stage exists", async () => {
