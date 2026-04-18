@@ -9,6 +9,8 @@ export type CreateLeadInput = {
   last_name?: string | null
   email?: string | null
   phone?: string | null
+  website?: string | null
+  google_maps_uri?: string | null
   company?: string | null
   source?: string | null
   status?: LeadStatus

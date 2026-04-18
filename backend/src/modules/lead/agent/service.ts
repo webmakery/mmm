@@ -134,6 +134,7 @@ export class LeadAgentService {
       max_results: input.max_results,
       min_score: input.min_score,
       max_crm_imports: input.max_crm_imports,
+      continue_scoring_after_target: input.continue_scoring_after_target,
       follow_up_owner_email: input.follow_up_owner_email,
       enforce_ai_qualified: input.enforce_ai_qualified,
     }
@@ -156,13 +157,24 @@ export class LeadAgentService {
 
     const minScore = resolveMinScoreThreshold(discoveryInput.min_score)
     const enforceAiQualified = Boolean(discoveryInput.enforce_ai_qualified)
+    const continueScoringAfterTarget = Boolean(discoveryInput.continue_scoring_after_target)
     const maxCrmImports = Math.max(1, Math.min(100, discoveryInput.max_crm_imports || normalized.length))
     const qualifiedResults: QualifiedLeadResult[] = []
     const disqualifiedResults: LeadDisqualification[] = []
+    let qualifiedCount = 0
     let insertedIntoCrm = 0
     let failedCount = 0
 
-    for (const candidate of normalized) {
+    for (const [candidateIndex, candidate] of normalized.entries()) {
+      if (insertedIntoCrm >= maxCrmImports && !continueScoringAfterTarget) {
+        this.logger.log("info", "lead_processing_stopped_crm_target_reached", {
+          inserted_into_crm: insertedIntoCrm,
+          max_crm_imports: maxCrmImports,
+          remaining_candidates: Math.max(0, normalized.length - candidateIndex),
+        })
+        break
+      }
+
       try {
         const scoreResult = await withRetry(
           () => this.scoringProvider.scoreLeadQuality(candidate),
@@ -213,12 +225,14 @@ export class LeadAgentService {
           })
           continue
         }
+        qualifiedCount += 1
 
         if (insertedIntoCrm >= maxCrmImports) {
           this.logger.log("info", "lead_qualified_but_crm_limit_reached", {
             company: candidate.company,
             score: scoreResult.score,
             max_crm_imports: maxCrmImports,
+            continue_scoring_after_target: continueScoringAfterTarget,
           })
           continue
         }
@@ -230,6 +244,8 @@ export class LeadAgentService {
               company: candidate.company,
               email: candidate.email,
               phone: candidate.phone,
+              website: candidate.website,
+              google_maps_uri: (candidate.metadata?.google_maps_uri as string | undefined) || undefined,
               source: candidate.source,
               source_detail: candidate.source_detail,
               category: candidate.category,
@@ -307,7 +323,7 @@ export class LeadAgentService {
       summary: {
         discovered: discovered.length,
         deduped: normalized.length,
-        qualified: normalized.length - disqualifiedResults.length,
+        qualified: qualifiedCount,
         inserted_into_crm: insertedIntoCrm,
         skipped_duplicates: discovered.length - normalized.length,
         disqualified: disqualifiedResults.length,

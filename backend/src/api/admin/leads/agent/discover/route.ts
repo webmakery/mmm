@@ -9,6 +9,7 @@ export const PostAdminLeadAgentDiscoverSchema = z.object({
   max_results: z.coerce.number().min(1).max(50).default(20),
   min_score: z.coerce.number().min(0).max(100).default(65),
   max_crm_imports: z.coerce.number().min(1).max(100).default(20),
+  continue_scoring_after_target: z.coerce.boolean().optional().default(false),
   follow_up_owner_email: z.string().email().optional(),
   enforce_ai_qualified: z.coerce.boolean().optional().default(false),
 })
