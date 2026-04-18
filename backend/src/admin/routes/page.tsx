@@ -1,7 +1,7 @@
-import DashboardPageContent from "./dashboard/page-content"
+import { Navigate } from "react-router-dom"
 
 const AdminHomePage = () => {
-  return <DashboardPageContent />
+  return <Navigate to="/dashboard" replace />
 }
 
 export default AdminHomePage
