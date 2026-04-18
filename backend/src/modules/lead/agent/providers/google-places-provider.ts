@@ -1,3 +1,4 @@
+import { LeadAgentInputError } from "../errors"
 import { DiscoveryInput, LeadDiscoveryProvider, RawBusinessLead } from "../types"
 
 const GOOGLE_PLACES_TEXT_SEARCH_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
@@ -6,9 +7,15 @@ export class GooglePlacesLeadDiscoveryProvider implements LeadDiscoveryProvider 
   constructor(private readonly apiKey: string) {}
 
   async fetchColdLeads(input: DiscoveryInput): Promise<RawBusinessLead[]> {
+    console.info("[lead-agent] action=provider_discovery_payload", { input })
+
+    if (!input?.location?.trim()) {
+      throw new LeadAgentInputError("location is required for Google Places discovery")
+    }
+
     const params = new URLSearchParams({
       key: this.apiKey,
-      query: input.location ? `${input.query} in ${input.location}` : input.query,
+      query: `${input.query} in ${input.location.trim()}`,
     })
 
     const response = await fetch(`${GOOGLE_PLACES_TEXT_SEARCH_URL}?${params.toString()}`)
