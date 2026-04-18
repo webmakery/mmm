@@ -125,6 +125,11 @@ class TeamRbacModuleService extends MedusaService({
     return roles.map(normalizeRole) as RoleRecord[]
   }
 
+  async listRbacRoles(filters: Record<string, any> = {}, config: Record<string, any> = {}) {
+    const roles = await this.listRoles(filters as any, config as any)
+    return roles.map((role: any) => normalizeRole(role))
+  }
+
   async getRoleByKey(key: string) {
     const [role] = await this.listRoles({ key }, { take: 1 })
     return role ? normalizeRole(role as any) : null
