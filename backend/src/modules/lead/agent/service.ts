@@ -3,6 +3,8 @@ import LeadModuleService from "../service"
 import { isRetryableError, LeadAgentInputError } from "./errors"
 import {
   DiscoveryInput,
+  DiscoverScoreAndQueueResult,
+  LeadDisqualification,
   LeadAgentLogger,
   LeadCalendarProvider,
   LeadCrmProvider,
@@ -82,6 +84,19 @@ const dedupeLeads = (leads: NormalizedBusinessLead[]) => {
   return [...map.values()]
 }
 
+const resolveMinScoreThreshold = (rawMinScore?: number) => {
+  if (!rawMinScore || Number.isNaN(rawMinScore)) {
+    return 65
+  }
+
+  const normalized = Math.max(1, Math.min(100, rawMinScore))
+  if (normalized <= 10) {
+    return normalized * 10
+  }
+
+  return normalized
+}
+
 export class DefaultLeadAgentLogger implements LeadAgentLogger {
   constructor(private readonly logger: { info: (msg: string) => void; error: (msg: string) => void }) {}
 
@@ -107,7 +122,7 @@ export class LeadAgentService {
     private readonly logger: LeadAgentLogger
   ) {}
 
-  async discoverScoreAndQueue(input: DiscoveryInput): Promise<QualifiedLeadResult[]> {
+  async discoverScoreAndQueue(input: DiscoveryInput): Promise<DiscoverScoreAndQueueResult> {
     this.logger.log("info", "discovery_start", { input })
 
     if (!input?.location?.trim()) {
@@ -119,6 +134,7 @@ export class LeadAgentService {
       location: input.location.trim(),
       max_results: input.max_results,
       min_score: input.min_score,
+      max_crm_imports: input.max_crm_imports,
       follow_up_owner_email: input.follow_up_owner_email,
     }
     this.logger.log("info", "service_discovery_payload", { discoveryInput })
@@ -138,8 +154,11 @@ export class LeadAgentService {
       after: normalized.length,
     })
 
-    const minScore = Math.max(1, Math.min(100, discoveryInput.min_score || 65))
+    const minScore = resolveMinScoreThreshold(discoveryInput.min_score)
+    const maxCrmImports = Math.max(1, Math.min(100, discoveryInput.max_crm_imports || normalized.length))
     const qualifiedResults: QualifiedLeadResult[] = []
+    const disqualifiedResults: LeadDisqualification[] = []
+    let insertedIntoCrm = 0
 
     for (const candidate of normalized) {
       try {
@@ -153,12 +172,41 @@ export class LeadAgentService {
         this.logger.log("info", "lead_scored", {
           company: candidate.company,
           score: scoreResult.score,
+          ai_qualified: scoreResult.qualified,
         })
 
-        if (!scoreResult.qualified || scoreResult.score < minScore) {
+        if (!scoreResult.qualified) {
+          this.logger.log("info", "lead_ai_unqualified_signal", {
+            company: candidate.company,
+            score: scoreResult.score,
+          })
+        }
+
+        const disqualifierReasons: string[] = []
+
+        if (scoreResult.score < minScore) {
+          disqualifierReasons.push(`score_below_threshold:${scoreResult.score}<${minScore}`)
+        }
+
+        if (disqualifierReasons.length) {
+          disqualifiedResults.push({
+            company: candidate.company,
+            score: scoreResult.score,
+            reasons: disqualifierReasons,
+          })
           this.logger.log("info", "lead_disqualified", {
             company: candidate.company,
             score: scoreResult.score,
+            reasons: disqualifierReasons,
+          })
+          continue
+        }
+
+        if (insertedIntoCrm >= maxCrmImports) {
+          this.logger.log("info", "lead_qualified_but_crm_limit_reached", {
+            company: candidate.company,
+            score: scoreResult.score,
+            max_crm_imports: maxCrmImports,
           })
           continue
         }
@@ -217,6 +265,7 @@ export class LeadAgentService {
           outreach_message_draft: scoreResult.outreach_message_draft,
           follow_up_event_id: followUpEvent.event_id,
         })
+        insertedIntoCrm += 1
 
         this.logger.log("info", "lead_qualified_and_queued", {
           lead_id: crmLead.id,
@@ -231,7 +280,18 @@ export class LeadAgentService {
       }
     }
 
-    return qualifiedResults
+    return {
+      qualified: qualifiedResults,
+      disqualified: disqualifiedResults,
+      summary: {
+        discovered: discovered.length,
+        deduped: normalized.length,
+        qualified: normalized.length - disqualifiedResults.length,
+        inserted_into_crm: insertedIntoCrm,
+        skipped_duplicates: discovered.length - normalized.length,
+        disqualified: disqualifiedResults.length,
+      },
+    }
   }
 
   async approveAndSendOutreach(leadService: LeadModuleService, leadId: string) {
