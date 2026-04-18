@@ -14,6 +14,15 @@ type RoleRecord = {
   is_system: boolean
 }
 
+type TeamUserFallbackRecord = {
+  id: string
+  email: string | null
+  first_name: string | null
+  last_name: string | null
+  roles: string[]
+  assigned_roles: RoleRecord[]
+  source: "local-mapping"
+}
 
 const normalizeRole = (role: any): RoleRecord => ({
   ...role,
@@ -21,45 +30,58 @@ const normalizeRole = (role: any): RoleRecord => ({
 })
 
 const ADMIN_ROLE_KEY = "admin"
+
 const normalizeRoleKeys = (roles: unknown): string[] =>
-  [...new Set((Array.isArray(roles) ? roles : [])
-    .filter((role): role is string => typeof role === "string")
-    .map((role) => role.trim())
-    .filter(Boolean))]
+  [
+    ...new Set(
+      (Array.isArray(roles) ? roles : [])
+        .filter((role): role is string => typeof role === "string")
+        .map((role) => role.trim())
+        .filter(Boolean)
+    ),
+  ]
 
 const extractInviteRoleRefs = (invite: InviteDTO): string[] => {
   const metadata = (invite.metadata || {}) as Record<string, unknown>
   const rawRefs = [
-    ...(Array.isArray(invite.roles) ? invite.roles : []),
+    ...(Array.isArray((invite as any).roles) ? (invite as any).roles : []),
     ...(Array.isArray(metadata.role_ids) ? metadata.role_ids : []),
     ...(Array.isArray(metadata.roles) ? metadata.roles : []),
   ]
 
-  return [...new Set(rawRefs
-    .map((ref) => {
-      if (typeof ref === "string") {
-        return ref.trim()
-      }
+  return [
+    ...new Set(
+      rawRefs
+        .map((ref) => {
+          if (typeof ref === "string") {
+            return ref.trim()
+          }
 
-      if (ref && typeof ref === "object" && "id" in ref && typeof (ref as any).id === "string") {
-        return (ref as any).id.trim()
-      }
+          if (ref && typeof ref === "object" && "id" in ref && typeof (ref as any).id === "string") {
+            return (ref as any).id.trim()
+          }
 
-      if (ref && typeof ref === "object" && "key" in ref && typeof (ref as any).key === "string") {
-        return (ref as any).key.trim()
-      }
+          if (ref && typeof ref === "object" && "key" in ref && typeof (ref as any).key === "string") {
+            return (ref as any).key.trim()
+          }
 
-      return ""
-    })
-    .filter(Boolean))]
+          return ""
+        })
+        .filter(Boolean)
+    ),
+  ]
 }
 
 class TeamRbacModuleService extends MedusaService({
   Role,
   UserRole,
 }) {
+  private getContainer(): any {
+    return (this as any).container || (this as any).__container__ || null
+  }
+
   private getUserService(): IUserModuleService | null {
-    const container = (this as any).__container__
+    const container = this.getContainer()
 
     const serviceKeys = [
       Modules.USER,
@@ -75,12 +97,12 @@ class TeamRbacModuleService extends MedusaService({
         if (typeof container?.resolve === "function") {
           const service = container.resolve(key)
           if (service) {
-            return service
+            return service as IUserModuleService
           }
         } else if (container?.[key]) {
-          return container[key]
+          return container[key] as IUserModuleService
         }
-      } catch (e) {
+      } catch {
         continue
       }
     }
@@ -90,6 +112,7 @@ class TeamRbacModuleService extends MedusaService({
 
   private requireUserService(): IUserModuleService {
     const userService = this.getUserService()
+
     if (!userService) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
@@ -100,8 +123,55 @@ class TeamRbacModuleService extends MedusaService({
     return userService
   }
 
+  private async resolveRolesByRefs(roleRefs: string[]): Promise<Map<string, RoleRecord>> {
+    const uniqueRefs = [...new Set(roleRefs.filter(Boolean))]
+
+    if (!uniqueRefs.length) {
+      return new Map()
+    }
+
+    const [rolesById, rolesByKey] = await Promise.all([
+      this.listRoles({ id: uniqueRefs as any }, { take: Math.max(200, uniqueRefs.length) }),
+      this.listRoles({ key: uniqueRefs as any }, { take: Math.max(200, uniqueRefs.length) }),
+    ])
+
+    const resolved = new Map<string, RoleRecord>()
+
+    for (const role of rolesById as any[]) {
+      const normalized = normalizeRole(role)
+      resolved.set(normalized.id, normalized)
+    }
+
+    for (const role of rolesByKey as any[]) {
+      const normalized = normalizeRole(role)
+      resolved.set(normalized.key, normalized)
+    }
+
+    return resolved
+  }
+
+  private async getAssignedRolesByUserId(): Promise<Map<string, RoleRecord[]>> {
+    const mappings = await this.listUserRoles({}, { relations: ["role"], take: 5000 })
+    const rolesByUserId = new Map<string, RoleRecord[]>()
+
+    mappings.forEach((mapping: any) => {
+      if (!mapping?.user_id || !mapping?.role) {
+        return
+      }
+
+      const existing = rolesByUserId.get(mapping.user_id) || []
+      existing.push(normalizeRole(mapping.role))
+      rolesByUserId.set(mapping.user_id, existing)
+    })
+
+    return rolesByUserId
+  }
+
   async ensureDefaultRoles() {
-    const existing = await this.listRoles({}, { select: ["id", "key", "name", "description", "permissions", "is_system"] })
+    const existing = await this.listRoles(
+      {},
+      { select: ["id", "key", "name", "description", "permissions", "is_system"] }
+    )
     const existingByKey = new Map(existing.map((role: any) => [role.key, normalizeRole(role)]))
 
     const toCreate = DEFAULT_ROLE_DEFINITIONS
@@ -173,6 +243,7 @@ class TeamRbacModuleService extends MedusaService({
     await this.ensureDefaultRoles()
 
     const userService = this.getUserService()
+
     if (!userService) {
       const mappings = await this.listUserRoles({ user_id: actorId }, { relations: ["role"] })
 
@@ -183,14 +254,11 @@ class TeamRbacModuleService extends MedusaService({
 
         if (baselineRole) {
           await this.createUserRoles({ user_id: actorId, role_id: baselineRole.id } as any)
-
           return [baselineRole]
         }
       }
 
-      return mappings
-        .map((mapping: any) => mapping.role)
-        .filter(Boolean) as RoleRecord[]
+      return mappings.map((mapping: any) => mapping.role).filter(Boolean) as RoleRecord[]
     }
 
     const user = await userService.retrieveUser(actorId).catch(() => null)
@@ -200,21 +268,22 @@ class TeamRbacModuleService extends MedusaService({
     }
 
     await this.bootstrapActorIfNeeded(user.id)
-    const userRoleKeys = normalizeRoleKeys(user.roles)
+
+    const userRoleKeys = normalizeRoleKeys((user as any).roles)
     const definedRoles = userRoleKeys.length
       ? await this.listRoles({ key: userRoleKeys as any }, { take: userRoleKeys.length })
       : []
+
     const resolvedRoleKeys = await this.ensureActorHasBaselineRole(
       user.id,
       normalizeRoleKeys(definedRoles.map((role: any) => role.key))
     )
+
     await this.syncUserRoleMappings({ id: user.id, roles: resolvedRoleKeys })
 
     const mappings = await this.listUserRoles({ user_id: actorId }, { relations: ["role"] })
 
-    return mappings
-      .map((mapping: any) => mapping.role)
-      .filter(Boolean) as RoleRecord[]
+    return mappings.map((mapping: any) => mapping.role).filter(Boolean) as RoleRecord[]
   }
 
   async getActorPermissions(actorId: string) {
@@ -235,7 +304,13 @@ class TeamRbacModuleService extends MedusaService({
   async syncUserRoleMappings(user: Pick<UserDTO, "id" | "roles">) {
     const roleKeys = normalizeRoleKeys(user.roles)
 
+    const currentMappings = await this.listUserRoles({ user_id: user.id }, { relations: ["role"] })
+
     if (!roleKeys.length) {
+      const staleIds = currentMappings.map((mapping: any) => mapping.id)
+      if (staleIds.length) {
+        await this.deleteUserRoles(staleIds)
+      }
       return
     }
 
@@ -243,7 +318,6 @@ class TeamRbacModuleService extends MedusaService({
     const roleByKey = new Map(roles.map((role: any) => [role.key, normalizeRole(role)]))
     const resolvedRoleKeys = roleKeys.filter((key) => roleByKey.has(key))
 
-    const currentMappings = await this.listUserRoles({ user_id: user.id }, { relations: ["role"] })
     const mappedKeys = new Set(currentMappings.map((mapping: any) => mapping.role?.key).filter(Boolean))
 
     const toCreate = resolvedRoleKeys
@@ -264,92 +338,148 @@ class TeamRbacModuleService extends MedusaService({
   }
 
   async assignRolesToUser(userId: string, roleIds: string[]) {
-    const userService = this.requireUserService()
-    const user = await userService.retrieveUser(userId)
+    await this.ensureDefaultRoles()
+
     const roles = await this.getRolesByIds(roleIds)
 
     if (roles.length !== roleIds.length) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, "One or more roles are invalid")
     }
 
-    await userService.updateUsers({
-      id: user.id,
-      roles: roles.map((role) => role.key),
-    })
+    const userService = this.getUserService()
 
-    await this.syncUserRoleMappings({ id: user.id, roles: roles.map((role) => role.key) })
+    if (userService) {
+      const user = await userService.retrieveUser(userId).catch(() => null)
+
+      if (!user) {
+        throw new MedusaError(MedusaError.Types.NOT_FOUND, "User not found")
+      }
+
+      await userService.updateUsers({
+        id: user.id,
+        roles: roles.map((role) => role.key),
+      })
+
+      await this.syncUserRoleMappings({ id: user.id, roles: roles.map((role) => role.key) })
+      return roles
+    }
+
+    const currentMappings = await this.listUserRoles({ user_id: userId }, { relations: ["role"] })
+    if (currentMappings.length) {
+      await this.deleteUserRoles(currentMappings.map((mapping: any) => mapping.id))
+    }
+
+    if (roles.length) {
+      await this.createUserRoles(
+        roles.map((role) => ({
+          user_id: userId,
+          role_id: role.id,
+        })) as any[]
+      )
+    }
 
     return roles
   }
 
   async removeRoleFromUser(userId: string, roleId: string) {
-    const userService = this.requireUserService()
-    const user = await userService.retrieveUser(userId)
     const role = await this.retrieveRole(roleId).catch(() => null)
 
     if (!role) {
       throw new MedusaError(MedusaError.Types.NOT_FOUND, "Role not found")
     }
 
-    const nextRoles = (user.roles || []).filter((key) => key !== role.key)
+    const userService = this.getUserService()
 
-    await userService.updateUsers({
-      id: user.id,
-      roles: nextRoles,
-    })
+    if (userService) {
+      const user = await userService.retrieveUser(userId).catch(() => null)
 
-    await this.syncUserRoleMappings({ id: user.id, roles: nextRoles })
+      if (!user) {
+        throw new MedusaError(MedusaError.Types.NOT_FOUND, "User not found")
+      }
 
-    return nextRoles
+      const nextRoles = ((user as any).roles || []).filter((key: string) => key !== (role as any).key)
+
+      await userService.updateUsers({
+        id: user.id,
+        roles: nextRoles,
+      })
+
+      await this.syncUserRoleMappings({ id: user.id, roles: nextRoles })
+      return nextRoles
+    }
+
+    const staleMappings = await this.listUserRoles({ user_id: userId, role_id: roleId }, { take: 100 })
+    if (staleMappings.length) {
+      await this.deleteUserRoles(staleMappings.map((mapping: any) => mapping.id))
+    }
+
+    const remainingMappings = await this.listUserRoles({ user_id: userId }, { relations: ["role"], take: 100 })
+    return remainingMappings.map((mapping: any) => mapping.role?.key).filter(Boolean)
   }
 
   async listTeamUsers() {
-    const userService = this.requireUserService()
+    await this.ensureDefaultRoles()
+
+    const userService = this.getUserService()
+    const rolesByUserId = await this.getAssignedRolesByUserId()
+
+    if (!userService) {
+      const fallbackUsers: TeamUserFallbackRecord[] = Array.from(rolesByUserId.entries()).map(
+        ([userId, assignedRoles]) => ({
+          id: userId,
+          email: null,
+          first_name: null,
+          last_name: null,
+          roles: assignedRoles.map((role) => role.key),
+          assigned_roles: assignedRoles,
+          source: "local-mapping",
+        })
+      )
+
+      return fallbackUsers
+    }
+
     const [users] = await userService.listAndCountUsers({}, { take: 200 })
 
-    await Promise.all(users.map((user) => this.syncUserRoleMappings(user)))
+    await Promise.all(
+      users.map(async (user) => {
+        const normalizedRoles = normalizeRoleKeys((user as any).roles)
+        await this.syncUserRoleMappings({
+          id: user.id,
+          roles: normalizedRoles,
+        })
+      })
+    )
 
-    const mappings = await this.listUserRoles({}, { relations: ["role"], take: 1000 })
-    const rolesByUserId = new Map<string, RoleRecord[]>()
-
-    mappings.forEach((mapping: any) => {
-      if (!mapping.role) {
-        return
-      }
-
-      const existing = rolesByUserId.get(mapping.user_id) || []
-      existing.push(mapping.role)
-      rolesByUserId.set(mapping.user_id, existing)
-    })
+    const freshRolesByUserId = await this.getAssignedRolesByUserId()
 
     return users.map((user) => ({
       ...user,
-      assigned_roles: rolesByUserId.get(user.id) || [],
+      assigned_roles: freshRolesByUserId.get(user.id) || [],
     }))
   }
 
   async listPendingInvites() {
-    const userService = this.requireUserService()
-    const [allInvites] = await userService.listAndCountInvites({} as any, { take: 200 })
-    const invites = allInvites.filter((invite) => !invite.accepted && !invite.deleted_at)
+    const userService = this.getUserService()
 
-    const inviteRoleRefsByInviteId = new Map(invites.map((invite) => [invite.id, extractInviteRoleRefs(invite)]))
+    if (!userService) {
+      return []
+    }
+
+    const [allInvites] = await userService.listAndCountInvites({} as any, { take: 200 })
+    const invites = allInvites.filter((invite: any) => !invite.accepted && !invite.deleted_at)
+
+    const inviteRoleRefsByInviteId = new Map(
+      invites.map((invite: InviteDTO) => [invite.id, extractInviteRoleRefs(invite)])
+    )
+
     const invitedRoleRefs = [...new Set(Array.from(inviteRoleRefsByInviteId.values()).flat())]
-    const [rolesById, rolesByKey] = await Promise.all([
-      invitedRoleRefs.length
-        ? this.listRoles({ id: invitedRoleRefs as any }, { take: 200 })
-        : Promise.resolve([]),
-      invitedRoleRefs.length
-        ? this.listRoles({ key: invitedRoleRefs as any }, { take: 200 })
-        : Promise.resolve([]),
-    ])
-    const roleById = new Map(rolesById.map((role: any) => [role.id, normalizeRole(role)]))
-    const roleByKey = new Map(rolesByKey.map((role: any) => [role.key, normalizeRole(role)]))
+    const rolesByRef = await this.resolveRolesByRefs(invitedRoleRefs)
 
     return invites.map((invite: InviteDTO) => ({
       ...invite,
       assigned_roles: (inviteRoleRefsByInviteId.get(invite.id) || [])
-        .map((roleRef) => roleById.get(roleRef) || roleByKey.get(roleRef))
+        .map((roleRef) => rolesByRef.get(roleRef))
         .filter(Boolean),
     }))
   }
@@ -366,7 +496,7 @@ class TeamRbacModuleService extends MedusaService({
   }
 
   async bootstrapActorIfNeeded(actorId: string) {
-    const existingMappings = await this.listUserRoles({}, { take: 1 })
+    const existingMappings = await this.listUserRoles({ user_id: actorId }, { take: 1 })
     if (existingMappings.length) {
       return
     }
@@ -380,12 +510,13 @@ class TeamRbacModuleService extends MedusaService({
     if (!userService) {
       return
     }
+
     const user = await userService.retrieveUser(actorId).catch(() => null)
     if (!user) {
       return
     }
 
-    const nextRoles = [...new Set([...(user.roles || []), SUPER_ADMIN_KEY])]
+    const nextRoles = [...new Set([...(((user as any).roles || []) as string[]), SUPER_ADMIN_KEY])]
     await userService.updateUsers({ id: user.id, roles: nextRoles })
     await this.createUserRoles({ user_id: user.id, role_id: role.id } as any)
   }
@@ -396,7 +527,6 @@ class TeamRbacModuleService extends MedusaService({
     }
 
     const userService = this.getUserService()
-
     if (!userService) {
       return existingRoleKeys
     }
@@ -428,7 +558,10 @@ class TeamRbacModuleService extends MedusaService({
     }
 
     if (roleMappings.length) {
-      await this.deleteUserRoles(roleMappings.map((mapping: any) => mapping.id), sharedContext)
+      await this.deleteUserRoles(
+        roleMappings.map((mapping: any) => mapping.id),
+        sharedContext
+      )
     }
 
     await this.deleteRoles(roleId, sharedContext)
