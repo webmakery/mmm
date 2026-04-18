@@ -85,16 +85,11 @@ const dedupeLeads = (leads: NormalizedBusinessLead[]) => {
 }
 
 const resolveMinScoreThreshold = (rawMinScore?: number) => {
-  if (!rawMinScore || Number.isNaN(rawMinScore)) {
+  if (typeof rawMinScore !== "number" || Number.isNaN(rawMinScore)) {
     return 65
   }
 
-  const normalized = Math.max(1, Math.min(100, rawMinScore))
-  if (normalized <= 10) {
-    return normalized * 10
-  }
-
-  return normalized
+  return Math.max(0, Math.min(100, rawMinScore))
 }
 
 export class DefaultLeadAgentLogger implements LeadAgentLogger {
@@ -136,6 +131,7 @@ export class LeadAgentService {
       min_score: input.min_score,
       max_crm_imports: input.max_crm_imports,
       follow_up_owner_email: input.follow_up_owner_email,
+      enforce_ai_qualified: input.enforce_ai_qualified,
     }
     this.logger.log("info", "service_discovery_payload", { discoveryInput })
 
@@ -155,10 +151,12 @@ export class LeadAgentService {
     })
 
     const minScore = resolveMinScoreThreshold(discoveryInput.min_score)
+    const enforceAiQualified = Boolean(discoveryInput.enforce_ai_qualified)
     const maxCrmImports = Math.max(1, Math.min(100, discoveryInput.max_crm_imports || normalized.length))
     const qualifiedResults: QualifiedLeadResult[] = []
     const disqualifiedResults: LeadDisqualification[] = []
     let insertedIntoCrm = 0
+    let failedCount = 0
 
     for (const candidate of normalized) {
       try {
@@ -175,18 +173,28 @@ export class LeadAgentService {
           ai_qualified: scoreResult.qualified,
         })
 
-        if (!scoreResult.qualified) {
-          this.logger.log("info", "lead_ai_unqualified_signal", {
-            company: candidate.company,
-            score: scoreResult.score,
-          })
-        }
-
         const disqualifierReasons: string[] = []
+        const qualificationReasons = scoreResult.qualification_reasons || []
 
         if (scoreResult.score < minScore) {
           disqualifierReasons.push(`score_below_threshold:${scoreResult.score}<${minScore}`)
         }
+
+        if (!scoreResult.qualified && enforceAiQualified) {
+          disqualifierReasons.push("ai_marked_unqualified")
+        } else if (!scoreResult.qualified) {
+          qualificationReasons.push("ai_marked_unqualified_but_not_enforced")
+        }
+
+        this.logger.log("info", "lead_qualification_evaluated", {
+          company: candidate.company,
+          score: scoreResult.score,
+          ai_qualified: scoreResult.qualified,
+          min_score_threshold: minScore,
+          enforce_ai_qualified: enforceAiQualified,
+          qualification_reasons: qualificationReasons,
+          disqualification_reasons: disqualifierReasons,
+        })
 
         if (disqualifierReasons.length) {
           disqualifiedResults.push({
@@ -273,6 +281,7 @@ export class LeadAgentService {
           follow_up_event_id: followUpEvent.event_id,
         })
       } catch (error) {
+        failedCount += 1
         this.logger.log("error", "lead_processing_failed", {
           company: candidate.company,
           error: error instanceof Error ? error.message : String(error),
@@ -290,6 +299,7 @@ export class LeadAgentService {
         inserted_into_crm: insertedIntoCrm,
         skipped_duplicates: discovered.length - normalized.length,
         disqualified: disqualifiedResults.length,
+        failed: failedCount,
       },
     }
   }

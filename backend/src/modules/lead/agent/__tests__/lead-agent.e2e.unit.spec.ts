@@ -100,6 +100,7 @@ describe("LeadAgentService end-to-end flow", () => {
         inserted_into_crm: 1,
         skipped_duplicates: 1,
         disqualified: 0,
+        failed: 0,
       })
     )
 
@@ -169,13 +170,14 @@ describe("LeadAgentService end-to-end flow", () => {
         inserted_into_crm: 0,
         skipped_duplicates: 0,
         disqualified: 0,
+        failed: 0,
       },
     })
 
     expect(discoveryProvider.fetchColdLeads).toHaveBeenCalledTimes(2)
   })
 
-  it("supports 1-10 min_score scale and max CRM imports", async () => {
+  it("supports explicit 0-100 min_score scale and max CRM imports", async () => {
     const discoveryProvider: LeadDiscoveryProvider = {
       fetchColdLeads: jest.fn(async () => {
         const leads: RawBusinessLead[] = [
@@ -255,7 +257,7 @@ describe("LeadAgentService end-to-end flow", () => {
     const result = await service.discoverScoreAndQueue({
       query: "dentist",
       location: "Austin, TX",
-      min_score: 4,
+      min_score: 40,
       max_crm_imports: 1,
     })
 
@@ -266,6 +268,7 @@ describe("LeadAgentService end-to-end flow", () => {
       inserted_into_crm: 1,
       skipped_duplicates: 0,
       disqualified: 1,
+      failed: 0,
     })
     expect(result.disqualified).toEqual([
       expect.objectContaining({
@@ -275,5 +278,78 @@ describe("LeadAgentService end-to-end flow", () => {
       }),
     ])
     expect(crmProvider.createQualifiedLead).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not block crm insert on ai_qualified false unless enforce_ai_qualified is enabled", async () => {
+    const discoveryProvider: LeadDiscoveryProvider = {
+      fetchColdLeads: jest.fn(async () => [
+        {
+          external_id: "g_1",
+          name: "Acme Dental",
+          phone: "+1 555 1111",
+          source: "google_places",
+          website: "https://acmedental.example",
+          category: "dentist",
+        },
+      ]),
+    }
+
+    const scoringProvider: LeadScoringProvider = {
+      scoreLeadQuality: jest.fn(async () => ({
+        score: 82,
+        notes: "Good fit",
+        pain_points: [],
+        qualified: false,
+        qualification_reasons: ["ai_signal_low_confidence"],
+        outreach_message_draft: "draft",
+      })),
+    }
+
+    const crmProvider: LeadCrmProvider = {
+      createQualifiedLead: jest.fn(async () => ({ id: "lead_1" })),
+      updateLeadStatus: jest.fn(async () => undefined),
+    }
+
+    const service = new LeadAgentService(
+      discoveryProvider,
+      scoringProvider,
+      crmProvider,
+      { createFollowUpEvent: jest.fn(async () => ({ event_id: "evt" })) },
+      { sendOutreach: jest.fn() } as unknown as OutreachProvider,
+      { log: jest.fn() }
+    )
+
+    await expect(
+      service.discoverScoreAndQueue({
+        query: "dentist",
+        location: "Austin, TX",
+        min_score: 70,
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          inserted_into_crm: 1,
+          disqualified: 0,
+          failed: 0,
+        }),
+      })
+    )
+
+    await expect(
+      service.discoverScoreAndQueue({
+        query: "dentist",
+        location: "Austin, TX",
+        min_score: 70,
+        enforce_ai_qualified: true,
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          inserted_into_crm: 0,
+          disqualified: 1,
+          failed: 0,
+        }),
+      })
+    )
   })
 })

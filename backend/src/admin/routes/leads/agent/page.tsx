@@ -26,6 +26,7 @@ type DiscoverySummary = {
   inserted_into_crm: number
   skipped_duplicates: number
   disqualified: number
+  failed: number
 }
 
 type DiscoveryResponse = {
@@ -38,7 +39,7 @@ type DiscoveryResponse = {
 const LeadAgentReviewPage = () => {
   const [query, setQuery] = useState("")
   const [location, setLocation] = useState("")
-  const [minScore, setMinScore] = useState("6.5")
+  const [minScore, setMinScore] = useState("65")
   const [maxCrmImports, setMaxCrmImports] = useState("20")
   const [discoverySummary, setDiscoverySummary] = useState<DiscoverySummary | null>(null)
 
@@ -85,7 +86,7 @@ const LeadAgentReviewPage = () => {
       <div className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-5">
         <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search query" />
         <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" />
-        <Input value={minScore} onChange={(e) => setMinScore(e.target.value)} placeholder="Min score (1-10 or 1-100)" />
+        <Input value={minScore} onChange={(e) => setMinScore(e.target.value)} placeholder="Min score (0-100)" />
         <Input
           value={maxCrmImports}
           onChange={(e) => setMaxCrmImports(e.target.value)}
@@ -109,6 +110,7 @@ const LeadAgentReviewPage = () => {
             <StatusBadge color="blue">Inserted {discoverySummary.inserted_into_crm}</StatusBadge>
             <StatusBadge color="red">Disqualified {discoverySummary.disqualified}</StatusBadge>
             <StatusBadge color="grey">Skipped duplicates {discoverySummary.skipped_duplicates}</StatusBadge>
+            <StatusBadge color="red">Failed {discoverySummary.failed}</StatusBadge>
           </Container>
         </div>
       ) : null}
