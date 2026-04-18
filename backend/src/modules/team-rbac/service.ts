@@ -81,15 +81,13 @@ const isPendingInvite = (invite: any): boolean => {
     return false
   }
 
-  const acceptedMarkers = [
-    invite.accepted,
-    invite.accepted_at,
-    invite.acceptedAt,
-    invite.accepted_by,
-    invite.acceptedBy,
-  ]
-
-  if (acceptedMarkers.some(Boolean)) {
+  if (
+    invite.accepted ||
+    invite.accepted_at ||
+    invite.acceptedAt ||
+    invite.accepted_by ||
+    invite.acceptedBy
+  ) {
     return false
   }
 
@@ -200,6 +198,22 @@ class TeamRbacModuleService extends MedusaService({
     })
 
     return rolesByUserId
+  }
+
+  async attachRolesToInvites(invites: InviteDTO[]) {
+    const inviteRoleRefsByInviteId = new Map(
+      invites.map((invite: InviteDTO) => [invite.id, extractInviteRoleRefs(invite)])
+    )
+
+    const invitedRoleRefs = [...new Set(Array.from(inviteRoleRefsByInviteId.values()).flat())]
+    const rolesByRef = await this.resolveRolesByRefs(invitedRoleRefs)
+
+    return invites.map((invite: InviteDTO) => ({
+      ...invite,
+      assigned_roles: (inviteRoleRefsByInviteId.get(invite.id) || [])
+        .map((roleRef) => rolesByRef.get(roleRef))
+        .filter(Boolean),
+    }))
   }
 
   async ensureDefaultRoles() {
@@ -498,25 +512,14 @@ class TeamRbacModuleService extends MedusaService({
     const userService = this.getUserService()
 
     if (!userService) {
+      console.log("[team-rbac] listPendingInvites: userService unavailable")
       return []
     }
 
     const [allInvites] = await userService.listAndCountInvites({} as any, { take: 200 })
     const invites = (allInvites || []).filter(isPendingInvite)
 
-    const inviteRoleRefsByInviteId = new Map(
-      invites.map((invite: InviteDTO) => [invite.id, extractInviteRoleRefs(invite)])
-    )
-
-    const invitedRoleRefs = [...new Set(Array.from(inviteRoleRefsByInviteId.values()).flat())]
-    const rolesByRef = await this.resolveRolesByRefs(invitedRoleRefs)
-
-    return invites.map((invite: InviteDTO) => ({
-      ...invite,
-      assigned_roles: (inviteRoleRefsByInviteId.get(invite.id) || [])
-        .map((roleRef) => rolesByRef.get(roleRef))
-        .filter(Boolean),
-    }))
+    return this.attachRolesToInvites(invites as InviteDTO[])
   }
 
   async countSuperAdmins() {
