@@ -92,18 +92,27 @@ class TeamRbacModuleService extends MedusaService({
       "userService",
     ]
 
-    for (const key of serviceKeys) {
-      try {
-        if (typeof container?.resolve === "function") {
-          const service = container.resolve(key)
-          if (service) {
-            return service as IUserModuleService
+    const candidateContainers = [
+      container,
+      container?.sharedContainer,
+      container?.container,
+      container?.scope,
+    ].filter(Boolean)
+
+    for (const currentContainer of candidateContainers) {
+      for (const key of serviceKeys) {
+        try {
+          if (typeof currentContainer?.resolve === "function") {
+            const service = currentContainer.resolve(key)
+            if (service) {
+              return service as IUserModuleService
+            }
+          } else if (currentContainer?.[key]) {
+            return currentContainer[key] as IUserModuleService
           }
-        } else if (container?.[key]) {
-          return container[key] as IUserModuleService
+        } catch {
+          continue
         }
-      } catch {
-        continue
       }
     }
 
