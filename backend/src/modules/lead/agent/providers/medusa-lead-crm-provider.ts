@@ -40,6 +40,8 @@ export class MedusaLeadCrmProvider implements LeadCrmProvider {
     company: string
     email?: string
     phone?: string
+    website?: string
+    google_maps_uri?: string
     source: string
     source_detail: string
     category?: string
@@ -57,6 +59,8 @@ export class MedusaLeadCrmProvider implements LeadCrmProvider {
       company: input.company,
       email: input.email,
       phone: input.phone,
+      website: input.website,
+      google_maps_uri: input.google_maps_uri,
       source: input.source,
       source_detail: input.source_detail,
       category: input.category,

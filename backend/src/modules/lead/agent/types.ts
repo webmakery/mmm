@@ -76,6 +76,7 @@ export type DiscoveryInput = {
   max_results?: number
   min_score?: number
   max_crm_imports?: number
+  continue_scoring_after_target?: boolean
   follow_up_owner_email?: string
   enforce_ai_qualified?: boolean
 }
@@ -94,6 +95,8 @@ export interface LeadCrmProvider {
     company: string
     email?: string
     phone?: string
+    website?: string
+    google_maps_uri?: string
     source: string
     source_detail: string
     category?: string

@@ -9,6 +9,8 @@ export const PostAdminUpdateLeadSchema = z.object({
   last_name: z.string().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
+  website: z.string().url().optional(),
+  google_maps_uri: z.string().url().optional(),
   company: z.string().optional(),
   source: z.string().optional(),
   status: z.enum(["new", "contacted", "qualified", "won", "lost"]).optional(),

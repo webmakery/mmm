@@ -18,6 +18,8 @@ describe("MedusaLeadCrmProvider", () => {
       company: "Acme Dental",
       source: "google_places",
       source_detail: "g_1",
+      website: "https://acme.example",
+      google_maps_uri: "https://maps.google.com/?cid=123",
       notes_summary: "note",
       lead_score: 85,
       lead_score_notes: "strong fit",
@@ -29,6 +31,8 @@ describe("MedusaLeadCrmProvider", () => {
     expect(leadService.createLeads).toHaveBeenCalledWith(
       expect.objectContaining({
         stage_id: "stage_1",
+        website: "https://acme.example",
+        google_maps_uri: "https://maps.google.com/?cid=123",
         metadata: expect.objectContaining({
           city: "Austin",
           tags: ["Google Map Leads"],
@@ -52,6 +56,8 @@ describe("MedusaLeadCrmProvider", () => {
       company: "Acme Dental",
       source: "google_places",
       source_detail: "g_1",
+      website: "https://acme.example",
+      google_maps_uri: "https://maps.google.com/?cid=123",
       notes_summary: "note",
       lead_score: 85,
       lead_score_notes: "strong fit",

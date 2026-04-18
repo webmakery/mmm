@@ -169,7 +169,7 @@ describe("LeadAgentService end-to-end flow", () => {
     expect(discoveryProvider.fetchColdLeads).toHaveBeenCalledTimes(2)
   })
 
-  it("supports explicit 0-100 min_score scale and max CRM imports", async () => {
+  it("stops further scoring once max CRM imports target is reached by default", async () => {
     const discoveryProvider: LeadDiscoveryProvider = {
       fetchColdLeads: jest.fn(async () => {
         const leads: RawBusinessLead[] = [
@@ -255,19 +255,89 @@ describe("LeadAgentService end-to-end flow", () => {
     expect(result.summary).toEqual({
       discovered: 3,
       deduped: 3,
+      qualified: 1,
+      inserted_into_crm: 1,
+      skipped_duplicates: 0,
+      disqualified: 0,
+      failed: 0,
+    })
+    expect(result.disqualified).toEqual([])
+    expect(scoringProvider.scoreLeadQuality).toHaveBeenCalledTimes(1)
+    expect(crmProvider.createQualifiedLead).toHaveBeenCalledTimes(1)
+  })
+
+  it("continues scoring after target when continue_scoring_after_target is explicitly enabled", async () => {
+    const discoveryProvider: LeadDiscoveryProvider = {
+      fetchColdLeads: jest.fn(async () => [
+        {
+          external_id: "g_1",
+          name: "Acme Dental",
+          phone: "+1 555 1111",
+          source: "google_places",
+          website: "https://acmedental.example",
+          category: "dentist",
+        },
+        {
+          external_id: "g_2",
+          name: "Beta Dental",
+          phone: "+1 555 1112",
+          source: "google_places",
+          website: "https://betadental.example",
+          category: "dentist",
+        },
+      ]),
+    }
+
+    const scoringProvider: LeadScoringProvider = {
+      scoreLeadQuality: jest
+        .fn()
+        .mockResolvedValueOnce({
+          score: 90,
+          notes: "Excellent fit",
+          pain_points: [],
+          qualified: true,
+          outreach_message_draft: "draft 1",
+        })
+        .mockResolvedValueOnce({
+          score: 78,
+          notes: "Good fit",
+          pain_points: [],
+          qualified: true,
+          outreach_message_draft: "draft 2",
+        }),
+    }
+
+    const crmProvider: LeadCrmProvider = {
+      createQualifiedLead: jest.fn(async () => ({ id: "lead_1" })),
+      updateLeadStatus: jest.fn(async () => undefined),
+    }
+
+    const service = new LeadAgentService(
+      discoveryProvider,
+      scoringProvider,
+      crmProvider,
+      { sendOutreach: jest.fn() } as unknown as OutreachProvider,
+      { log: jest.fn() }
+    )
+
+    const result = await service.discoverScoreAndQueue({
+      query: "dentist",
+      location: "Austin, TX",
+      min_score: 40,
+      max_crm_imports: 1,
+      continue_scoring_after_target: true,
+    })
+
+    expect(result.summary).toEqual({
+      discovered: 2,
+      deduped: 2,
       qualified: 2,
       inserted_into_crm: 1,
       skipped_duplicates: 0,
-      disqualified: 1,
+      disqualified: 0,
       failed: 0,
     })
-    expect(result.disqualified).toEqual([
-      expect.objectContaining({
-        company: "Gamma Dental",
-        score: 35,
-        reasons: ["score_below_threshold:35<40"],
-      }),
-    ])
+    expect(scoringProvider.scoreLeadQuality).toHaveBeenCalledTimes(2)
     expect(crmProvider.createQualifiedLead).toHaveBeenCalledTimes(1)
   })
 

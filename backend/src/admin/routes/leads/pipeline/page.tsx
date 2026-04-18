@@ -29,6 +29,8 @@ type Lead = {
   role?: string
   email?: string
   phone?: string
+  website?: string
+  google_maps_uri?: string
   source?: string
   owner_user_id?: string
   next_follow_up_at?: string
@@ -39,6 +41,7 @@ type Lead = {
   updated_at?: string
   metadata?: {
     tags?: string[]
+    google_maps_uri?: string
   }
 }
 
@@ -702,6 +705,24 @@ const PipelineBoardPage = () => {
                         <a href={`tel:${selectedLead.phone}`}>Call</a>
                       </Button>
                     ) : null}
+                    {selectedLead.website ? (
+                      <Button size="small" variant="secondary" asChild>
+                        <a href={selectedLead.website} target="_blank" rel="noreferrer">
+                          Website
+                        </a>
+                      </Button>
+                    ) : null}
+                    {(selectedLead.google_maps_uri || selectedLead.metadata?.google_maps_uri) ? (
+                      <Button size="small" variant="secondary" asChild>
+                        <a
+                          href={selectedLead.google_maps_uri || selectedLead.metadata?.google_maps_uri}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Maps
+                        </a>
+                      </Button>
+                    ) : null}
                     <Button
                       size="small"
                       variant="secondary"
@@ -765,6 +786,24 @@ const PipelineBoardPage = () => {
                     {selectedLead.email ? (
                       <Button size="small" variant="secondary" asChild>
                         <a href={`mailto:${selectedLead.email}`}>Send email</a>
+                      </Button>
+                    ) : null}
+                    {selectedLead.website ? (
+                      <Button size="small" variant="secondary" asChild>
+                        <a href={selectedLead.website} target="_blank" rel="noreferrer">
+                          Visit website
+                        </a>
+                      </Button>
+                    ) : null}
+                    {(selectedLead.google_maps_uri || selectedLead.metadata?.google_maps_uri) ? (
+                      <Button size="small" variant="secondary" asChild>
+                        <a
+                          href={selectedLead.google_maps_uri || selectedLead.metadata?.google_maps_uri}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open Maps
+                        </a>
                       </Button>
                     ) : null}
                     <Button size="small" variant="secondary" onClick={() => handleSnooze(1)}>
@@ -921,6 +960,29 @@ const PipelineBoardPage = () => {
                       const nextValue = event.target.value.trim()
                       if (nextValue !== (selectedLead.company || "")) {
                         updateLeadMutation.mutate({ leadId: selectedLead.id, body: { company: nextValue || undefined } })
+                      }
+                    }}
+                  />
+                  <Input
+                    defaultValue={selectedLead.website || ""}
+                    placeholder="Website"
+                    onBlur={(event) => {
+                      const nextValue = event.target.value.trim()
+                      if (nextValue !== (selectedLead.website || "")) {
+                        updateLeadMutation.mutate({ leadId: selectedLead.id, body: { website: nextValue || undefined } })
+                      }
+                    }}
+                  />
+                  <Input
+                    defaultValue={selectedLead.google_maps_uri || selectedLead.metadata?.google_maps_uri || ""}
+                    placeholder="Google Maps link"
+                    onBlur={(event) => {
+                      const nextValue = event.target.value.trim()
+                      if (nextValue !== (selectedLead.google_maps_uri || selectedLead.metadata?.google_maps_uri || "")) {
+                        updateLeadMutation.mutate({
+                          leadId: selectedLead.id,
+                          body: { google_maps_uri: nextValue || undefined },
+                        })
                       }
                     }}
                   />

@@ -18,6 +18,8 @@ const Lead = model.define("lead", {
   last_name: model.text().nullable(),
   email: model.text().index("IDX_LEAD_EMAIL").nullable(),
   phone: model.text().nullable(),
+  website: model.text().nullable(),
+  google_maps_uri: model.text().nullable(),
   company: model.text().index("IDX_LEAD_COMPANY").nullable(),
   source: model.text().index("IDX_LEAD_SOURCE").nullable(),
   source_detail: model.text().nullable(),
