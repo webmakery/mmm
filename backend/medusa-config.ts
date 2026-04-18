@@ -10,6 +10,38 @@ loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
 const metaConfig = getMetaConfigFromEnv(process.env)
 
+const authProviders = [
+  {
+    resolve: "@medusajs/medusa/auth-emailpass",
+    id: "emailpass",
+  },
+  {
+    resolve: "@medusajs/medusa/auth-google",
+    id: "google",
+    options: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackUrl: process.env.GOOGLE_CALLBACK_URL,
+    },
+  },
+]
+
+try {
+  require.resolve("medusa-auth-facebook")
+
+  authProviders.push({
+    resolve: "medusa-auth-facebook",
+    id: "facebook",
+    options: {
+      clientId: process.env.FACEBOOK_CLIENT_ID,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      callbackUrl: process.env.FACEBOOK_CALLBACK_URL,
+    },
+  })
+} catch {
+  // Optional provider is only loaded when the package is installed.
+}
+
 module.exports = defineConfig({
   projectConfig: {
     databaseUrl: process.env.DATABASE_URL,
@@ -41,30 +73,7 @@ module.exports = defineConfig({
       resolve: "@medusajs/medusa/auth",
       dependencies: [Modules.CACHE, ContainerRegistrationKeys.LOGGER],
       options: {
-        providers: [
-          {
-            resolve: "@medusajs/medusa/auth-emailpass",
-            id: "emailpass",
-          },
-          {
-            resolve: "@medusajs/medusa/auth-google",
-            id: "google",
-            options: {
-              clientId: process.env.GOOGLE_CLIENT_ID,
-              clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-              callbackUrl: process.env.GOOGLE_CALLBACK_URL,
-            },
-          },
-          {
-            resolve: "medusa-auth-facebook",
-            id: "facebook",
-            options: {
-              clientId: process.env.FACEBOOK_CLIENT_ID,
-              clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-              callbackUrl: process.env.FACEBOOK_CALLBACK_URL,
-            },
-          },
-        ],
+        providers: authProviders,
       },
     },
     {
