@@ -29,7 +29,7 @@ export async function POST(
       invites: [
         {
           email: req.validatedBody.email,
-          roles: roles.map((role) => role.key),
+          roles: roles.map((role) => role.id),
         },
       ],
     },

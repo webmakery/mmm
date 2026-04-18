@@ -299,12 +299,23 @@ class TeamRbacModuleService extends MedusaService({
     const [allInvites] = await userService.listAndCountInvites({} as any, { take: 200 })
     const invites = allInvites.filter((invite) => !invite.accepted)
 
-    const roles = await this.listRoles({ key: invites.flatMap((invite) => invite.roles || []) as any }, { take: 200 })
-    const roleByKey = new Map(roles.map((role: any) => [role.key, normalizeRole(role)]))
+    const invitedRoleRefs = [...new Set(invites.flatMap((invite) => invite.roles || []))]
+    const [rolesById, rolesByKey] = await Promise.all([
+      invitedRoleRefs.length
+        ? this.listRoles({ id: invitedRoleRefs as any }, { take: 200 })
+        : Promise.resolve([]),
+      invitedRoleRefs.length
+        ? this.listRoles({ key: invitedRoleRefs as any }, { take: 200 })
+        : Promise.resolve([]),
+    ])
+    const roleById = new Map(rolesById.map((role: any) => [role.id, normalizeRole(role)]))
+    const roleByKey = new Map(rolesByKey.map((role: any) => [role.key, normalizeRole(role)]))
 
     return invites.map((invite: InviteDTO) => ({
       ...invite,
-      assigned_roles: (invite.roles || []).map((key) => roleByKey.get(key)).filter(Boolean),
+      assigned_roles: (invite.roles || [])
+        .map((roleRef) => roleById.get(roleRef) || roleByKey.get(roleRef))
+        .filter(Boolean),
     }))
   }
 
