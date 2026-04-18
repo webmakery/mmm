@@ -60,12 +60,52 @@ class TeamRbacModuleService extends MedusaService({
   }
 
   async ensureDefaultRoles() {
-    const existing = await this.listRoles({}, { select: ["id", "key"] })
-    const keys = new Set(existing.map((role) => role.key))
+    const existing = await this.listRoles({}, { select: ["id", "key", "name", "description", "permissions", "is_system"] })
+    const existingByKey = new Map(existing.map((role: any) => [role.key, normalizeRole(role)]))
 
-    const toCreate = DEFAULT_ROLE_DEFINITIONS.filter((role) => !keys.has(role.key))
+    const toCreate = DEFAULT_ROLE_DEFINITIONS
+      .filter((role) => !existingByKey.has(role.key))
+      .map((role) => ({ ...role, permissions: [...role.permissions] }))
+
     if (toCreate.length) {
       await this.createRoles(toCreate as any[])
+    }
+
+    const toUpdate = DEFAULT_ROLE_DEFINITIONS
+      .map((definition) => {
+        const current = existingByKey.get(definition.key)
+
+        if (!current) {
+          return null
+        }
+
+        const currentPermissions = Array.isArray(current.permissions) ? [...current.permissions].sort() : []
+        const expectedPermissions = [...definition.permissions].sort()
+        const needsPermissionSync =
+          currentPermissions.length !== expectedPermissions.length ||
+          currentPermissions.some((permission, index) => permission !== expectedPermissions[index])
+
+        if (
+          current.name === definition.name &&
+          (current.description ?? null) === (definition.description ?? null) &&
+          current.is_system === definition.is_system &&
+          !needsPermissionSync
+        ) {
+          return null
+        }
+
+        return {
+          id: current.id,
+          name: definition.name,
+          description: definition.description ?? null,
+          permissions: [...definition.permissions],
+          is_system: definition.is_system,
+        }
+      })
+      .filter(Boolean)
+
+    if (toUpdate.length) {
+      await this.updateRoles(toUpdate as any[])
     }
   }
 
