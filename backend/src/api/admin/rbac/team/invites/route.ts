@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
 import { createInvitesWorkflow } from "@medusajs/medusa/core-flows"
 import { MedusaError } from "@medusajs/framework/utils"
+import { asValue } from "awilix"
 import { RBAC_MODULE } from "../../../../../modules/team-rbac"
 import TeamRbacModuleService from "../../../../../modules/team-rbac/service"
 import { canAssignRole, requirePermission } from "../../utils/permissions"
@@ -21,6 +22,7 @@ export async function POST(
   }
 
   roles.forEach((role) => canAssignRole(actor, role.key))
+  ;(req.scope as any).register?.({ rbac: asValue(rbacService) })
 
   const { result } = await createInvitesWorkflow(req.scope).run({
     input: {

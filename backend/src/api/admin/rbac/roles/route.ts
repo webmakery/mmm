@@ -18,13 +18,19 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 export async function POST(req: MedusaRequest<z.infer<typeof PostCreateRoleSchema>>, res: MedusaResponse) {
   await requirePermission(req, "roles.manage")
 
+  const parsedBody = PostCreateRoleSchema.safeParse(req.validatedBody ?? req.body ?? {})
+  if (!parsedBody.success) {
+    throw new MedusaError(MedusaError.Types.INVALID_DATA, "Invalid role payload")
+  }
+
+  const payload = parsedBody.data
   const rbacService: TeamRbacModuleService = req.scope.resolve(RBAC_MODULE)
-  const existing = await rbacService.getRoleByKey(req.validatedBody.key)
+  const existing = await rbacService.getRoleByKey(payload.key)
 
   if (existing) {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, "A role with this key already exists")
   }
 
-  const role = await rbacService.createRoles(req.validatedBody as any)
+  const role = await rbacService.createRoles(payload as any)
   res.status(201).json({ role })
 }
