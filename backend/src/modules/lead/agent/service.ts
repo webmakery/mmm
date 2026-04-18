@@ -219,6 +219,12 @@ export class LeadAgentService {
       throw new Error(`Lead ${leadId} not found`)
     }
 
+    if (lead.follow_up_status !== "pending_approval") {
+      throw new Error(
+        `Lead ${leadId} is not pending outreach approval (current status: ${lead.follow_up_status || "unknown"})`
+      )
+    }
+
     if (!lead.outreach_message_draft) {
       throw new Error(`Lead ${leadId} has no outreach draft to approve`)
     }

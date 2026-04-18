@@ -16,6 +16,25 @@ const parseJsonSafe = <T>(value: string, fallback: T): T => {
   }
 }
 
+const isValidLeadScoreResult = (value: unknown): value is LeadScoreResult => {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const candidate = value as Partial<LeadScoreResult>
+
+  return (
+    typeof candidate.score === "number" &&
+    Number.isFinite(candidate.score) &&
+    typeof candidate.notes === "string" &&
+    Array.isArray(candidate.pain_points) &&
+    candidate.pain_points.every((item) => typeof item === "string") &&
+    typeof candidate.qualified === "boolean" &&
+    typeof candidate.outreach_message_draft === "string" &&
+    candidate.outreach_message_draft.trim().length > 0
+  )
+}
+
 export class OpenAiLeadScoringProvider implements LeadScoringProvider {
   constructor(
     private readonly apiKey: string,
@@ -153,7 +172,12 @@ export class OpenAiLeadScoringProvider implements LeadScoringProvider {
       return null
     }
 
-    return parseJsonSafe<LeadScoreResult>(text, null as unknown as LeadScoreResult)
+    const parsed = parseJsonSafe<unknown>(text, null)
+    if (!isValidLeadScoreResult(parsed)) {
+      return null
+    }
+
+    return parsed
   }
 
   async scoreLeadQuality(lead: NormalizedBusinessLead): Promise<LeadScoreResult> {
