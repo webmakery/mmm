@@ -1,8 +1,9 @@
 import { ChatBubbleLeftRight, Lifebuoy, Sparkles } from "@medusajs/icons"
-import { Button, Drawer, Heading, Input, Tabs, Text } from "@medusajs/ui"
+import { Badge, Button, Drawer, Heading, Input, Text, toast } from "@medusajs/ui"
 import { useEffect, useMemo, useState } from "react"
 import { useLocation } from "react-router-dom"
-import { findHelpTopicByPath } from "../lib/admin-help-drawer-content"
+import { findHelpContextByPath } from "../lib/admin-help-context"
+import { sdk } from "../lib/sdk"
 
 declare global {
   interface Window {
@@ -17,8 +18,11 @@ export const AdminHelpDrawer = () => {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [askQuery, setAskQuery] = useState("")
+  const [answer, setAnswer] = useState("")
+  const [answerSource, setAnswerSource] = useState<"ai" | "fallback" | null>(null)
+  const [isAnswering, setIsAnswering] = useState(false)
 
-  const topic = useMemo(() => findHelpTopicByPath(pathname), [pathname])
+  const context = useMemo(() => findHelpContextByPath(pathname), [pathname])
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -62,107 +66,116 @@ export const AdminHelpDrawer = () => {
     return null
   }
 
-  const askResponse = askQuery.trim()
-    ? `Thanks — we captured your question about ${topic?.title || "this page"}. This Ask tab is config-driven and ready for AI response wiring.`
-    : ""
+  const onAsk = async (question: string) => {
+    const trimmed = question.trim()
+
+    if (!trimmed || isAnswering) {
+      return
+    }
+
+    setIsAnswering(true)
+    setAnswer("")
+    setAnswerSource(null)
+
+    try {
+      const response = await sdk.client.fetch<{
+        answer: string
+        source: "ai" | "fallback"
+        suggestions: string[]
+      }>("/admin/help/ask", {
+        method: "POST",
+        body: {
+          pathname,
+          question: trimmed,
+        },
+      })
+
+      setAnswer(response.answer)
+      setAnswerSource(response.source)
+    } catch {
+      toast.error("Unable to load help answer")
+    } finally {
+      setIsAnswering(false)
+    }
+  }
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <Drawer.Trigger asChild>
         <Button size="small" variant="secondary">
           <Lifebuoy />
-          Help / Ask Webhost
+          Help / Ask Webmakerr
         </Button>
       </Drawer.Trigger>
       <Drawer.Content>
         <Drawer.Header>
-          <Drawer.Title>Help / Ask Webhost</Drawer.Title>
+          <Drawer.Title>Help / Ask Webmakerr</Drawer.Title>
           <Drawer.Description>
-            {topic ? `${topic.title} guidance for ${pathname}` : `Guidance for ${pathname}`}
+            {context.title} guidance for {pathname}
           </Drawer.Description>
         </Drawer.Header>
         <Drawer.Body className="flex flex-col gap-y-4">
-          <Tabs defaultValue="help">
-            <Tabs.List>
-              <Tabs.Trigger value="help">Help</Tabs.Trigger>
-              <Tabs.Trigger value="ask">Ask</Tabs.Trigger>
-            </Tabs.List>
+          <div className="space-y-2">
+            <Heading level="h3">{context.title}</Heading>
+            <Text size="small" className="text-ui-fg-subtle">
+              {context.intro}
+            </Text>
+          </div>
 
-            <Tabs.Content value="help" className="mt-4 space-y-3">
-              {topic ? (
-                <>
-                  <Heading level="h3">{topic.title} onboarding</Heading>
-                  <ul className="list-disc space-y-2 pl-4">
-                    {topic.helpItems.map((item) => (
-                      <li key={item}>
-                        <Text size="small">{item}</Text>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button size="small" variant="secondary" onClick={() => setOpen(true)}>
-                    <Sparkles />
-                    Guide me
-                  </Button>
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    No page-specific help is configured yet for this screen.
-                  </Text>
-                  <Button size="small" variant="secondary" onClick={() => setOpen(true)}>
-                    <Sparkles />
-                    Guide me
-                  </Button>
-                </div>
-              )}
-            </Tabs.Content>
+          <div className="space-y-2">
+            <Heading level="h3">Suggested questions</Heading>
+            <div className="space-y-2">
+              {context.suggestedQuestions.map((prompt) => (
+                <Button
+                  key={prompt}
+                  size="small"
+                  variant="transparent"
+                  className="justify-start"
+                  onClick={() => {
+                    setAskQuery(prompt)
+                    onAsk(prompt)
+                  }}
+                  disabled={isAnswering}
+                >
+                  <ChatBubbleLeftRight />
+                  {prompt}
+                </Button>
+              ))}
+            </div>
+          </div>
 
-            <Tabs.Content value="ask" className="mt-4 space-y-3">
-              <Input
-                placeholder="Ask about this page..."
-                value={askQuery}
-                onChange={(event) => setAskQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault()
-                  }
-                }}
-              />
+          <div className="space-y-2">
+            <Heading level="h3">Ask Webmakerr</Heading>
+            <Input
+              placeholder="Ask about this page..."
+              value={askQuery}
+              onChange={(event) => setAskQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  onAsk(askQuery)
+                }
+              }}
+            />
+            <Button size="small" variant="secondary" onClick={() => onAsk(askQuery)} isLoading={isAnswering}>
+              <Sparkles />
+              Ask
+            </Button>
+          </div>
 
-              {topic?.askPrompts?.length ? (
-                <div className="space-y-2">
-                  {topic.askPrompts.map((prompt) => (
-                    <Button
-                      key={prompt}
-                      size="small"
-                      variant="transparent"
-                      className="justify-start"
-                      onClick={() => setAskQuery(prompt)}
-                    >
-                      <ChatBubbleLeftRight />
-                      {prompt}
-                    </Button>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Suggested prompts will appear here for this route.
-                  </Text>
-                  <Button size="small" variant="secondary">
-                    <Sparkles />
-                    Guide me
-                  </Button>
-                </div>
-              )}
-
-              {askResponse ? (
-                <Text size="small" className="text-ui-fg-subtle">
-                  {askResponse}
-                </Text>
-              ) : null}
-            </Tabs.Content>
-          </Tabs>
+          {answer ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Heading level="h3">Answer</Heading>
+                <Badge size="2xsmall" color={answerSource === "ai" ? "green" : "orange"}>
+                  {answerSource === "ai" ? "AI" : "Fallback"}
+                </Badge>
+              </div>
+              <Text size="small" className="text-ui-fg-subtle">
+                {answer}
+              </Text>
+            </div>
+          ) : null}
         </Drawer.Body>
       </Drawer.Content>
     </Drawer>
