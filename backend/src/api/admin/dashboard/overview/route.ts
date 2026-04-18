@@ -44,12 +44,6 @@ type DashboardBooking = {
   } | null
 }
 
-type DashboardVariant = {
-  id: string
-  title?: string | null
-  inventory_quantity?: number | null
-}
-
 const toDate = (value?: string | null) => {
   if (!value) {
     return null
@@ -160,6 +154,17 @@ const getChangePercent = (current: number, previous: number) => {
 
 const roundTwo = (value: number) => Number(value.toFixed(2))
 
+const normalizeEmail = (value?: string | null) => (value || "").trim().toLowerCase()
+
+const getAverageHoursBetween = (pairs: Array<{ startAt: Date; endAt: Date }>) => {
+  if (!pairs.length) {
+    return 0
+  }
+
+  const totalMs = pairs.reduce((sum, pair) => sum + (pair.endAt.getTime() - pair.startAt.getTime()), 0)
+  return roundTwo(totalMs / pairs.length / (1000 * 60 * 60))
+}
+
 export const GET = async (
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
@@ -171,7 +176,7 @@ export const GET = async (
   const monthStart = getUtcMonthStart(now)
   const previousMonthStart = getPreviousUtcMonthStart(now)
 
-  const [orderResult, customerResult, variantResult, leadResult, bookingResult] =
+  const [orderResult, customerResult, leadResult, bookingResult] =
     await Promise.all([
       query.graph({
         entity: "order",
@@ -200,14 +205,6 @@ export const GET = async (
       query.graph({
         entity: "customer",
         fields: ["id"],
-        pagination: {
-          skip: 0,
-          take: 500,
-        },
-      }),
-      query.graph({
-        entity: "product_variant",
-        fields: ["id", "title", "inventory_quantity"],
         pagination: {
           skip: 0,
           take: 500,
@@ -259,7 +256,6 @@ export const GET = async (
 
   const orderList = (orderResult.data as DashboardOrder[]) || []
   const customerList = (customerResult.data as Array<{ id: string }>) || []
-  const variantList = (variantResult.data as DashboardVariant[]) || []
   const leadList = (leadResult.data as DashboardLead[]) || []
   const bookingList = (bookingResult.data as DashboardBooking[]) || []
 
@@ -301,38 +297,207 @@ export const GET = async (
   const conversionThisMonth = toPercent(bookingsThisMonth.length, leadsThisMonth.length)
   const conversionPreviousMonth = toPercent(bookingsPreviousMonth.length, leadsPreviousMonth.length)
 
-  const unassignedLeads = leadList
-    .filter((lead) => !lead.owner_user_id)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  const unassignedLeads = leadList.filter((lead) => !lead.owner_user_id)
 
-  const overdueFollowUps = leadList
-    .filter((lead) => {
-      if (!lead.next_follow_up_at) {
-        return false
-      }
+  const overdueFollowUps = leadList.filter((lead) => {
+    if (!lead.next_follow_up_at) {
+      return false
+    }
 
-      return (toDate(lead.next_follow_up_at)?.getTime() || 0) < now.getTime()
+    return (toDate(lead.next_follow_up_at)?.getTime() || 0) < now.getTime()
+  })
+
+  const leadCount = leadList.length
+  const qualifiedCount = leadList.filter((lead) => (lead.status || "").toLowerCase() === "qualified").length
+  const bookingCount = bookingList.length
+  const completedCount = bookingList.filter((booking) => (booking.status || "").toLowerCase() === "completed").length
+  const paidCount = orderList.filter((order) => {
+    const status = (order.payment_status || "").toLowerCase()
+    return status === "paid" || status === "captured"
+  }).length
+
+  const toStage = (key: "leads" | "qualified" | "bookings" | "completed" | "paid", label: string, count: number, previousCount?: number, href?: string) => ({
+    key,
+    label,
+    count,
+    conversion_from_previous: previousCount ? roundTwo(toPercent(count, previousCount)) : 100,
+    dropoff_from_previous: previousCount ? roundTwo(100 - toPercent(count, previousCount)) : 0,
+    href: href || "/",
+  })
+
+  const funnelStages = [
+    toStage("leads", "Leads", leadCount, undefined, "/leads"),
+    toStage("qualified", "Qualified", qualifiedCount, leadCount, "/leads"),
+    toStage("bookings", "Bookings", bookingCount, qualifiedCount, "/bookings"),
+    toStage("completed", "Completed", completedCount, bookingCount, "/bookings"),
+    toStage("paid", "Paid", paidCount, completedCount, "/orders"),
+  ]
+
+  const leadByEmail = leadList.reduce((acc, lead) => {
+    const key = normalizeEmail(lead.email)
+    if (!key) {
+      return acc
+    }
+
+    const list = acc.get(key) || []
+    list.push(lead)
+    acc.set(key, list)
+    return acc
+  }, new Map<string, DashboardLead[]>())
+
+  leadByEmail.forEach((entries) => entries.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()))
+
+  const bookingByEmail = bookingList.reduce((acc, booking) => {
+    const key = normalizeEmail(booking.customer_email)
+    if (!key) {
+      return acc
+    }
+
+    const list = acc.get(key) || []
+    list.push(booking)
+    acc.set(key, list)
+    return acc
+  }, new Map<string, DashboardBooking[]>())
+
+  bookingByEmail.forEach((entries) =>
+    entries.sort((a, b) => new Date(a.created_at || a.scheduled_start_at).getTime() - new Date(b.created_at || b.scheduled_start_at).getTime())
+  )
+
+  const orderByEmail = orderList.reduce((acc, order) => {
+    const key = normalizeEmail(order.email)
+    if (!key) {
+      return acc
+    }
+
+    const list = acc.get(key) || []
+    list.push(order)
+    acc.set(key, list)
+    return acc
+  }, new Map<string, DashboardOrder[]>())
+
+  orderByEmail.forEach((entries) => entries.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()))
+
+  const leadToBookingPairs: Array<{ startAt: Date; endAt: Date }> = []
+  const bookingToPaidPairs: Array<{ startAt: Date; endAt: Date }> = []
+
+  bookingByEmail.forEach((bookings, email) => {
+    const leads = leadByEmail.get(email) || []
+    const paidOrders = (orderByEmail.get(email) || []).filter((order) => {
+      const paymentStatus = (order.payment_status || "").toLowerCase()
+      return paymentStatus === "paid" || paymentStatus === "captured"
     })
-    .sort((a, b) => new Date(a.next_follow_up_at || 0).getTime() - new Date(b.next_follow_up_at || 0).getTime())
 
-  const lowStockVariants = variantList
-    .filter((variant) => (variant.inventory_quantity || 0) <= 0)
-    .slice(0, 3)
-
-  const pendingConfirmations = bookingList
-    .filter((booking) => {
-      const status = (booking.status || "").toLowerCase()
-      const bookingDate = toDate(booking.scheduled_start_at)
+    bookings.forEach((booking) => {
+      const bookingDate = toDate(booking.created_at || booking.scheduled_start_at)
       if (!bookingDate) {
-        return false
+        return
       }
 
-      return status === "pending" && bookingDate.getTime() >= dayStart.getTime() && bookingDate.getTime() <= addUtcDays(dayStart, 7).getTime()
-    })
-    .sort((a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime())
+      const leadMatch = [...leads]
+        .reverse()
+        .find((lead) => {
+          const leadDate = toDate(lead.created_at)
+          return leadDate ? leadDate.getTime() <= bookingDate.getTime() : false
+        })
 
-  const urgentActionItems =
-    unassignedLeads.length + overdueFollowUps.length + unpaidOrderList.length + lowStockVariants.length + pendingConfirmations.length
+      const leadDate = toDate(leadMatch?.created_at)
+      if (leadDate) {
+        leadToBookingPairs.push({
+          startAt: leadDate,
+          endAt: bookingDate,
+        })
+      }
+
+      const paidOrderMatch = paidOrders.find((order) => {
+        const paidAt = toDate(order.created_at)
+        return paidAt ? paidAt.getTime() >= bookingDate.getTime() : false
+      })
+
+      const paidDate = toDate(paidOrderMatch?.created_at)
+      if (paidDate) {
+        bookingToPaidPairs.push({
+          startAt: bookingDate,
+          endAt: paidDate,
+        })
+      }
+    })
+  })
+
+  const leadToBookingCurrentWeek = toPercent(
+    bookingList.filter((booking) => inRange(booking.created_at || booking.scheduled_start_at, addUtcDays(dayStart, -7), now)).length,
+    leadList.filter((lead) => inRange(lead.created_at, addUtcDays(dayStart, -7), now)).length
+  )
+  const leadToBookingPreviousWeek = toPercent(
+    bookingList.filter((booking) => inRange(booking.created_at || booking.scheduled_start_at, addUtcDays(dayStart, -14), addUtcDays(dayStart, -7))).length,
+    leadList.filter((lead) => inRange(lead.created_at, addUtcDays(dayStart, -14), addUtcDays(dayStart, -7))).length
+  )
+
+  const bookingToPaidCurrentWeek = toPercent(
+    orderList.filter((order) => {
+      const status = (order.payment_status || "").toLowerCase()
+      return (status === "paid" || status === "captured") && inRange(order.created_at, addUtcDays(dayStart, -7), now)
+    }).length,
+    bookingList.filter((booking) => inRange(booking.created_at || booking.scheduled_start_at, addUtcDays(dayStart, -7), now)).length
+  )
+  const bookingToPaidPreviousWeek = toPercent(
+    orderList.filter((order) => {
+      const status = (order.payment_status || "").toLowerCase()
+      return (status === "paid" || status === "captured") && inRange(order.created_at, addUtcDays(dayStart, -14), addUtcDays(dayStart, -7))
+    }).length,
+    bookingList.filter((booking) =>
+      inRange(booking.created_at || booking.scheduled_start_at, addUtcDays(dayStart, -14), addUtcDays(dayStart, -7))
+    ).length
+  )
+
+  const bookingToPaidCurrentMonth = toPercent(
+    orderList.filter((order) => {
+      const status = (order.payment_status || "").toLowerCase()
+      return (status === "paid" || status === "captured") && inRange(order.created_at, monthStart, now)
+    }).length,
+    bookingsThisMonth.length
+  )
+  const bookingToPaidPreviousMonth = toPercent(
+    orderList.filter((order) => {
+      const status = (order.payment_status || "").toLowerCase()
+      return (status === "paid" || status === "captured") && inRange(order.created_at, previousMonthStart, monthStart)
+    }).length,
+    bookingsPreviousMonth.length
+  )
+
+  const highestDropOffStage = funnelStages.slice(1).sort((a, b) => b.dropoff_from_previous - a.dropoff_from_previous)[0]
+  const funnelInsights: Array<{ id: string; detail: string }> = []
+
+  if (highestDropOffStage && highestDropOffStage.dropoff_from_previous > 0) {
+    funnelInsights.push({
+      id: "biggest_dropoff",
+      detail: `Largest drop-off is at ${highestDropOffStage.label.toLowerCase()} (${highestDropOffStage.dropoff_from_previous}% lost from prior stage).`,
+    })
+  }
+
+  funnelInsights.push({
+    id: "lead_to_booking_trend",
+    detail:
+      roundTwo(getChangePercent(leadToBookingCurrentWeek, leadToBookingPreviousWeek)) >= 0
+        ? `Lead-to-booking conversion is up ${Math.abs(roundTwo(getChangePercent(leadToBookingCurrentWeek, leadToBookingPreviousWeek)))}% week over week.`
+        : `Lead-to-booking conversion is down ${Math.abs(roundTwo(getChangePercent(leadToBookingCurrentWeek, leadToBookingPreviousWeek)))}% week over week.`,
+  })
+
+  funnelInsights.push({
+    id: "booking_to_paid_trend",
+    detail:
+      roundTwo(getChangePercent(bookingToPaidCurrentMonth, bookingToPaidPreviousMonth)) >= 0
+        ? `Booking-to-paid conversion improved ${Math.abs(roundTwo(getChangePercent(bookingToPaidCurrentMonth, bookingToPaidPreviousMonth)))}% month over month.`
+        : `Booking-to-paid conversion declined ${Math.abs(roundTwo(getChangePercent(bookingToPaidCurrentMonth, bookingToPaidPreviousMonth)))}% month over month.`,
+  })
+
+  if (leadToBookingPairs.length > 0 || bookingToPaidPairs.length > 0) {
+    funnelInsights.push({
+      id: "cycle_time",
+      detail: `Average cycle time is ${roundTwo(getAverageHoursBetween(leadToBookingPairs))}h from lead to booking and ${roundTwo(getAverageHoursBetween(bookingToPaidPairs))}h from booking to payment.`,
+    })
+  }
+
+  const urgentActionItems = unassignedLeads.length + overdueFollowUps.length + unpaidOrderList.length
 
   const leadsSeries30 = buildDailySeries(30, now, (lead) => lead.created_at, leadList)
   const bookingsSeries30 = buildDailySeries(30, now, (booking) => booking.scheduled_start_at, bookingList)
@@ -412,8 +577,8 @@ export const GET = async (
       id: "operations",
       title: "Operational stability",
       detail:
-        pendingConfirmations.length > 0 || unpaidOrderList.length > 0
-          ? `${pendingConfirmations.length + unpaidOrderList.length} operational exceptions need immediate follow-up.`
+        overdueFollowUps.length > 0 || unpaidOrderList.length > 0
+          ? `${overdueFollowUps.length + unpaidOrderList.length} operational exceptions need immediate follow-up.`
           : "No immediate operational exceptions detected.",
     },
   ]
@@ -471,47 +636,26 @@ export const GET = async (
       top_products_by_revenue: topProducts,
       top_services_by_bookings: topServices,
     },
-    attention_required: {
-      unassigned_leads: {
-        value: unassignedLeads.length,
-        preview: unassignedLeads.slice(0, 3).map((lead) => ({
-          id: lead.id,
-          label: [lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.email || "Unnamed lead",
-          context: lead.company || "No company",
-        })),
+    full_funnel: {
+      stages: funnelStages,
+      derived_metrics: {
+        lead_to_booking_conversion: roundTwo(toPercent(bookingCount, leadCount)),
+        booking_to_paid_conversion: roundTwo(toPercent(paidCount, bookingCount)),
+        overall_funnel_conversion: roundTwo(toPercent(paidCount, leadCount)),
+        average_hours_lead_to_booking: getAverageHoursBetween(leadToBookingPairs),
+        average_hours_booking_to_payment: getAverageHoursBetween(bookingToPaidPairs),
       },
-      overdue_follow_ups: {
-        value: overdueFollowUps.length,
-        preview: overdueFollowUps.slice(0, 3).map((lead) => ({
-          id: lead.id,
-          label: [lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.email || "Unnamed lead",
-          context: lead.next_follow_up_at || "",
-        })),
+      period_comparison: {
+        week: {
+          lead_to_booking_change_percent: roundTwo(getChangePercent(leadToBookingCurrentWeek, leadToBookingPreviousWeek)),
+          booking_to_paid_change_percent: roundTwo(getChangePercent(bookingToPaidCurrentWeek, bookingToPaidPreviousWeek)),
+        },
+        month: {
+          lead_to_booking_change_percent: roundTwo(getChangePercent(conversionThisMonth, conversionPreviousMonth)),
+          booking_to_paid_change_percent: roundTwo(getChangePercent(bookingToPaidCurrentMonth, bookingToPaidPreviousMonth)),
+        },
       },
-      unpaid_orders: {
-        value: unpaidOrderList.length,
-        preview: unpaidOrderList.slice(0, 3).map((order) => ({
-          id: order.id,
-          label: `#${order.display_id || order.id.slice(0, 8)}`,
-          context: `${toMoneyAmount(order.total)}`,
-        })),
-      },
-      low_stock: {
-        value: lowStockVariants.length,
-        preview: lowStockVariants.map((variant) => ({
-          id: variant.id,
-          label: variant.title || variant.id,
-          context: `Inventory ${variant.inventory_quantity || 0}`,
-        })),
-      },
-      upcoming_confirmations: {
-        value: pendingConfirmations.length,
-        preview: pendingConfirmations.slice(0, 3).map((booking) => ({
-          id: booking.id,
-          label: booking.reference || booking.customer_full_name || booking.id,
-          context: booking.scheduled_start_at,
-        })),
-      },
+      insights: funnelInsights.slice(0, 4),
     },
   })
 }
