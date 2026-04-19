@@ -57,6 +57,18 @@ const asChangeLabel = (value: number) => {
   return "0.00%"
 }
 
+const getBand = (value: number, warningThreshold: number, criticalThreshold: number) => {
+  if (value >= criticalThreshold) {
+    return { label: "Red", color: "red" as const }
+  }
+
+  if (value >= warningThreshold) {
+    return { label: "Yellow", color: "orange" as const }
+  }
+
+  return { label: "Green", color: "green" as const }
+}
+
 const getSeverity = (value: number, warningThreshold: number, criticalThreshold: number) => {
   if (value >= criticalThreshold) {
     return { label: "Critical", color: "red" as const }
@@ -225,6 +237,115 @@ const DashboardPageContent = () => {
     },
   ]
 
+  const trafficBand = getBand(Math.max(0, -revenueStats.latest + revenueStats.avg), revenueStats.avg * 0.1, revenueStats.avg * 0.2)
+  const engagedBand = getBand(Math.max(0, -leadStats.last7 + leadStats.previous7), leadStats.previous7 * 0.1, leadStats.previous7 * 0.2)
+  const signupBand = getBand(Math.max(0, -kpis.lead_to_booking_conversion.change_percent), 10, 20)
+  const checkoutBand = getBand(Math.max(0, biggestDropoff?.key === "bookings" ? biggestDropoff.dropoff_from_previous : 0), 20, 35)
+  const purchaseBand = getBand(Math.max(0, funnel.stages.find((stage) => stage.key === "paid")?.dropoff_from_previous || 0), 20, 35)
+  const aovBand = getBand(Math.max(0, -kpis.average_order_value.change_percent), 5, 10)
+  const ltvProxyBand = getBand(Math.max(0, -funnel.period_comparison.month.booking_to_paid_change_percent), 10, 15)
+  const timeToFirstPurchaseBand = getBand(
+    Math.max(0, funnel.derived_metrics.average_hours_lead_to_booking - 72),
+    12,
+    24
+  )
+
+  const kpiPlaybook = [
+    {
+      section: "Acquisition",
+      items: [
+        {
+          id: "traffic_by_source",
+          metric: "Traffic by source",
+          threshold: "Yellow: -10% / Red: -20% vs 4-week baseline",
+          state: trafficBand,
+          signal: `Revenue trend proxy: ${asCurrency(revenueStats.latest, data.currency_code)} latest day vs ${asCurrency(revenueStats.avg, data.currency_code)} avg/day.`,
+          action: "If red: verify tracking + campaign delivery same day, then shift 10–20% budget to stable sources.",
+        },
+        {
+          id: "engaged_visitors",
+          metric: "Engaged visitors by source",
+          threshold: "Yellow: -10% / Red: -20% vs prior 7 days",
+          state: engagedBand,
+          signal: `Leads proxy: ${leadStats.last7} in last 7 days vs ${leadStats.previous7} previous 7 days.`,
+          action: "If red: pause weakest ad set and tighten creative-to-landing page match.",
+        },
+        {
+          id: "signup_rate",
+          metric: "Signup rate by source",
+          threshold: "Yellow: -10% / Red: -20% vs baseline",
+          state: signupBand,
+          signal: `Lead-to-booking trend: ${asChangeLabel(kpis.lead_to_booking_conversion.change_percent)} month over month.`,
+          action: "If red: run one landing/form A/B test this week and ship the winner.",
+        },
+      ],
+    },
+    {
+      section: "Conversion",
+      items: [
+        {
+          id: "checkout_rate",
+          metric: "Checkout rate by source",
+          threshold: "Yellow: +20% dropoff / Red: +35% dropoff",
+          state: checkoutBand,
+          signal: biggestDropoff
+            ? `Current largest drop-off: ${biggestDropoff.label} (${asPercent(biggestDropoff.dropoff_from_previous)}).`
+            : "No checkout drop-off signal available.",
+          action: "If red: fix the biggest funnel leak first before launching new campaigns.",
+        },
+        {
+          id: "purchase_rate",
+          metric: "Purchase rate by source",
+          threshold: "Yellow: +20% paid-stage dropoff / Red: +35%",
+          state: purchaseBand,
+          signal: `Booking→Paid: ${asPercent(funnel.derived_metrics.booking_to_paid_conversion)} (${asChangeLabel(
+            funnel.period_comparison.month.booking_to_paid_change_percent
+          )} month).`,
+          action: "If red: trigger checkout recovery at 30m and 6h and review payment failures.",
+        },
+        {
+          id: "revenue_orders",
+          metric: "Revenue, orders_count, total_revenue",
+          threshold: "Yellow: -10% / Red: -20% vs prior period",
+          state: kpis.revenue_this_month.change_percent < -20 ? { label: "Red", color: "red" as const } : kpis.revenue_this_month.change_percent < -10 ? { label: "Yellow", color: "orange" as const } : { label: "Green", color: "green" as const },
+          signal: `Revenue ${asChangeLabel(kpis.revenue_this_month.change_percent)} · Bookings ${asChangeLabel(kpis.bookings_this_month.change_percent)} month over month.`,
+          action: "If red: reduce spend in weak sources and push cart/checkout recovery immediately.",
+        },
+      ],
+    },
+    {
+      section: "Retention",
+      items: [
+        {
+          id: "aov",
+          metric: "AOV",
+          threshold: "Yellow: -5% / Red: -10%",
+          state: aovBand,
+          signal: `AOV change: ${asChangeLabel(kpis.average_order_value.change_percent)} month over month.`,
+          action: "If red: enable bundles, in-cart cross-sell, and free-shipping threshold messaging.",
+        },
+        {
+          id: "ltv",
+          metric: "LTV",
+          threshold: "Yellow: -10% / Red: -15% (cohort trend)",
+          state: ltvProxyBand,
+          signal: `LTV proxy via booking→paid trend: ${asChangeLabel(
+            funnel.period_comparison.month.booking_to_paid_change_percent
+          )}.`,
+          action: "If red: prioritize win-back and repeat purchase CRM before scaling paid acquisition.",
+        },
+        {
+          id: "days_to_first_purchase",
+          metric: "Days to first purchase",
+          threshold: "Yellow: +10% slower / Red: +20% slower",
+          state: timeToFirstPurchaseBand,
+          signal: `Current lead→booking velocity: ${asHours(funnel.derived_metrics.average_hours_lead_to_booking)}.`,
+          action: "If red: tighten first-72h onboarding with first-order incentive and reminder flow.",
+        },
+      ],
+    },
+  ]
+
   return (
     <div className="flex flex-col gap-y-4">
       <Container className="divide-y p-0">
@@ -291,6 +412,41 @@ const DashboardPageContent = () => {
             target="Target: 0 open exceptions"
             status={kpis.urgent_action_items.value > 0 ? "orange" : "green"}
           />
+        </div>
+      </Container>
+
+      <Container className="p-0">
+        <div className="px-6 py-4">
+          <Heading level="h2">KPI decision playbook</Heading>
+          <Text size="small" className="text-ui-fg-subtle">
+            Thresholds and if-this-then-that rules for weekly decisions.
+          </Text>
+        </div>
+        <div className="grid grid-cols-1 gap-3 px-6 py-4 xl:grid-cols-3">
+          {kpiPlaybook.map((group) => (
+            <Container key={group.section} className="px-3 py-3">
+              <Heading level="h3">{group.section}</Heading>
+              <div className="mt-3 space-y-3">
+                {group.items.map((item) => (
+                  <Container key={item.id} className="px-3 py-3">
+                    <div className="flex items-center justify-between">
+                      <Text size="small">{item.metric}</Text>
+                      <StatusBadge color={item.state.color}>{item.state.label}</StatusBadge>
+                    </div>
+                    <Text size="xsmall" className="mt-2 text-ui-fg-muted">
+                      {item.threshold}
+                    </Text>
+                    <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                      {item.signal}
+                    </Text>
+                    <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                      If red → {item.action}
+                    </Text>
+                  </Container>
+                ))}
+              </div>
+            </Container>
+          ))}
         </div>
       </Container>
 
