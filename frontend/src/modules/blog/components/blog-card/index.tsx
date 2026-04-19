@@ -6,6 +6,7 @@ type BlogCardProps = {
     title: string
     excerpt?: string | null
     featured_image?: string | null
+    image_alt?: string | null
     author_name?: string | null
     publish_date?: string | null
   }
@@ -18,7 +19,7 @@ const BlogCard = ({ post }: BlogCardProps) => {
         {post.featured_image ? (
           <img
             src={post.featured_image}
-            alt={post.title}
+            alt={post.image_alt || post.title}
             className="w-full aspect-[16/10] object-cover rounded-rounded"
             loading="lazy"
           />

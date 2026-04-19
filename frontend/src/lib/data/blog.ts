@@ -12,13 +12,19 @@ export type BlogPost = {
   id: string
   title: string
   slug: string
+  status?: "draft" | "published"
   excerpt?: string | null
   content?: { body?: string } | string | null
   featured_image?: string | null
+  image_alt?: string | null
   author_name?: string | null
   publish_date?: string | null
+  updated_at?: string | null
   seo_title?: string | null
   seo_description?: string | null
+  meta_title?: string | null
+  meta_description?: string | null
+  canonical_url?: string | null
   categories?: BlogCategory[]
 }
 

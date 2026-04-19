@@ -25,7 +25,11 @@ export async function GET(req: MedusaRequest<z.infer<typeof GetStoreBlogPostsSch
   )
 
   res.json({
-    posts: result.posts,
+    posts: result.posts.map((post) => ({
+      ...post,
+      meta_title: (post as Record<string, unknown>).seo_title || null,
+      meta_description: (post as Record<string, unknown>).seo_description || null,
+    })),
     count: result.count,
     limit: req.validatedQuery.limit,
     offset: req.validatedQuery.offset,
