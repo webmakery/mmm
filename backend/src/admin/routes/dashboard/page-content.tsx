@@ -44,6 +44,7 @@ const asHours = (value: number) => {
 }
 
 const asPercent = (value: number) => `${value.toFixed(2)}%`
+const asCount = (value: number) => new Intl.NumberFormat().format(Math.max(0, Math.round(value)))
 
 const asChangeLabel = (value: number) => {
   if (value > 0) {
@@ -128,6 +129,14 @@ const Sparkline = ({ values }: { values: number[] }) => {
       return blocks[index]
     })
     .join("")
+}
+
+const getChangeFromTotals = (current: number, previous: number) => {
+  if (!previous) {
+    return current > 0 ? 100 : 0
+  }
+
+  return ((current - previous) / previous) * 100
 }
 
 const KpiCard = ({
@@ -259,24 +268,66 @@ const DashboardPageContent = () => {
           metric: "Traffic by source",
           threshold: "Yellow: -10% / Red: -20% vs 4-week baseline",
           state: trafficBand,
+          value: `${asCount(leadStats.last7 + bookingStats.last7)} visits`,
+          context: `${asCount(leadStats.last7 + bookingStats.last7)} visits in last 7d / ${asCount(leadStats.previous7 + bookingStats.previous7)} previous 7d`,
+          trends: `Today vs yesterday: ${asChangeLabel(getChangeFromTotals(revenueStats.latest, revenueStats.avg))} · 7d: ${asChangeLabel(
+            getChangeFromTotals(leadStats.last7 + bookingStats.last7, leadStats.previous7 + bookingStats.previous7)
+          )} · MoM: ${asChangeLabel(kpis.revenue_this_month.change_percent)}`,
+          sparkline: Sparkline({ values: leadBookingSeries.map((point) => point.leads + point.bookings).slice(-14) }),
+          owner: "Marketing",
+          alertReason:
+            trafficBand.label === "Red"
+              ? `Red because traffic proxy is ${asChangeLabel(
+                  getChangeFromTotals(leadStats.last7 + bookingStats.last7, leadStats.previous7 + bookingStats.previous7)
+                )} vs prior 7d baseline.`
+              : `Status ${trafficBand.label} based on traffic proxy versus prior baseline.`,
           signal: `Revenue trend proxy: ${asCurrency(revenueStats.latest, data.currency_code)} latest day vs ${asCurrency(revenueStats.avg, data.currency_code)} avg/day.`,
-          action: "If red: verify tracking + campaign delivery same day, then shift 10–20% budget to stable sources.",
+          action: "Verify tracking + campaign delivery today, then shift 10–20% budget to stable sources if decline persists.",
         },
         {
           id: "engaged_visitors",
           metric: "Engaged visitors by source",
           threshold: "Yellow: -10% / Red: -20% vs prior 7 days",
           state: engagedBand,
+          value: `${asCount(leadStats.last7)} engaged visitors`,
+          context: `${asCount(leadStats.last7)} leads / ${asCount(leadStats.previous7)} in previous 7d`,
+          trends: `Today vs yesterday: ${asChangeLabel(getChangeFromTotals(leadStats.latest, leadStats.avg))} · 7d: ${asChangeLabel(
+            getChangeFromTotals(leadStats.last7, leadStats.previous7)
+          )} · MoM: ${asChangeLabel(kpis.bookings_this_month.change_percent)}`,
+          sparkline: Sparkline({ values: leadBookingSeries.map((point) => point.leads).slice(-14) }),
+          owner: "Growth",
+          alertReason:
+            engagedBand.label === "Red"
+              ? `Red because engaged visitors are ${asChangeLabel(getChangeFromTotals(leadStats.last7, leadStats.previous7))} vs prior 7d.`
+              : `Status ${engagedBand.label} based on engaged visitor trend.`,
           signal: `Leads proxy: ${leadStats.last7} in last 7 days vs ${leadStats.previous7} previous 7 days.`,
-          action: "If red: pause weakest ad set and tighten creative-to-landing page match.",
+          action: "Pause the weakest ad set and tighten creative-to-landing page match.",
         },
         {
           id: "signup_rate",
           metric: "Signup rate by source",
           threshold: "Yellow: -10% / Red: -20% vs baseline",
           state: signupBand,
+          value: `${asPercent(kpis.lead_to_booking_conversion.value)} (${asCount(bookingStats.last7)} bookings / ${asCount(leadStats.last7)} leads)`,
+          context: `${asPercent(kpis.lead_to_booking_conversion.value)} conversion with raw booking and lead counts`,
+          trends: `Today vs yesterday: ${asChangeLabel(
+            getChangeFromTotals(bookingStats.latest, Math.max(leadStats.latest, 1)) - getChangeFromTotals(bookingStats.avg, Math.max(leadStats.avg, 1))
+          )} · 7d: ${asChangeLabel(
+            getChangeFromTotals(
+              bookingStats.last7 / Math.max(leadStats.last7, 1),
+              bookingStats.previous7 / Math.max(leadStats.previous7, 1)
+            )
+          )} · MoM: ${asChangeLabel(kpis.lead_to_booking_conversion.change_percent)}`,
+          sparkline: Sparkline({
+            values: leadBookingSeries.map((point) => (point.bookings / Math.max(point.leads, 1)) * 100).slice(-14),
+          }),
+          owner: "Product",
+          alertReason:
+            signupBand.label === "Red"
+              ? `Red because lead-to-booking conversion is down ${Math.abs(kpis.lead_to_booking_conversion.change_percent).toFixed(2)}% month over month.`
+              : `Status ${signupBand.label} based on conversion change versus baseline.`,
           signal: `Lead-to-booking trend: ${asChangeLabel(kpis.lead_to_booking_conversion.change_percent)} month over month.`,
-          action: "If red: run one landing/form A/B test this week and ship the winner.",
+          action: "Run one landing/form A/B test this week and ship the winner.",
         },
       ],
     },
@@ -288,28 +339,70 @@ const DashboardPageContent = () => {
           metric: "Checkout rate by source",
           threshold: "Yellow: +20% dropoff / Red: +35% dropoff",
           state: checkoutBand,
+          value: biggestDropoff
+            ? `${asPercent(biggestDropoff.dropoff_from_previous)} (${asCount(biggestDropoff.absoluteLoss)} lost / ${asCount(
+                (funnel.stages.find((stage) => stage.key === "qualified")?.count || 0) + biggestDropoff.absoluteLoss
+              )} prior stage)`
+            : "—",
+          context: biggestDropoff
+            ? `${biggestDropoff.label}: ${asCount(biggestDropoff.absoluteLoss)} absolute lost volume`
+            : "No checkout dropoff context available",
+          trends: `Today vs yesterday: ${asChangeLabel(getChangeFromTotals(bookingStats.latest, bookingStats.avg))} · 7d: ${asChangeLabel(
+            getChangeFromTotals(bookingStats.last7, bookingStats.previous7)
+          )} · MoM: ${asChangeLabel(funnel.period_comparison.month.lead_to_booking_change_percent)}`,
+          sparkline: Sparkline({ values: leadBookingSeries.map((point) => point.bookings).slice(-14) }),
+          owner: "Product",
+          alertReason: biggestDropoff
+            ? `Red because ${biggestDropoff.label.toLowerCase()} dropoff is ${asPercent(biggestDropoff.dropoff_from_previous)} vs 4-week baseline threshold.`
+            : "No red alert reason available.",
           signal: biggestDropoff
             ? `Current largest drop-off: ${biggestDropoff.label} (${asPercent(biggestDropoff.dropoff_from_previous)}).`
             : "No checkout drop-off signal available.",
-          action: "If red: fix the biggest funnel leak first before launching new campaigns.",
+          action: "Review checkout/payment failures and mobile checkout speed today.",
         },
         {
           id: "purchase_rate",
           metric: "Purchase rate by source",
           threshold: "Yellow: +20% paid-stage dropoff / Red: +35%",
           state: purchaseBand,
+          value: `${asPercent(funnel.derived_metrics.booking_to_paid_conversion)} (${asCount(
+            funnel.stages.find((stage) => stage.key === "paid")?.count || 0
+          )} paid / ${asCount(funnel.stages.find((stage) => stage.key === "bookings")?.count || 0)} bookings)`,
+          context: `${asCount(funnel.stages.find((stage) => stage.key === "paid")?.count || 0)} paid outcomes from booking volume`,
+          trends: `Today vs yesterday: ${asChangeLabel(getChangeFromTotals(revenueStats.latest, revenueStats.avg))} · 7d: ${asChangeLabel(
+            getChangeFromTotals(bookingStats.last7, bookingStats.previous7)
+          )} · MoM: ${asChangeLabel(funnel.period_comparison.month.booking_to_paid_change_percent)}`,
+          sparkline: Sparkline({ values: revenueSeries.map((point) => point.value).slice(-14) }),
+          owner: "CRM",
+          alertReason: purchaseBand.label === "Red"
+            ? `Red because paid-stage dropoff is ${asPercent(funnel.stages.find((stage) => stage.key === "paid")?.dropoff_from_previous || 0)} vs baseline.`
+            : `Status ${purchaseBand.label} based on booking-to-paid trend.`,
           signal: `Booking→Paid: ${asPercent(funnel.derived_metrics.booking_to_paid_conversion)} (${asChangeLabel(
             funnel.period_comparison.month.booking_to_paid_change_percent
           )} month).`,
-          action: "If red: trigger checkout recovery at 30m and 6h and review payment failures.",
+          action: "Trigger checkout recovery at 30m and 6h and review payment failures.",
         },
         {
           id: "revenue_orders",
           metric: "Revenue, orders_count, total_revenue",
           threshold: "Yellow: -10% / Red: -20% vs prior period",
           state: kpis.revenue_this_month.change_percent < -20 ? { label: "Red", color: "red" as const } : kpis.revenue_this_month.change_percent < -10 ? { label: "Yellow", color: "orange" as const } : { label: "Green", color: "green" as const },
+          value: `${asCurrency(kpis.revenue_this_month.value, data.currency_code)} (${asCount(kpis.bookings_this_month.value)} orders)`,
+          context: `${asCurrency(kpis.revenue_this_month.value, data.currency_code)} this month / ${asCurrency(
+            kpis.revenue_this_month.previous,
+            data.currency_code
+          )} last month`,
+          trends: `Today vs yesterday: ${asChangeLabel(getChangeFromTotals(revenueStats.latest, revenueStats.avg))} · 7d: ${asChangeLabel(
+            getChangeFromTotals(revenueStats.last7, revenueStats.previous7)
+          )} · MoM: ${asChangeLabel(kpis.revenue_this_month.change_percent)}`,
+          sparkline: Sparkline({ values: revenueSeries.map((point) => point.value).slice(-14) }),
+          owner: "Finance",
+          alertReason:
+            kpis.revenue_this_month.change_percent < -20
+              ? `Red because revenue is down ${Math.abs(kpis.revenue_this_month.change_percent).toFixed(2)}% month over month.`
+              : `Status based on month-over-month revenue change.`,
           signal: `Revenue ${asChangeLabel(kpis.revenue_this_month.change_percent)} · Bookings ${asChangeLabel(kpis.bookings_this_month.change_percent)} month over month.`,
-          action: "If red: reduce spend in weak sources and push cart/checkout recovery immediately.",
+          action: "Reduce spend in weak sources and push cart/checkout recovery immediately when trend weakens.",
         },
       ],
     },
@@ -321,26 +414,64 @@ const DashboardPageContent = () => {
           metric: "AOV",
           threshold: "Yellow: -5% / Red: -10%",
           state: aovBand,
+          value: `${asCurrency(kpis.average_order_value.value, data.currency_code)} AOV`,
+          context: `${asCurrency(kpis.average_order_value.value, data.currency_code)} current / ${asCurrency(
+            kpis.average_order_value.previous,
+            data.currency_code
+          )} previous month`,
+          trends: `Today vs yesterday: ${asChangeLabel(getChangeFromTotals(revenueStats.latest, revenueStats.avg))} · 7d: ${asChangeLabel(
+            getChangeFromTotals(revenueStats.last7, revenueStats.previous7)
+          )} · MoM: ${asChangeLabel(kpis.average_order_value.change_percent)}`,
+          sparkline: Sparkline({ values: revenueSeries.map((point) => point.value).slice(-14) }),
+          owner: "Merchandising",
+          alertReason:
+            aovBand.label === "Red"
+              ? `Red because AOV is down ${Math.abs(kpis.average_order_value.change_percent).toFixed(2)}% month over month.`
+              : `Status ${aovBand.label} based on AOV month trend.`,
           signal: `AOV change: ${asChangeLabel(kpis.average_order_value.change_percent)} month over month.`,
-          action: "If red: enable bundles, in-cart cross-sell, and free-shipping threshold messaging.",
+          action: "Enable bundles, in-cart cross-sell, and free-shipping threshold messaging.",
         },
         {
           id: "ltv",
           metric: "LTV",
           threshold: "Yellow: -10% / Red: -15% (cohort trend)",
           state: ltvProxyBand,
+          value: `${asPercent(funnel.derived_metrics.booking_to_paid_conversion)} repeat proxy`,
+          context: `${asPercent(funnel.derived_metrics.booking_to_paid_conversion)} booking-to-paid conversion as retention proxy`,
+          trends: `Today vs yesterday: ${asChangeLabel(getChangeFromTotals(bookingStats.latest, bookingStats.avg))} · 7d: ${asChangeLabel(
+            getChangeFromTotals(bookingStats.last7, bookingStats.previous7)
+          )} · MoM: ${asChangeLabel(funnel.period_comparison.month.booking_to_paid_change_percent)}`,
+          sparkline: Sparkline({ values: leadBookingSeries.map((point) => point.bookings).slice(-14) }),
+          owner: "CRM",
+          alertReason:
+            ltvProxyBand.label === "Red"
+              ? `Red because booking-to-paid trend is down ${Math.abs(funnel.period_comparison.month.booking_to_paid_change_percent).toFixed(2)}% month over month.`
+              : `Status ${ltvProxyBand.label} based on cohort trend proxy.`,
           signal: `LTV proxy via booking→paid trend: ${asChangeLabel(
             funnel.period_comparison.month.booking_to_paid_change_percent
           )}.`,
-          action: "If red: prioritize win-back and repeat purchase CRM before scaling paid acquisition.",
+          action: "Prioritize win-back and repeat purchase CRM before scaling paid acquisition.",
         },
         {
           id: "days_to_first_purchase",
           metric: "Days to first purchase",
           threshold: "Yellow: +10% slower / Red: +20% slower",
           state: timeToFirstPurchaseBand,
+          value: `${asHours(funnel.derived_metrics.average_hours_lead_to_booking)} avg`,
+          context: `${asHours(funnel.derived_metrics.average_hours_lead_to_booking)} lead→booking / ${asHours(
+            funnel.derived_metrics.average_hours_booking_to_payment
+          )} booking→payment`,
+          trends: `Today vs yesterday: ${asChangeLabel(getChangeFromTotals(bookingStats.latest, bookingStats.avg))} · 7d: ${asChangeLabel(
+            getChangeFromTotals(bookingStats.last7, bookingStats.previous7)
+          )} · MoM: ${asChangeLabel(funnel.period_comparison.month.lead_to_booking_change_percent)}`,
+          sparkline: Sparkline({ values: leadBookingSeries.map((point) => point.bookings).slice(-14) }),
+          owner: "Lifecycle",
+          alertReason:
+            timeToFirstPurchaseBand.label === "Red"
+              ? `Red because lead→booking cycle time is ${asHours(funnel.derived_metrics.average_hours_lead_to_booking)} and above threshold.`
+              : `Status ${timeToFirstPurchaseBand.label} based on cycle-time target.`,
           signal: `Current lead→booking velocity: ${asHours(funnel.derived_metrics.average_hours_lead_to_booking)}.`,
-          action: "If red: tighten first-72h onboarding with first-order incentive and reminder flow.",
+          action: "Tighten first-72h onboarding with first-order incentive and reminder flow.",
         },
       ],
     },
@@ -437,10 +568,31 @@ const DashboardPageContent = () => {
                       {item.threshold}
                     </Text>
                     <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                      KPI: {item.value}
+                    </Text>
+                    <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                      Context: {item.context}
+                    </Text>
+                    <Text size="xsmall" className="mt-1 text-ui-fg-muted">
+                      Trend: {item.trends}
+                    </Text>
+                    <Text size="xsmall" className="mt-1 text-ui-fg-muted">
+                      Last 14d: {item.sparkline}
+                    </Text>
+                    <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
                       {item.signal}
                     </Text>
                     <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                      If red → {item.action}
+                      Owner: {item.owner}
+                    </Text>
+                    <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                      Next action: {item.action}
+                    </Text>
+                    <Text size="xsmall" className="mt-1 text-ui-fg-muted">
+                      Alert reason: {item.alertReason}
+                    </Text>
+                    <Text size="xsmall" className="mt-1 text-ui-fg-muted">
+                      Last updated: {asDate(data.generated_at)}
                     </Text>
                   </Container>
                 ))}
