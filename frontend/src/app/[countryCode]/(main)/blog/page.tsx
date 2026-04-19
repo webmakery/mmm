@@ -5,6 +5,10 @@ import BlogTemplate from "@modules/blog/templates"
 export const metadata: Metadata = {
   title: "Blog",
   description: "News, guides, and updates.",
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 type Params = {

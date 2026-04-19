@@ -12,5 +12,16 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     limit: 3,
   })
 
-  res.json({ post, related_posts: relatedPosts })
+  res.json({
+    post: {
+      ...post,
+      meta_title: post.seo_title,
+      meta_description: post.seo_description,
+    },
+    related_posts: relatedPosts.map((relatedPost) => ({
+      ...relatedPost,
+      meta_title: (relatedPost as Record<string, unknown>).seo_title || null,
+      meta_description: (relatedPost as Record<string, unknown>).seo_description || null,
+    })),
+  })
 }

@@ -51,9 +51,11 @@ type UpsertPostInput = {
   excerpt?: string | null
   content?: unknown
   featured_image?: string | null
+  image_alt?: string | null
   author_name?: string | null
   seo_title?: string | null
   seo_description?: string | null
+  canonical_url?: string | null
   publish_date?: string | null
   status?: "draft" | "published"
   category_ids?: string[]
@@ -98,9 +100,11 @@ class BlogModuleService extends MedusaService({
         excerpt: input.excerpt,
         content: input.content,
         featured_image: input.featured_image,
+        image_alt: input.image_alt,
         author_name: input.author_name,
         seo_title: input.seo_title,
         seo_description: input.seo_description,
+        canonical_url: input.canonical_url,
         publish_date: input.publish_date ? new Date(input.publish_date) : null,
         status: input.status || "draft",
         tags: input.tags || [],
@@ -151,9 +155,11 @@ class BlogModuleService extends MedusaService({
         ...(input.excerpt !== undefined ? { excerpt: input.excerpt } : {}),
         ...(input.content !== undefined ? { content: input.content } : {}),
         ...(input.featured_image !== undefined ? { featured_image: input.featured_image } : {}),
+        ...(input.image_alt !== undefined ? { image_alt: input.image_alt } : {}),
         ...(input.author_name !== undefined ? { author_name: input.author_name } : {}),
         ...(input.seo_title !== undefined ? { seo_title: input.seo_title } : {}),
         ...(input.seo_description !== undefined ? { seo_description: input.seo_description } : {}),
+        ...(input.canonical_url !== undefined ? { canonical_url: input.canonical_url } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
         ...(input.tags !== undefined ? { tags: input.tags } : {}),
         publish_date: publishDate,
@@ -326,8 +332,13 @@ class BlogModuleService extends MedusaService({
         p.slug,
         p.excerpt,
         p.featured_image,
+        p.image_alt,
         p.author_name,
         p.publish_date,
+        p.updated_at,
+        p.seo_title,
+        p.seo_description,
+        p.canonical_url,
         p.tags,
         coalesce(
           json_agg(

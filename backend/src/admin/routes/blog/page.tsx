@@ -34,6 +34,11 @@ type BlogPost = {
   slug: string
   excerpt?: string | null
   content?: unknown
+  featured_image?: string | null
+  image_alt?: string | null
+  seo_title?: string | null
+  seo_description?: string | null
+  canonical_url?: string | null
   status: "draft" | "published"
   publish_date?: string | null
   categories?: BlogCategory[]
@@ -44,6 +49,11 @@ type BlogPostFormState = {
   slug: string
   excerpt: string
   content: string
+  featured_image: string
+  image_alt: string
+  seo_title: string
+  seo_description: string
+  canonical_url: string
   status: "draft" | "published"
   category_ids: string[]
 }
@@ -53,6 +63,11 @@ const emptyFormState: BlogPostFormState = {
   slug: "",
   excerpt: "",
   content: "",
+  featured_image: "",
+  image_alt: "",
+  seo_title: "",
+  seo_description: "",
+  canonical_url: "",
   status: "draft",
   category_ids: [],
 }
@@ -102,6 +117,11 @@ const getFormStateFromPost = (post: BlogPost): BlogPostFormState => ({
   slug: post.slug,
   excerpt: post.excerpt || "",
   content: typeof post.content === "string" ? post.content : post.content ? JSON.stringify(post.content, null, 2) : "",
+  featured_image: post.featured_image || "",
+  image_alt: post.image_alt || "",
+  seo_title: post.seo_title || "",
+  seo_description: post.seo_description || "",
+  canonical_url: post.canonical_url || "",
   status: post.status,
   category_ids: post.categories?.map((category) => category.id) || [],
 })
@@ -200,6 +220,11 @@ const BlogAdminPage = () => {
         slug: values.slug.trim(),
         excerpt: values.excerpt.trim() || null,
         content: values.content.trim() || null,
+        featured_image: values.featured_image.trim() || null,
+        image_alt: values.image_alt.trim() || null,
+        seo_title: values.seo_title.trim() || null,
+        seo_description: values.seo_description.trim() || null,
+        canonical_url: values.canonical_url.trim() || null,
         status: values.status,
         category_ids: values.category_ids,
       }
@@ -362,6 +387,61 @@ const BlogAdminPage = () => {
                   control={form.control}
                   name="content"
                   render={({ field }) => <Textarea {...field} rows={8} />}
+                />
+              </div>
+
+              <div>
+                <Text size="small" weight="plus">
+                  Featured image URL
+                </Text>
+                <Controller
+                  control={form.control}
+                  name="featured_image"
+                  render={({ field }) => <Input {...field} type="url" placeholder="https://..." />}
+                />
+              </div>
+
+              <div>
+                <Text size="small" weight="plus">
+                  Featured image alt text
+                </Text>
+                <Controller
+                  control={form.control}
+                  name="image_alt"
+                  render={({ field }) => <Input {...field} />}
+                />
+              </div>
+
+              <div>
+                <Text size="small" weight="plus">
+                  Meta title
+                </Text>
+                <Controller
+                  control={form.control}
+                  name="seo_title"
+                  render={({ field }) => <Input {...field} />}
+                />
+              </div>
+
+              <div>
+                <Text size="small" weight="plus">
+                  Meta description
+                </Text>
+                <Controller
+                  control={form.control}
+                  name="seo_description"
+                  render={({ field }) => <Textarea {...field} rows={3} />}
+                />
+              </div>
+
+              <div>
+                <Text size="small" weight="plus">
+                  Canonical URL
+                </Text>
+                <Controller
+                  control={form.control}
+                  name="canonical_url"
+                  render={({ field }) => <Input {...field} type="url" placeholder="https://..." />}
                 />
               </div>
 

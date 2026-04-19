@@ -1,5 +1,6 @@
-import { retrieveBlogPost } from "@lib/data/blog"
+import { BlogPost } from "@lib/data/blog"
 import BlogCard from "@modules/blog/components/blog-card"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 const getBodyContent = (content: unknown): string => {
   if (typeof content === "string") {
@@ -14,20 +15,25 @@ const getBodyContent = (content: unknown): string => {
   return ""
 }
 
-const BlogDetailsTemplate = async ({ slug }: { slug: string }) => {
-  const { post, related_posts } = await retrieveBlogPost(slug)
-
+const BlogDetailsTemplate = ({ post, related_posts }: { post: BlogPost; related_posts: BlogPost[] }) => {
   return (
     <div className="content-container py-10 small:py-12" data-testid="blog-details-page">
       <article className="mx-auto max-w-3xl flex flex-col gap-y-6">
         <header className="flex flex-col gap-y-2">
+          <p className="text-small-regular text-ui-fg-subtle">
+            <LocalizedClientLink href="/blog">Blog</LocalizedClientLink> / {post.title}
+          </p>
           <h1 className="text-2xl-semi">{post.title}</h1>
           <p className="text-small-regular text-ui-fg-subtle">
             {post.author_name || "Admin"}
             {post.publish_date ? ` • ${new Date(post.publish_date).toLocaleDateString()}` : ""}
           </p>
           {post.featured_image ? (
-            <img src={post.featured_image} alt={post.title} className="w-full aspect-[16/9] object-cover rounded-rounded" />
+            <img
+              src={post.featured_image}
+              alt={post.image_alt || post.title}
+              className="w-full aspect-[16/9] object-cover rounded-rounded"
+            />
           ) : null}
         </header>
 
