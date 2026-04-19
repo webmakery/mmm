@@ -25,21 +25,8 @@ export class Migration20260418200000 extends Migration {
   }
 
   async down(): Promise<void> {
-    this.addSql('drop index if exists "IDX_LEAD_FOLLOW_UP_STATUS";')
-    this.addSql('drop index if exists "IDX_LEAD_SCORE";')
-
-    this.addSql('alter table if exists "lead" drop column if exists "outreach_sent_at";')
-    this.addSql('alter table if exists "lead" drop column if exists "outreach_approved_at";')
-    this.addSql('alter table if exists "lead" drop column if exists "outreach_message_draft";')
-    this.addSql('alter table if exists "lead" drop column if exists "follow_up_event_id";')
-    this.addSql('alter table if exists "lead" drop column if exists "follow_up_status";')
-    this.addSql('alter table if exists "lead" drop column if exists "pain_points";')
-    this.addSql('alter table if exists "lead" drop column if exists "lead_score_notes";')
-    this.addSql('alter table if exists "lead" drop column if exists "lead_score";')
-    this.addSql('alter table if exists "lead" drop column if exists "category";')
-    this.addSql('alter table if exists "lead" drop column if exists "source_detail";')
-
-    this.addSql('alter table if exists "lead" drop column if exists "google_maps_uri";')
-    this.addSql('alter table if exists "lead" drop column if exists "website";')
+    // Intentionally non-destructive: this migration reconciles historical drift with
+    // idempotent additions, so rollback must not remove columns/indexes that may be
+    // required by earlier migrations or already-present schemas.
   }
 }
