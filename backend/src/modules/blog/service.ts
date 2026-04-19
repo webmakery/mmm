@@ -410,6 +410,8 @@ class BlogModuleService extends MedusaService({
     }
 
     const manager = sharedContext?.manager
+    const categoryPlaceholders = input.category_ids.map(() => "?").join(", ")
+
     const rows = await manager?.execute(
       `
       select distinct p.id, p.title, p.slug, p.excerpt, p.featured_image, p.author_name, p.publish_date
@@ -420,11 +422,11 @@ class BlogModuleService extends MedusaService({
         and p.deleted_at is null
         and p.status = 'published'
         and coalesce(p.publish_date, p.created_at) <= now()
-        and pc.category_id = any(?::text[])
+        and pc.category_id in (${categoryPlaceholders})
       order by coalesce(p.publish_date, p.created_at) desc
       limit ?
       `,
-      [input.post_id, input.category_ids, input.limit || 3]
+      [input.post_id, ...input.category_ids, input.limit || 3]
     )
 
     return rows || []
