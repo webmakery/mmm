@@ -414,7 +414,15 @@ class BlogModuleService extends MedusaService({
 
     const rows = await manager?.execute(
       `
-      select distinct p.id, p.title, p.slug, p.excerpt, p.featured_image, p.author_name, p.publish_date
+      select distinct
+        p.id,
+        p.title,
+        p.slug,
+        p.excerpt,
+        p.featured_image,
+        p.author_name,
+        p.publish_date,
+        coalesce(p.publish_date, p.created_at) as sort_date
       from blog_post p
       join blog_post_category pc on pc.post_id = p.id and pc.deleted_at is null
       where
@@ -423,13 +431,13 @@ class BlogModuleService extends MedusaService({
         and p.status = 'published'
         and coalesce(p.publish_date, p.created_at) <= now()
         and pc.category_id in (${categoryPlaceholders})
-      order by coalesce(p.publish_date, p.created_at) desc
+      order by sort_date desc
       limit ?
       `,
       [input.post_id, ...input.category_ids, input.limit || 3]
     )
 
-    return rows || []
+    return (rows || []).map(({ sort_date, ...post }) => post)
   }
 }
 
