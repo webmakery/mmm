@@ -136,7 +136,6 @@ const BlogAdminPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [deletingPost, setDeletingPost] = useState(false)
   const [categoryName, setCategoryName] = useState("")
   const [creatingCategory, setCreatingCategory] = useState(false)
 
@@ -279,34 +278,6 @@ const BlogAdminPage = () => {
       toast.error("Failed to create blog category")
     } finally {
       setCreatingCategory(false)
-    }
-  }
-
-  const onDeletePost = async () => {
-    if (!editingPostId) {
-      return
-    }
-
-    const confirmed = window.confirm("Delete this blog post? This action cannot be undone.")
-
-    if (!confirmed) {
-      return
-    }
-
-    setDeletingPost(true)
-
-    try {
-      await sdk.client.fetch(`/admin/blog-posts/${editingPostId}`, {
-        method: "DELETE",
-      })
-      toast.success("Blog post deleted")
-      onCloseDrawer()
-      refetch()
-    } catch (error) {
-      console.error(error)
-      toast.error("Failed to delete blog post")
-    } finally {
-      setDeletingPost(false)
     }
   }
 
@@ -544,32 +515,13 @@ const BlogAdminPage = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-between gap-2 border-t pt-3">
-                {editingPostId ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={onDeletePost}
-                    isLoading={deletingPost}
-                    disabled={submitting || isFetchingPost}
-                  >
-                    Delete
-                  </Button>
-                ) : (
-                  <div />
-                )}
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="secondary" onClick={onCloseDrawer}>
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    isLoading={submitting || isFetchingPost}
-                    disabled={isFetchingPost || deletingPost}
-                  >
-                    {editingPostId ? "Save" : "Create"}
-                  </Button>
-                </div>
+              <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t bg-ui-bg-base pt-3">
+                <Button type="button" variant="secondary" onClick={onCloseDrawer}>
+                  Cancel
+                </Button>
+                <Button type="submit" isLoading={submitting || isFetchingPost} disabled={isFetchingPost}>
+                  {editingPostId ? "Save" : "Create"}
+                </Button>
               </div>
             </form>
           </Drawer.Body>
