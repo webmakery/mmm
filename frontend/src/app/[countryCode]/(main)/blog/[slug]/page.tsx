@@ -29,7 +29,8 @@ export default async function BlogPostPage(props: BlogPostPageProps) {
   const { slug } = await props.params
 
   try {
-    return <BlogDetailsTemplate slug={slug} />
+    const blogPostData = await retrieveBlogPost(slug)
+    return <BlogDetailsTemplate slug={slug} blogPostData={blogPostData} />
   } catch {
     notFound()
   }

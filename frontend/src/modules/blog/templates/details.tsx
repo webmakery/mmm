@@ -1,5 +1,7 @@
 import { retrieveBlogPost } from "@lib/data/blog"
-import BlogCard from "@modules/blog/components/blog-card"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import Thumbnail from "@modules/products/components/thumbnail"
+import { Text } from "@medusajs/ui"
 
 const getBodyContent = (content: unknown): string => {
   if (typeof content === "string") {
@@ -14,8 +16,34 @@ const getBodyContent = (content: unknown): string => {
   return ""
 }
 
-const BlogDetailsTemplate = async ({ slug }: { slug: string }) => {
-  const { post, related_posts } = await retrieveBlogPost(slug)
+type BlogPostData = Awaited<ReturnType<typeof retrieveBlogPost>>
+
+const BlogPostPreview = ({ post }: { post: BlogPostData["post"] }) => {
+  return (
+    <LocalizedClientLink href={`/blog/${post.slug}`} className="group">
+      <div data-testid="blog-card">
+        <Thumbnail thumbnail={post.featured_image} size="full" />
+        <div className="flex txt-compact-medium mt-4 justify-between gap-x-4">
+          <Text className="text-ui-fg-subtle" data-testid="blog-title">
+            {post.title}
+          </Text>
+          <Text className="text-ui-fg-muted">
+            {post.publish_date ? new Date(post.publish_date).toLocaleDateString() : ""}
+          </Text>
+        </div>
+      </div>
+    </LocalizedClientLink>
+  )
+}
+
+const BlogDetailsTemplate = async ({
+  slug,
+  blogPostData,
+}: {
+  slug: string
+  blogPostData?: BlogPostData
+}) => {
+  const { post, related_posts } = blogPostData ?? (await retrieveBlogPost(slug))
 
   return (
     <div className="content-container py-10 small:py-12" data-testid="blog-details-page">
@@ -42,7 +70,7 @@ const BlogDetailsTemplate = async ({ slug }: { slug: string }) => {
           <ul className="grid grid-cols-1 small:grid-cols-2 medium:grid-cols-3 gap-6">
             {related_posts.map((related) => (
               <li key={related.id}>
-                <BlogCard post={related} />
+                <BlogPostPreview post={related} />
               </li>
             ))}
           </ul>
