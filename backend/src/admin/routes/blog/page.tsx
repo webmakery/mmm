@@ -116,6 +116,8 @@ const BlogAdminPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [categoryName, setCategoryName] = useState("")
+  const [creatingCategory, setCreatingCategory] = useState(false)
 
   const form = useForm<BlogPostFormState>({
     defaultValues: emptyFormState,
@@ -136,7 +138,7 @@ const BlogAdminPage = () => {
     queryFn: () => sdk.client.fetch("/admin/blog-posts", { query }),
   })
 
-  const { data: categoryData } = useQuery<{ categories: BlogCategory[] }>({
+  const { data: categoryData, refetch: refetchCategories } = useQuery<{ categories: BlogCategory[] }>({
     queryKey: ["admin-blog-categories"],
     queryFn: () =>
       sdk.client.fetch("/admin/blog-categories", {
@@ -225,6 +227,34 @@ const BlogAdminPage = () => {
       setSubmitting(false)
     }
   })
+
+  const onCreateCategory = async () => {
+    const name = categoryName.trim()
+
+    if (!name) {
+      return
+    }
+
+    setCreatingCategory(true)
+
+    try {
+      await sdk.client.fetch("/admin/blog-categories", {
+        method: "POST",
+        body: {
+          name,
+          slug: toSlug(name),
+        },
+      })
+      toast.success("Blog category created")
+      setCategoryName("")
+      await refetchCategories()
+    } catch (error) {
+      console.error(error)
+      toast.error("Failed to create blog category")
+    } finally {
+      setCreatingCategory(false)
+    }
+  }
 
   return (
     <Container>
@@ -360,30 +390,48 @@ const BlogAdminPage = () => {
                 <Text size="small" weight="plus">
                   Categories
                 </Text>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Category name"
+                    value={categoryName}
+                    onChange={(event) => setCategoryName(event.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={onCreateCategory}
+                    isLoading={creatingCategory}
+                    disabled={!categoryName.trim()}
+                  >
+                    Add category
+                  </Button>
+                </div>
                 <Controller
                   control={form.control}
                   name="category_ids"
-                  render={({ field }) =>
-                    (categoryData?.categories || []).map((category) => {
-                      const checked = field.value.includes(category.id)
+                  render={({ field }) => (
+                    <div className="flex flex-col gap-2">
+                      {(categoryData?.categories || []).map((category) => {
+                        const checked = field.value.includes(category.id)
 
-                      return (
-                        <label key={category.id} className="flex items-center gap-2">
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(value) => {
-                              field.onChange(
-                                value
-                                  ? [...field.value, category.id]
-                                  : field.value.filter((id) => id !== category.id)
-                              )
-                            }}
-                          />
-                          <Text size="small">{category.name}</Text>
-                        </label>
-                      )
-                    })
-                  }
+                        return (
+                          <label key={category.id} className="flex items-center gap-2">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(value) => {
+                                field.onChange(
+                                  value
+                                    ? [...field.value, category.id]
+                                    : field.value.filter((id) => id !== category.id)
+                                )
+                              }}
+                            />
+                            <Text size="small">{category.name}</Text>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
                 />
               </div>
 
