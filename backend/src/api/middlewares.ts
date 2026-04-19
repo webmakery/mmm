@@ -57,6 +57,10 @@ import { PostStoreJourneyEventSchema } from "./store/journey/events/route"
 import { PostStoreJourneyIdentifySchema } from "./store/journey/identify/route"
 import { PostStoreJourneySignupCompletedSchema } from "./store/journey/signup-completed/route"
 import { PostCreateRoleSchema, PostUpdateRoleSchema, PostInviteWithRolesSchema, PostAssignRolesSchema } from "./admin/rbac/utils/schemas"
+import { GetAdminBlogPostsSchema, PostAdminCreateBlogPostSchema } from "./admin/blog-posts/route"
+import { PostAdminUpdateBlogPostSchema } from "./admin/blog-posts/[id]/route"
+import { GetAdminBlogCategoriesSchema, PostAdminCreateBlogCategorySchema } from "./admin/blog-categories/route"
+import { GetStoreBlogPostsSchema } from "./store/blog-posts/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -118,6 +122,61 @@ export default defineMiddlewares({
       matcher: "/admin/subscriptions/:id/infrastructure/retry",
       methods: ["POST"],
       middlewares: [validateAndTransformBody(PostAdminRetryInfrastructureSchema)],
+    },
+    {
+      matcher: "/admin/blog-posts",
+      methods: ["GET"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformQuery(GetAdminBlogPostsSchema, { isList: true }),
+      ],
+    },
+    {
+      matcher: "/admin/blog-posts",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminCreateBlogPostSchema),
+      ],
+    },
+    {
+      matcher: "/admin/blog-posts/:id",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminUpdateBlogPostSchema),
+      ],
+    },
+    {
+      matcher: "/admin/blog-posts/:id",
+      methods: ["GET", "DELETE"],
+      middlewares: [authenticate("user", ["bearer", "session"])],
+    },
+    {
+      matcher: "/admin/blog-categories",
+      methods: ["GET"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformQuery(GetAdminBlogCategoriesSchema, { isList: true }),
+      ],
+    },
+    {
+      matcher: "/admin/blog-categories",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminCreateBlogCategorySchema),
+      ],
+    },
+    {
+      matcher: "/admin/blog-categories/:id",
+      methods: ["DELETE"],
+      middlewares: [authenticate("user", ["bearer", "session"])],
+    },
+    {
+      matcher: "/store/blog-posts",
+      methods: ["GET"],
+      middlewares: [validateAndTransformQuery(GetStoreBlogPostsSchema, { isList: true })],
     },
     {
       matcher: "/admin/leads",

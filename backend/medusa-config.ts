@@ -182,5 +182,8 @@ module.exports = defineConfig({
     {
       resolve: "./src/modules/customer-journey",
     },
+    {
+      resolve: "./src/modules/blog",
+    },
   ],
 })
