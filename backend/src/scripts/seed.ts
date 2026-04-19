@@ -4,6 +4,8 @@ import {
   Modules,
   ProductStatus,
 } from "@medusajs/framework/utils";
+import { BLOG_MODULE } from "../modules/blog";
+import BlogModuleService from "../modules/blog/service";
 import {
   createWorkflow,
   transform,
@@ -919,4 +921,44 @@ export default async function seedDemoData({ container }: ExecArgs) {
   });
 
   logger.info("Finished seeding inventory levels data.");
+
+  const blogService: BlogModuleService = container.resolve(BLOG_MODULE);
+  const [existingCategories] = await blogService.listAndCountBlogCategories({}, { take: 1 });
+
+  if (!existingCategories.length) {
+    logger.info("Seeding blog data...");
+
+    const category = await blogService.createBlogCategories({
+      name: "Ecommerce Tips",
+      slug: "ecommerce-tips",
+      description: "Guides and practical tactics for growing your online store.",
+    });
+
+    const post = await blogService.createPostWithCategories({
+      title: "How to increase checkout conversion in 5 practical steps",
+      slug: "increase-checkout-conversion-5-steps",
+      excerpt:
+        "A practical checklist to optimize trust, speed, and clarity during checkout.",
+      content: {
+        type: "doc",
+        format: "markdown",
+        body: [
+          "Reducing friction at checkout can directly improve conversion.",
+          "Start by simplifying the form, highlighting trust badges, and showing transparent shipping details.",
+          "Then improve mobile performance and avoid surprise fees late in the funnel.",
+        ].join("\\n\\n"),
+      },
+      featured_image:
+        "https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&w=1400&q=80",
+      author_name: "Medusa Team",
+      seo_title: "Increase checkout conversion: 5 practical steps",
+      seo_description: "Learn five practical actions to improve ecommerce checkout conversion rates.",
+      publish_date: new Date().toISOString(),
+      status: "published",
+      category_ids: [category.id],
+      tags: ["conversion", "checkout", "ecommerce"],
+    });
+
+    logger.info(`Seeded blog post ${post.id}`);
+  }
 }
