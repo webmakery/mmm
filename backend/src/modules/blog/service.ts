@@ -5,6 +5,46 @@ import BlogCategory from "./models/blog-category"
 import BlogPost from "./models/blog-post"
 import BlogPostCategory from "./models/blog-post-category"
 
+type AdminCategory = { id: string; name: string; slug: string }
+
+type AdminPostRow = {
+  categories?: AdminCategory[] | string | null
+  [key: string]: unknown
+}
+
+const normalizeCategories = (categories: AdminPostRow["categories"]): AdminCategory[] => {
+  if (!categories) {
+    return []
+  }
+
+  if (Array.isArray(categories)) {
+    return categories.filter((category): category is AdminCategory => Boolean(category?.id))
+  }
+
+  if (typeof categories === "string") {
+    try {
+      const parsed = JSON.parse(categories)
+      return Array.isArray(parsed)
+        ? parsed.filter((category): category is AdminCategory => Boolean(category?.id))
+        : []
+    } catch {
+      return []
+    }
+  }
+
+  return []
+}
+
+const normalizeAdminPost = (post: AdminPostRow) => {
+  const categories = normalizeCategories(post.categories)
+
+  return {
+    ...post,
+    categories,
+    category_ids: categories.map((category) => category.id),
+  }
+}
+
 type UpsertPostInput = {
   title: string
   slug: string
@@ -187,7 +227,7 @@ class BlogModuleService extends MedusaService({
       throw new MedusaError(MedusaError.Types.NOT_FOUND, "Blog post not found")
     }
 
-    return rows[0]
+    return normalizeAdminPost(rows[0])
   }
 
   @InjectManager()
@@ -245,7 +285,7 @@ class BlogModuleService extends MedusaService({
     const countResult = await manager?.execute(`select count(*)::int as count from blog_post p where ${whereSql}`, values)
 
     return {
-      posts: posts || [],
+      posts: (posts || []).map((post: AdminPostRow) => normalizeAdminPost(post)),
       count: countResult?.[0]?.count || 0,
     }
   }

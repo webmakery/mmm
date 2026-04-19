@@ -18,7 +18,8 @@ import {
   useDataTable,
 } from "@medusajs/ui"
 import { useQuery } from "@tanstack/react-query"
-import { FormEvent, useMemo, useState } from "react"
+import { Controller, useForm } from "react-hook-form"
+import { useEffect, useMemo, useState } from "react"
 import { sdk } from "../../lib/sdk"
 
 type BlogCategory = {
@@ -113,9 +114,12 @@ const BlogAdminPage = () => {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<"__all" | "draft" | "published">("__all")
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [editingPost, setEditingPost] = useState<BlogPost | null>(null)
-  const [formState, setFormState] = useState<BlogPostFormState>(emptyFormState)
+  const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  const form = useForm<BlogPostFormState>({
+    defaultValues: emptyFormState,
+  })
 
   const query = useMemo(
     () => ({
@@ -140,6 +144,23 @@ const BlogAdminPage = () => {
       }),
   })
 
+  const { data: editingPostData, isFetching: isFetchingPost } = useQuery<{ post: BlogPost }>({
+    queryKey: ["admin-blog-post", editingPostId],
+    queryFn: () => sdk.client.fetch(`/admin/blog-posts/${editingPostId}`),
+    enabled: Boolean(editingPostId && drawerOpen),
+  })
+
+  useEffect(() => {
+    if (!editingPostId) {
+      form.reset(emptyFormState)
+      return
+    }
+
+    if (editingPostData?.post) {
+      form.reset(getFormStateFromPost(editingPostData.post))
+    }
+  }, [editingPostData, editingPostId, form])
+
   const table = useDataTable({
     columns,
     data: data?.posts || [],
@@ -151,40 +172,38 @@ const BlogAdminPage = () => {
       onPaginationChange: setPagination,
     },
     onRowClick: (_, row) => {
-      setEditingPost(row)
-      setFormState(getFormStateFromPost(row))
+      setEditingPostId(row.id)
       setDrawerOpen(true)
     },
   })
 
   const onOpenCreate = () => {
-    setEditingPost(null)
-    setFormState(emptyFormState)
+    setEditingPostId(null)
+    form.reset(emptyFormState)
     setDrawerOpen(true)
   }
 
   const onCloseDrawer = () => {
     setDrawerOpen(false)
-    setEditingPost(null)
-    setFormState(emptyFormState)
+    setEditingPostId(null)
+    form.reset(emptyFormState)
   }
 
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const onSubmit = form.handleSubmit(async (values) => {
     setSubmitting(true)
 
     try {
       const payload = {
-        title: formState.title.trim(),
-        slug: formState.slug.trim(),
-        excerpt: formState.excerpt.trim() || null,
-        content: formState.content.trim() || null,
-        status: formState.status,
-        category_ids: formState.category_ids,
+        title: values.title.trim(),
+        slug: values.slug.trim(),
+        excerpt: values.excerpt.trim() || null,
+        content: values.content.trim() || null,
+        status: values.status,
+        category_ids: values.category_ids,
       }
 
-      if (editingPost) {
-        await sdk.client.fetch(`/admin/blog-posts/${editingPost.id}`, {
+      if (editingPostId) {
+        await sdk.client.fetch(`/admin/blog-posts/${editingPostId}`, {
           method: "POST",
           body: payload,
         })
@@ -205,7 +224,7 @@ const BlogAdminPage = () => {
     } finally {
       setSubmitting(false)
     }
-  }
+  })
 
   return (
     <Container>
@@ -252,7 +271,7 @@ const BlogAdminPage = () => {
       >
         <Drawer.Content>
           <Drawer.Header>
-            <Drawer.Title>{editingPost ? "Edit Blog Post" : "Create Blog Post"}</Drawer.Title>
+            <Drawer.Title>{editingPostId ? "Edit Blog Post" : "Create Blog Post"}</Drawer.Title>
           </Drawer.Header>
           <Drawer.Body>
             <form onSubmit={onSubmit} className="flex flex-col gap-3">
@@ -260,18 +279,24 @@ const BlogAdminPage = () => {
                 <Text size="small" weight="plus">
                   Title
                 </Text>
-                <Input
-                  value={formState.title}
-                  onChange={(event) => {
-                    const title = event.target.value
+                <Controller
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      onChange={(event) => {
+                        const title = event.target.value
 
-                    setFormState((prev) => ({
-                      ...prev,
-                      title,
-                      slug: editingPost ? prev.slug : toSlug(title),
-                    }))
-                  }}
-                  required
+                        field.onChange(title)
+
+                        if (!editingPostId) {
+                          form.setValue("slug", toSlug(title), { shouldDirty: true })
+                        }
+                      }}
+                      required
+                    />
+                  )}
                 />
               </div>
 
@@ -279,10 +304,12 @@ const BlogAdminPage = () => {
                 <Text size="small" weight="plus">
                   Slug
                 </Text>
-                <Input
-                  value={formState.slug}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, slug: toSlug(event.target.value) }))}
-                  required
+                <Controller
+                  control={form.control}
+                  name="slug"
+                  render={({ field }) => (
+                    <Input {...field} onChange={(event) => field.onChange(toSlug(event.target.value))} required />
+                  )}
                 />
               </div>
 
@@ -290,10 +317,10 @@ const BlogAdminPage = () => {
                 <Text size="small" weight="plus">
                   Excerpt
                 </Text>
-                <Textarea
-                  value={formState.excerpt}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, excerpt: event.target.value }))}
-                  rows={3}
+                <Controller
+                  control={form.control}
+                  name="excerpt"
+                  render={({ field }) => <Textarea {...field} rows={3} />}
                 />
               </div>
 
@@ -301,10 +328,10 @@ const BlogAdminPage = () => {
                 <Text size="small" weight="plus">
                   Content
                 </Text>
-                <Textarea
-                  value={formState.content}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, content: event.target.value }))}
-                  rows={8}
+                <Controller
+                  control={form.control}
+                  name="content"
+                  render={({ field }) => <Textarea {...field} rows={8} />}
                 />
               </div>
 
@@ -312,52 +339,60 @@ const BlogAdminPage = () => {
                 <Text size="small" weight="plus">
                   Status
                 </Text>
-                <Select
-                  value={formState.status}
-                  onValueChange={(value) => setFormState((prev) => ({ ...prev, status: value as "draft" | "published" }))}
-                >
-                  <Select.Trigger>
-                    <Select.Value />
-                  </Select.Trigger>
-                  <Select.Content>
-                    <Select.Item value="draft">Draft</Select.Item>
-                    <Select.Item value="published">Published</Select.Item>
-                  </Select.Content>
-                </Select>
+                <Controller
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={(value) => field.onChange(value as "draft" | "published")}>
+                      <Select.Trigger>
+                        <Select.Value />
+                      </Select.Trigger>
+                      <Select.Content>
+                        <Select.Item value="draft">Draft</Select.Item>
+                        <Select.Item value="published">Published</Select.Item>
+                      </Select.Content>
+                    </Select>
+                  )}
+                />
               </div>
 
               <div className="flex flex-col gap-2">
                 <Text size="small" weight="plus">
                   Categories
                 </Text>
-                {(categoryData?.categories || []).map((category) => {
-                  const checked = formState.category_ids.includes(category.id)
+                <Controller
+                  control={form.control}
+                  name="category_ids"
+                  render={({ field }) =>
+                    (categoryData?.categories || []).map((category) => {
+                      const checked = field.value.includes(category.id)
 
-                  return (
-                    <label key={category.id} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(value) => {
-                          setFormState((prev) => ({
-                            ...prev,
-                            category_ids: value
-                              ? [...prev.category_ids, category.id]
-                              : prev.category_ids.filter((id) => id !== category.id),
-                          }))
-                        }}
-                      />
-                      <Text size="small">{category.name}</Text>
-                    </label>
-                  )
-                })}
+                      return (
+                        <label key={category.id} className="flex items-center gap-2">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(value) => {
+                              field.onChange(
+                                value
+                                  ? [...field.value, category.id]
+                                  : field.value.filter((id) => id !== category.id)
+                              )
+                            }}
+                          />
+                          <Text size="small">{category.name}</Text>
+                        </label>
+                      )
+                    })
+                  }
+                />
               </div>
 
               <div className="flex items-center justify-end gap-2">
                 <Button type="button" variant="secondary" onClick={onCloseDrawer}>
                   Cancel
                 </Button>
-                <Button type="submit" isLoading={submitting}>
-                  {editingPost ? "Save" : "Create"}
+                <Button type="submit" isLoading={submitting || isFetchingPost} disabled={isFetchingPost}>
+                  {editingPostId ? "Save" : "Create"}
                 </Button>
               </div>
             </form>
