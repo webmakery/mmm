@@ -16,6 +16,11 @@ type Campaign = {
   template_id: string
   status: CampaignStatus
   scheduled_at?: string | null
+  audience_filter?: {
+    include_tags?: string[]
+    exclude_tags?: string[]
+    tag_match_mode?: "any" | "all"
+  } | null
 }
 
 type Template = {
@@ -31,6 +36,9 @@ type CampaignForm = {
   template_id: string
   status: "draft" | "scheduled"
   scheduled_at: string
+  include_tags: string
+  exclude_tags: string
+  tag_match_mode: "any" | "all"
 }
 
 const defaultForm: CampaignForm = {
@@ -41,7 +49,20 @@ const defaultForm: CampaignForm = {
   template_id: "",
   status: "draft",
   scheduled_at: "",
+  include_tags: "",
+  exclude_tags: "",
+  tag_match_mode: "any",
 }
+
+const parseTagList = (value: string) =>
+  Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((tag) => tag.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  )
 
 const formatDateTimeLocal = (value?: string | null) => {
   if (!value) {
@@ -92,6 +113,9 @@ const EmailCampaignsPage = () => {
       template_id: campaign.template_id,
       status: campaign.status === "scheduled" ? "scheduled" : "draft",
       scheduled_at: formatDateTimeLocal(campaign.scheduled_at),
+      include_tags: (campaign.audience_filter?.include_tags || []).join(", "),
+      exclude_tags: (campaign.audience_filter?.exclude_tags || []).join(", "),
+      tag_match_mode: campaign.audience_filter?.tag_match_mode === "all" ? "all" : "any",
     })
     setDrawerOpen(true)
   }
@@ -111,6 +135,11 @@ const EmailCampaignsPage = () => {
         template_id: form.template_id,
         status: form.status,
         scheduled_at: form.status === "scheduled" ? new Date(form.scheduled_at).toISOString() : null,
+        audience_filter: {
+          include_tags: parseTagList(form.include_tags),
+          exclude_tags: parseTagList(form.exclude_tags),
+          tag_match_mode: form.tag_match_mode,
+        },
       }
 
       if (editingCampaign) {
@@ -266,11 +295,20 @@ const EmailCampaignsPage = () => {
 
               <div className="grid grid-cols-1 gap-2">
                 <Label>Template</Label>
-                <Select value={form.template_id} onValueChange={(value) => setForm((prev) => ({ ...prev, template_id: value }))}>
+                <Select
+                  modal={false}
+                  value={form.template_id}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, template_id: value }))}
+                >
                   <Select.Trigger>
                     <Select.Value placeholder="Select template" />
                   </Select.Trigger>
                   <Select.Content>
+                    {!templateOptions.length ? (
+                      <Select.Item value="__no_templates" disabled>
+                        No templates available
+                      </Select.Item>
+                    ) : null}
                     {templateOptions.map((template) => (
                       <Select.Item key={template.id} value={template.id}>
                         {template.name}
@@ -283,6 +321,7 @@ const EmailCampaignsPage = () => {
               <div className="grid grid-cols-1 gap-2">
                 <Label>Status</Label>
                 <Select
+                  modal={false}
                   value={form.status}
                   onValueChange={(value: "draft" | "scheduled") => setForm((prev) => ({ ...prev, status: value }))}
                 >
@@ -294,6 +333,44 @@ const EmailCampaignsPage = () => {
                     <Select.Item value="scheduled">Scheduled</Select.Item>
                   </Select.Content>
                 </Select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Label>Include tags (comma separated)</Label>
+                <Input
+                  value={form.include_tags}
+                  placeholder="vip, wholesale, newsletter"
+                  onChange={(e) => setForm((prev) => ({ ...prev, include_tags: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Label>Exclude tags (comma separated)</Label>
+                <Input
+                  value={form.exclude_tags}
+                  placeholder="suppressed, trial-expired"
+                  onChange={(e) => setForm((prev) => ({ ...prev, exclude_tags: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Label>Tag matching</Label>
+                <Select
+                  modal={false}
+                  value={form.tag_match_mode}
+                  onValueChange={(value: "any" | "all") => setForm((prev) => ({ ...prev, tag_match_mode: value }))}
+                >
+                  <Select.Trigger>
+                    <Select.Value />
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="any">Match any include tag</Select.Item>
+                    <Select.Item value="all">Match all include tags</Select.Item>
+                  </Select.Content>
+                </Select>
+                <Text size="small" className="text-ui-fg-subtle">
+                  Use tags from subscribers to target precise campaign audiences.
+                </Text>
               </div>
 
               {form.status === "scheduled" && (

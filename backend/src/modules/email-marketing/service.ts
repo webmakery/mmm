@@ -8,6 +8,11 @@ import Subscriber, { SubscriberStatuses } from "./models/subscriber"
 import EmailTemplate from "./models/template"
 
 type SubscriberStatus = (typeof SubscriberStatuses)[number]
+type CampaignAudienceFilter = {
+  include_tags?: string[]
+  exclude_tags?: string[]
+  tag_match_mode?: "any" | "all"
+}
 
 type ListConfig = { limit: number; offset: number }
 
@@ -17,6 +22,66 @@ class EmailMarketingModuleService extends MedusaService({
   EmailCampaign,
   EmailCampaignLog,
 }) {
+  private getSubscriberTagSet(tags: Record<string, unknown> | null | undefined) {
+    if (!tags || typeof tags !== "object") {
+      return new Set<string>()
+    }
+
+    const tagSet = new Set<string>()
+
+    for (const [key, value] of Object.entries(tags)) {
+      if (key.trim()) {
+        tagSet.add(key.trim().toLowerCase())
+      }
+
+      if (typeof value === "string" && value.trim()) {
+        tagSet.add(value.trim().toLowerCase())
+      }
+
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          if (typeof item === "string" && item.trim()) {
+            tagSet.add(item.trim().toLowerCase())
+          }
+        })
+      }
+    }
+
+    return tagSet
+  }
+
+  private filterSubscribersByAudience(
+    subscribers: Subscriber[],
+    audienceFilter: CampaignAudienceFilter | null | undefined
+  ) {
+    if (!audienceFilter) {
+      return subscribers
+    }
+
+    const includeTags = (audienceFilter.include_tags || []).map((tag) => tag.trim().toLowerCase()).filter(Boolean)
+    const excludeTags = (audienceFilter.exclude_tags || []).map((tag) => tag.trim().toLowerCase()).filter(Boolean)
+    const tagMatchMode = audienceFilter.tag_match_mode === "all" ? "all" : "any"
+
+    return subscribers.filter((subscriber) => {
+      const subscriberTags = this.getSubscriberTagSet((subscriber.tags as Record<string, unknown>) || {})
+      const includesMatch =
+        includeTags.length === 0 ||
+        (tagMatchMode === "all"
+          ? includeTags.every((tag) => subscriberTags.has(tag))
+          : includeTags.some((tag) => subscriberTags.has(tag)))
+
+      if (!includesMatch) {
+        return false
+      }
+
+      if (!excludeTags.length) {
+        return true
+      }
+
+      return !excludeTags.some((tag) => subscriberTags.has(tag))
+    })
+  }
+
   @InjectManager()
   async createOrUpdateSubscriber(
     input: {
@@ -164,15 +229,19 @@ class EmailMarketingModuleService extends MedusaService({
     }
 
     const activeSubscribers = await this.listSubscribers({ status: "active" }, {}, sharedContext)
+    const filteredSubscribers = this.filterSubscribersByAudience(
+      activeSubscribers,
+      (campaign.audience_filter as CampaignAudienceFilter) || {}
+    )
 
-    if (!activeSubscribers.length) {
-      throw new MedusaError(MedusaError.Types.INVALID_DATA, "No active subscribers available")
+    if (!filteredSubscribers.length) {
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, "No matching subscribers for this campaign audience")
     }
 
     await this.updateEmailCampaigns({ id: campaign.id, status: "processing" }, sharedContext)
 
     await this.createEmailCampaignLogs(
-      activeSubscribers.map((subscriber) => ({
+      filteredSubscribers.map((subscriber) => ({
         campaign_id: campaign.id,
         subscriber_id: subscriber.id,
         status: "queued",
