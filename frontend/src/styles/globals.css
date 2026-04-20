@@ -109,4 +109,43 @@
   .text-3xl-semi {
     @apply text-[32px] leading-[44px] font-semibold;
   }
+
+  .email-field-animated-border {
+    @apply relative isolate overflow-hidden rounded-full border-2 border-white/35 bg-white/[0.06];
+  }
+
+  .email-field-animated-border::before {
+    content: "";
+    position: absolute;
+    inset: -120%;
+    z-index: -1;
+    border-radius: inherit;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      transparent 290deg,
+      rgba(255, 255, 255, 0.72) 330deg,
+      transparent 360deg
+    );
+    animation: snake-border-spin 3.2s linear infinite;
+  }
+
+  .email-field-animated-border::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    z-index: -1;
+    border-radius: inherit;
+    background: #020810;
+  }
+}
+
+@keyframes snake-border-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
