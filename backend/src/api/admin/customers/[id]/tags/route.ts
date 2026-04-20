@@ -1,9 +1,9 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
 import { Modules } from "@medusajs/framework/utils"
-import { EMAIL_MARKETING_MODULE } from "../../../../../../modules/email-marketing"
-import EmailMarketingModuleService from "../../../../../../modules/email-marketing/service"
-import { dedupeTags, tagsToRecord } from "../../../../../../modules/email-marketing/tag-utils"
+import { EMAIL_MARKETING_MODULE } from "../../../../../modules/email-marketing"
+import EmailMarketingModuleService from "../../../../../modules/email-marketing/service"
+import { dedupeTags, tagsToRecord } from "../../../../../modules/email-marketing/tag-utils"
 
 export const PostAdminCustomerTagsSchema = z.object({
   tags: z.array(z.string().min(1)).default([]),
