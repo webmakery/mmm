@@ -142,8 +142,8 @@ const HeroCollage = ({ heroRef }: { heroRef: RefObject<HTMLElement | null> }) =>
       <div className="content-container relative z-10 flex h-full items-center justify-center py-10">
         <div className="w-full max-w-[477px]">
           <div className="rounded-[42px] bg-white px-7 py-7 shadow-[0_24px_60px_rgba(0,0,0,0.24)] small:px-8 small:py-8">
-            <h1 className="max-w-[450px] text-3xl-regular text-ui-fg-base">
-              Your business starts with Shopify
+            <h1 className="max-w-[450px] text-3xl-semi text-ui-fg-base">
+              Your business starts with Webmakerr
             </h1>
             <p className="mt-3 max-w-[430px] text-large-regular text-ui-fg-subtle">
               Try 3 days free, then 1 €/month for 3 months. What are you waiting
@@ -163,7 +163,7 @@ const HeroCollage = ({ heroRef }: { heroRef: RefObject<HTMLElement | null> }) =>
             <label htmlFor="hero-email" className="sr-only">
               Enter your email
             </label>
-            <div className="mt-3 flex items-center rounded-full border border-white/25 bg-white/[0.06] p-1.5 pl-4">
+            <div className="email-field-animated-border mt-3 flex items-center p-1.5 pl-4">
               <input
                 id="hero-email"
                 type="email"
