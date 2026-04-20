@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 
 import PlanList from "@modules/subscription/components/plan-list"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { listSubscriptionPlans } from "@lib/data/subscription-plans"
 
 export const metadata: Metadata = {
@@ -21,6 +22,21 @@ export default async function PlansPage() {
         </p>
         <p className="text-base-regular text-ui-fg-subtle">
           Clear monthly pricing, secure checkout, and support included.
+          Switching platforms?{" "}
+          <LocalizedClientLink
+            href="/compare/shopify"
+            className="text-ui-fg-base"
+          >
+            Compare Shopify migration
+          </LocalizedClientLink>{" "}
+          or{" "}
+          <LocalizedClientLink
+            href="/compare/woocommerce"
+            className="text-ui-fg-base"
+          >
+            compare WooCommerce migration
+          </LocalizedClientLink>
+          .
         </p>
       </div>
       <PlanList plans={plans} />
