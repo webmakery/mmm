@@ -27,22 +27,26 @@ const Hero = () => {
             level="h1"
             className="text-3xl font-normal leading-10 text-white small:text-5xl small:leading-[1.1]"
           >
-            Build the next brand customers remember
+            Start and grow your online store without platform lock-in
           </Heading>
           <Heading
             level="h2"
             className="text-large-regular text-white/90 small:text-xl"
           >
-            Launch fast, scale with confidence, and deliver a premium commerce
-            experience.
+            Built for new merchants, growing brands, and teams migrating from
+            Shopify or WooCommerce.
           </Heading>
+          <p className="text-small-regular text-white/90">
+            Launch in days with support, flexible storefronts, and predictable
+            pricing.
+          </p>
 
           <div className="flex flex-col gap-3 small:flex-row">
             <Button className="w-full small:w-auto" variant="primary" asChild>
               <LocalizedClientLink href="/signup">Start for free</LocalizedClientLink>
             </Button>
-            <Button className="w-full small:w-auto" variant="secondary">
-              View plans
+            <Button className="w-full small:w-auto" variant="secondary" asChild>
+              <LocalizedClientLink href="/plans">View plans</LocalizedClientLink>
             </Button>
           </div>
         </div>

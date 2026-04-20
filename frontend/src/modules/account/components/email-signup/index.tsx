@@ -50,7 +50,10 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
         <div className="text-center">
           <h1 className="text-3xl font-normal">Start your free trial</h1>
           <p className="text-base-regular text-ui-fg-subtle mt-2">
-            3 days free, then 3 months for €1/month
+            Start in minutes. No code changes needed to launch your first store.
+          </p>
+          <p className="text-base-regular text-ui-fg-subtle mt-1">
+            3 days free, then 3 months for €1/month.
           </p>
         </div>
 
@@ -103,6 +106,9 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
                 >
                   Continue with email
                 </Button>
+                <p className="text-small-regular text-ui-fg-subtle text-center">
+                  No credit card required for the free trial.
+                </p>
               </form>
 
               <div className="flex items-center gap-x-4 py-1">
