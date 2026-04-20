@@ -1,5 +1,6 @@
 import { Button, Container, Heading, StatusBadge, Text } from "@medusajs/ui";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { openAdminHelpDrawer } from "../../components/admin-help-drawer";
 import { useDashboardData } from "./hooks";
 
@@ -223,6 +224,9 @@ const KpiCard = ({
 
 const DashboardPageContent = () => {
   const { data, isLoading, isError } = useDashboardData();
+  const [attributionModel, setAttributionModel] = useState<
+    "first_touch" | "last_touch"
+  >("first_touch");
 
   if (isLoading) {
     return (
@@ -257,6 +261,10 @@ const DashboardPageContent = () => {
   const revenueSeries = data.performance.revenue_trend_30_days;
   const leadBookingSeries = data.performance.leads_vs_bookings_30_days;
   const funnel = data.full_funnel;
+  const channelRows =
+    attributionModel === "first_touch"
+      ? data.performance.channel_performance.first_touch
+      : data.performance.channel_performance.last_touch;
   const stageCount = (
     key: "leads" | "qualified" | "bookings" | "completed" | "paid",
   ) => funnel.stages.find((stage) => stage.key === key)?.count || 0;
@@ -839,6 +847,127 @@ const DashboardPageContent = () => {
             target="Target: 0 open exceptions"
             status={kpis.urgent_action_items.value > 0 ? "orange" : "green"}
           />
+        </div>
+      </Container>
+
+      <Container className="p-0">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <Heading level="h2">Channel Performance</Heading>
+              <Text size="small" className="text-ui-fg-subtle">
+                Source performance using normalized attribution fields.
+              </Text>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="small"
+                variant={
+                  attributionModel === "first_touch" ? "primary" : "secondary"
+                }
+                onClick={() => setAttributionModel("first_touch")}
+              >
+                First-touch
+              </Button>
+              <Button
+                size="small"
+                variant={
+                  attributionModel === "last_touch" ? "primary" : "secondary"
+                }
+                onClick={() => setAttributionModel("last_touch")}
+              >
+                Last-touch
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="px-6 pb-4">
+          <Container className="p-0">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="px-3 py-2 text-left text-ui-fg-subtle text-xsmall">
+                    Source
+                  </th>
+                  <th className="px-3 py-2 text-right text-ui-fg-subtle text-xsmall">
+                    Visitors
+                  </th>
+                  <th className="px-3 py-2 text-right text-ui-fg-subtle text-xsmall">
+                    Engaged visitors
+                  </th>
+                  <th className="px-3 py-2 text-right text-ui-fg-subtle text-xsmall">
+                    Signups
+                  </th>
+                  <th className="px-3 py-2 text-right text-ui-fg-subtle text-xsmall">
+                    Checkout starts
+                  </th>
+                  <th className="px-3 py-2 text-right text-ui-fg-subtle text-xsmall">
+                    Purchases
+                  </th>
+                  <th className="px-3 py-2 text-right text-ui-fg-subtle text-xsmall">
+                    Revenue
+                  </th>
+                  <th className="px-3 py-2 text-right text-ui-fg-subtle text-xsmall">
+                    Signup rate
+                  </th>
+                  <th className="px-3 py-2 text-right text-ui-fg-subtle text-xsmall">
+                    Checkout rate
+                  </th>
+                  <th className="px-3 py-2 text-right text-ui-fg-subtle text-xsmall">
+                    Purchase rate
+                  </th>
+                  <th className="px-3 py-2 text-right text-ui-fg-subtle text-xsmall">
+                    AOV
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {channelRows.length ? (
+                  channelRows.map((row) => (
+                    <tr key={`${attributionModel}-${row.source}`} className="border-b">
+                      <td className="px-3 py-2 text-small">{toTitle(row.source)}</td>
+                      <td className="px-3 py-2 text-right text-small">
+                        {asCount(row.visitors)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-small">
+                        {asCount(row.engaged_visitors)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-small">
+                        {asCount(row.signups)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-small">
+                        {asCount(row.checkout_starts)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-small">
+                        {asCount(row.purchases)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-small">
+                        {asCurrency(row.revenue, data.currency_code)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-small">
+                        {asPercent(row.signup_rate)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-small">
+                        {asPercent(row.checkout_rate)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-small">
+                        {asPercent(row.purchase_rate)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-small">
+                        {asCurrency(row.aov, data.currency_code)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={11} className="px-3 py-3 text-small text-ui-fg-subtle">
+                      No attribution data available yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </Container>
         </div>
       </Container>
 

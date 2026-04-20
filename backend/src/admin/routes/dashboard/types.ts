@@ -67,6 +67,34 @@ export type DashboardResponse = {
       revenue: number
       bookings: number
     }>
+    channel_performance: {
+      first_touch: Array<{
+        source: string
+        visitors: number
+        engaged_visitors: number
+        signups: number
+        checkout_starts: number
+        purchases: number
+        revenue: number
+        signup_rate: number
+        checkout_rate: number
+        purchase_rate: number
+        aov: number
+      }>
+      last_touch: Array<{
+        source: string
+        visitors: number
+        engaged_visitors: number
+        signups: number
+        checkout_starts: number
+        purchases: number
+        revenue: number
+        signup_rate: number
+        checkout_rate: number
+        purchase_rate: number
+        aov: number
+      }>
+    }
   }
   full_funnel: {
     stages: Array<{

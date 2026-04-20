@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 type DashboardOrder = {
   id: string
+  customer_id?: string | null
   display_id?: number | null
   created_at: string
   currency_code?: string | null
@@ -42,6 +43,24 @@ type DashboardBooking = {
     id?: string | null
     name?: string | null
   } | null
+}
+
+type JourneyEvent = {
+  id: string
+  event_name: string
+  occurred_at: string
+  visitor_id?: string | null
+  customer_id?: string | null
+  normalized_source?: string | null
+}
+
+type JourneyAttributionTouch = {
+  id: string
+  customer_id?: string | null
+  visitor_id?: string | null
+  touched_at: string
+  touch_type: string
+  source?: string | null
 }
 
 const toDate = (value?: string | null) => {
@@ -165,6 +184,11 @@ const getAverageHoursBetween = (pairs: Array<{ startAt: Date; endAt: Date }>) =>
   return roundTwo(totalMs / pairs.length / (1000 * 60 * 60))
 }
 
+const ensureSource = (value?: string | null) => {
+  const output = (value || "").trim().toLowerCase()
+  return output || "direct"
+}
+
 export const GET = async (
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
@@ -176,12 +200,13 @@ export const GET = async (
   const monthStart = getUtcMonthStart(now)
   const previousMonthStart = getPreviousUtcMonthStart(now)
 
-  const [orderResult, customerResult, leadResult, bookingResult] =
+  const [orderResult, customerResult, leadResult, bookingResult, journeyEventResult, touchResult] =
     await Promise.all([
       query.graph({
         entity: "order",
         fields: [
           "id",
+          "customer_id",
           "display_id",
           "created_at",
           "currency_code",
@@ -252,12 +277,36 @@ export const GET = async (
           take: 500,
         },
       }),
+      query.graph({
+        entity: "journey_event",
+        fields: ["id", "event_name", "occurred_at", "visitor_id", "customer_id", "normalized_source"],
+        pagination: {
+          order: {
+            occurred_at: "DESC",
+          },
+          skip: 0,
+          take: 5000,
+        },
+      }),
+      query.graph({
+        entity: "journey_attribution_touch",
+        fields: ["id", "customer_id", "visitor_id", "touch_type", "source", "touched_at"],
+        pagination: {
+          order: {
+            touched_at: "DESC",
+          },
+          skip: 0,
+          take: 5000,
+        },
+      }),
     ])
 
   const orderList = (orderResult.data as DashboardOrder[]) || []
   const customerList = (customerResult.data as Array<{ id: string }>) || []
   const leadList = (leadResult.data as DashboardLead[]) || []
   const bookingList = (bookingResult.data as DashboardBooking[]) || []
+  const journeyEvents = (journeyEventResult.data as JourneyEvent[]) || []
+  const journeyTouches = (touchResult.data as JourneyAttributionTouch[]) || []
 
   const ordersThisMonth = orderList.filter((order) => inRange(order.created_at, monthStart, now))
   const ordersPreviousMonth = orderList.filter((order) => inRange(order.created_at, previousMonthStart, monthStart))
@@ -548,6 +597,180 @@ export const GET = async (
     .sort((a, b) => b.bookings - a.bookings)
     .slice(0, 5)
 
+  const attributionByModel = {
+    first_touch: {
+      customer: new Map<string, { source: string; touchedAt: number }>(),
+      visitor: new Map<string, { source: string; touchedAt: number }>(),
+    },
+    last_touch: {
+      customer: new Map<string, { source: string; touchedAt: number }>(),
+      visitor: new Map<string, { source: string; touchedAt: number }>(),
+    },
+  }
+
+  journeyTouches.forEach((touch) => {
+    const touchType = touch.touch_type === "first_touch" ? "first_touch" : touch.touch_type === "last_touch" ? "last_touch" : null
+    if (!touchType) {
+      return
+    }
+
+    const touchedAt = toDate(touch.touched_at)?.getTime() || 0
+    const source = ensureSource(touch.source)
+    const customerId = (touch.customer_id || "").trim()
+    const visitorId = (touch.visitor_id || "").trim()
+
+    if (customerId) {
+      const existing = attributionByModel[touchType].customer.get(customerId)
+      const shouldReplace = !existing || (touchType === "first_touch" ? touchedAt < existing.touchedAt : touchedAt > existing.touchedAt)
+      if (shouldReplace) {
+        attributionByModel[touchType].customer.set(customerId, { source, touchedAt })
+      }
+    }
+
+    if (visitorId) {
+      const existing = attributionByModel[touchType].visitor.get(visitorId)
+      const shouldReplace = !existing || (touchType === "first_touch" ? touchedAt < existing.touchedAt : touchedAt > existing.touchedAt)
+      if (shouldReplace) {
+        attributionByModel[touchType].visitor.set(visitorId, { source, touchedAt })
+      }
+    }
+  })
+
+  const toAttributionKey = (event: { customer_id?: string | null; visitor_id?: string | null }) =>
+    event.customer_id || event.visitor_id || ""
+
+  const channelPerformanceByModel = (["first_touch", "last_touch"] as const).reduce(
+    (output, model) => {
+      const bySource = new Map<
+        string,
+        {
+          visitors: Set<string>
+          engaged_visitors: Set<string>
+          signups: Set<string>
+          checkout_starts: Set<string>
+          purchases: number
+          revenue: number
+        }
+      >()
+
+      const getSourceForEvent = (event: JourneyEvent) =>
+        attributionByModel[model].customer.get(event.customer_id || "")?.source ||
+        attributionByModel[model].visitor.get(event.visitor_id || "")?.source ||
+        ensureSource(event.normalized_source)
+
+      const ensureEntry = (source: string) => {
+        const key = ensureSource(source)
+        const existing = bySource.get(key)
+        if (existing) {
+          return existing
+        }
+
+        const created = {
+          visitors: new Set<string>(),
+          engaged_visitors: new Set<string>(),
+          signups: new Set<string>(),
+          checkout_starts: new Set<string>(),
+          purchases: 0,
+          revenue: 0,
+        }
+        bySource.set(key, created)
+        return created
+      }
+
+      journeyEvents.forEach((event) => {
+        const source = getSourceForEvent(event)
+        const entry = ensureEntry(source)
+        const visitorId = (event.visitor_id || "").trim()
+        const identityKey = toAttributionKey(event).trim()
+
+        if (visitorId) {
+          entry.visitors.add(visitorId)
+        }
+
+        if (event.event_name === "engaged_visit_5s" && visitorId) {
+          entry.engaged_visitors.add(visitorId)
+        }
+
+        if (event.event_name === "signup_completed" && identityKey) {
+          entry.signups.add(identityKey)
+        }
+
+        if (event.event_name === "checkout_started" && identityKey) {
+          entry.checkout_starts.add(identityKey)
+        }
+      })
+
+      orderList
+        .filter((order) => {
+          const status = (order.payment_status || "").toLowerCase()
+          return status === "paid" || status === "captured"
+        })
+        .forEach((order) => {
+          const source =
+            attributionByModel[model].customer.get(order.customer_id || "")?.source || "direct"
+          const entry = ensureEntry(source)
+          entry.purchases += 1
+          entry.revenue += toMoneyAmount(order.total)
+        })
+
+      const rows = Array.from(bySource.entries())
+        .map(([source, entry]) => {
+          const visitors = entry.visitors.size
+          const engagedVisitors = entry.engaged_visitors.size
+          const signups = entry.signups.size
+          const checkoutStarts = entry.checkout_starts.size
+          const purchases = entry.purchases
+          const revenue = entry.revenue
+
+          return {
+            source,
+            visitors,
+            engaged_visitors: engagedVisitors,
+            signups,
+            checkout_starts: checkoutStarts,
+            purchases,
+            revenue,
+            signup_rate: roundTwo(toPercent(signups, visitors)),
+            checkout_rate: roundTwo(toPercent(checkoutStarts, signups)),
+            purchase_rate: roundTwo(toPercent(purchases, checkoutStarts)),
+            aov: purchases > 0 ? roundTwo(revenue / purchases) : 0,
+          }
+        })
+        .sort((a, b) => b.revenue - a.revenue || b.purchases - a.purchases || b.visitors - a.visitors)
+
+      output[model] = rows
+      return output
+    },
+    {
+      first_touch: [] as Array<{
+        source: string
+        visitors: number
+        engaged_visitors: number
+        signups: number
+        checkout_starts: number
+        purchases: number
+        revenue: number
+        signup_rate: number
+        checkout_rate: number
+        purchase_rate: number
+        aov: number
+      }>,
+      last_touch: [] as Array<{
+        source: string
+        visitors: number
+        engaged_visitors: number
+        signups: number
+        checkout_starts: number
+        purchases: number
+        revenue: number
+        signup_rate: number
+        checkout_rate: number
+        purchase_rate: number
+        aov: number
+      }>,
+    }
+  )
+
   const snapshotInsights = [
     {
       id: "revenue_momentum",
@@ -640,6 +863,7 @@ export const GET = async (
       funnel_conversion_by_stage: funnelByStage,
       top_products_by_revenue: topProducts,
       top_services_by_bookings: topServices,
+      channel_performance: channelPerformanceByModel,
     },
     full_funnel: {
       stages: funnelStages,
