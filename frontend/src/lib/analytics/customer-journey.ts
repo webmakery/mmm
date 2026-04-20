@@ -110,7 +110,6 @@ export const trackJourneyEvent = async (
     event_name,
     event_source: "storefront",
     page_url: window.location.href,
-    landing_page: window.location.pathname,
     referrer: document.referrer || undefined,
     ...utm,
     payload,
