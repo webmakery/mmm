@@ -70,6 +70,7 @@ import { PostAdminEmailTemplatePreviewSchema } from "./admin/email-marketing/tem
 import { GetAdminEmailCampaignsSchema, PostAdminEmailCampaignSchema } from "./admin/email-marketing/campaigns/route"
 import { PostAdminEmailCampaignUpdateSchema } from "./admin/email-marketing/campaigns/[id]/route"
 import { PostStoreEmailUnsubscribeSchema } from "./store/email-marketing/unsubscribe/route"
+import { PostAdminCustomerTagsSchema } from "./admin/customers/[id]/tags/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -181,6 +182,14 @@ export default defineMiddlewares({
       matcher: "/admin/blog-categories/:id",
       methods: ["DELETE"],
       middlewares: [authenticate("user", ["bearer", "session"])],
+    },
+    {
+      matcher: "/admin/customers/:id/tags",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminCustomerTagsSchema),
+      ],
     },
     {
       matcher: "/admin/email-marketing/subscribers",
