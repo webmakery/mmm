@@ -18,6 +18,7 @@ type Props = {
 
 const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
   const [message, formAction] = useActionState(signupWithEmailPassword, null)
+  const isSignupComplete = message === "signup_success"
 
   const regionOptions = useMemo(() => {
     return regions
@@ -54,75 +55,89 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
         </div>
 
         <div className="relative w-full border border-ui-border-base bg-ui-bg-base rounded-rounded p-5 small:p-6 flex flex-col gap-y-3 text-ui-fg-base">
-          <form
-            className="w-full flex flex-col gap-y-3"
-            action={formAction}
-            onSubmitCapture={() => {
-              void trackJourneyEvent("signup_started", {}, { debounceMs: 5000 })
-            }}
-          >
-            <Input
-              label="Email address"
-              name="email"
-              type="email"
-              title="Enter a valid email address."
-              autoComplete="email"
-              required
-              data-testid="signup-email-input"
-            />
-            <Input
-              label="Password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              data-testid="signup-password-input"
-            />
-            <input type="hidden" name="country_code" value={countryCode} />
+          {isSignupComplete ? (
+            <div className="w-full flex flex-col gap-y-3 text-center">
+              <h2 className="text-2xl font-normal">Thank you for signing up</h2>
+              <p className="text-base-regular text-ui-fg-subtle">
+                Your account has been created successfully.
+              </p>
+              <p className="text-base-regular text-ui-fg-subtle">
+                We appreciate your trust and look forward to supporting your journey.
+              </p>
+            </div>
+          ) : (
+            <>
+              <form
+                className="w-full flex flex-col gap-y-3"
+                action={formAction}
+                onSubmitCapture={() => {
+                  void trackJourneyEvent("signup_started", {}, { debounceMs: 5000 })
+                }}
+              >
+                <Input
+                  label="Email address"
+                  name="email"
+                  type="email"
+                  title="Enter a valid email address."
+                  autoComplete="email"
+                  required
+                  data-testid="signup-email-input"
+                />
+                <Input
+                  label="Password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  data-testid="signup-password-input"
+                />
+                <input type="hidden" name="country_code" value={countryCode} />
 
-            <ErrorMessage error={message} data-testid="signup-error-message" />
+                <ErrorMessage error={message} data-testid="signup-error-message" />
 
-            <Button
-              type="submit"
-              variant="primary"
-              className="w-full"
-              data-testid="signup-submit-button"
-            >
-              Continue with email
-            </Button>
-          </form>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full"
+                  data-testid="signup-submit-button"
+                >
+                  Continue with email
+                </Button>
+              </form>
 
-          <div className="flex items-center gap-x-4 py-1">
-            <span className="h-px flex-1 bg-ui-border-base" />
-            <span className="text-small-regular text-ui-fg-subtle">or</span>
-            <span className="h-px flex-1 bg-ui-border-base" />
-          </div>
+              <div className="flex items-center gap-x-4 py-1">
+                <span className="h-px flex-1 bg-ui-border-base" />
+                <span className="text-small-regular text-ui-fg-subtle">or</span>
+                <span className="h-px flex-1 bg-ui-border-base" />
+              </div>
 
-          <Button variant="secondary" className="w-full justify-start gap-x-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://pub-ba24c3daf8c64c0289537005de0266f9.r2.dev/Assets/google.svg"
-              alt="Google"
-              className="h-5 w-5"
-            />
-            Continue with Google
-          </Button>
-          <Button variant="secondary" className="w-full justify-start gap-x-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://pub-ba24c3daf8c64c0289537005de0266f9.r2.dev/Assets/facebook.svg"
-              alt="Facebook"
-              className="h-5 w-5"
-            />
-            Continue with Facebook
-          </Button>
+              <Button variant="secondary" className="w-full justify-start gap-x-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://pub-ba24c3daf8c64c0289537005de0266f9.r2.dev/Assets/google.svg"
+                  alt="Google"
+                  className="h-5 w-5"
+                />
+                Continue with Google
+              </Button>
+              <Button variant="secondary" className="w-full justify-start gap-x-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://pub-ba24c3daf8c64c0289537005de0266f9.r2.dev/Assets/facebook.svg"
+                  alt="Facebook"
+                  className="h-5 w-5"
+                />
+                Continue with Facebook
+              </Button>
 
-          <span className="text-center text-small-regular text-ui-fg-base mt-2">
-            Already have a {storeName} account?{" "}
-            <LocalizedClientLink href="/account" className="underline">
-              Log in
-            </LocalizedClientLink>
-          </span>
+              <span className="text-center text-small-regular text-ui-fg-base mt-2">
+                Already have a {storeName} account?{" "}
+                <LocalizedClientLink href="/account" className="underline">
+                  Log in
+                </LocalizedClientLink>
+              </span>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-x-2 text-small-regular text-ui-fg-base">
