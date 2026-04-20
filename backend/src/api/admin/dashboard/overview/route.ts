@@ -18,11 +18,6 @@ type DashboardOrder = {
   }> | null
 }
 
-type DashboardCustomer = {
-  id: string
-  created_at?: string | null
-}
-
 type DashboardLead = {
   id: string
   created_at: string
@@ -33,12 +28,6 @@ type DashboardLead = {
   status?: string | null
   owner_user_id?: string | null
   next_follow_up_at?: string | null
-}
-
-type DashboardJourneyEvent = {
-  id: string
-  event_name?: string | null
-  occurred_at?: string | null
 }
 
 type DashboardBooking = {
@@ -187,7 +176,7 @@ export const GET = async (
   const monthStart = getUtcMonthStart(now)
   const previousMonthStart = getPreviousUtcMonthStart(now)
 
-  const [orderResult, customerResult, leadResult, bookingResult, journeyEventResult] =
+  const [orderResult, customerResult, leadResult, bookingResult] =
     await Promise.all([
       query.graph({
         entity: "order",
@@ -215,11 +204,8 @@ export const GET = async (
       }),
       query.graph({
         entity: "customer",
-        fields: ["id", "created_at"],
+        fields: ["id"],
         pagination: {
-          order: {
-            created_at: "DESC",
-          },
           skip: 0,
           take: 500,
         },
@@ -266,24 +252,12 @@ export const GET = async (
           take: 500,
         },
       }),
-      query.graph({
-        entity: "journey_event",
-        fields: ["id", "event_name", "occurred_at"],
-        pagination: {
-          order: {
-            occurred_at: "DESC",
-          },
-          skip: 0,
-          take: 2000,
-        },
-      }),
     ])
 
   const orderList = (orderResult.data as DashboardOrder[]) || []
-  const customerList = (customerResult.data as DashboardCustomer[]) || []
+  const customerList = (customerResult.data as Array<{ id: string }>) || []
   const leadList = (leadResult.data as DashboardLead[]) || []
   const bookingList = (bookingResult.data as DashboardBooking[]) || []
-  const journeyEventList = (journeyEventResult.data as DashboardJourneyEvent[]) || []
 
   const ordersThisMonth = orderList.filter((order) => inRange(order.created_at, monthStart, now))
   const ordersPreviousMonth = orderList.filter((order) => inRange(order.created_at, previousMonthStart, monthStart))
@@ -528,13 +502,6 @@ export const GET = async (
   const leadsSeries30 = buildDailySeries(30, now, (lead) => lead.created_at, leadList)
   const bookingsSeries30 = buildDailySeries(30, now, (booking) => booking.scheduled_start_at, bookingList)
   const revenueSeries30 = buildDailySeries(30, now, (order) => order.created_at, orderList, (order) => toMoneyAmount(order.total))
-  const signupsSeries30 = buildDailySeries(30, now, (customer) => customer.created_at, customerList)
-  const checkoutStartsSeries30 = buildDailySeries(
-    30,
-    now,
-    (event) => event.occurred_at,
-    journeyEventList.filter((event) => (event.event_name || "").toLowerCase() === "checkout_started")
-  )
 
   const leadFunnelRaw = leadList.reduce((acc, lead) => {
     const stage = (lead.status || "new").toLowerCase()
@@ -670,8 +637,6 @@ export const GET = async (
         leads: point.value,
         bookings: bookingsSeries30[index]?.value || 0,
       })),
-      signups_30_days: signupsSeries30,
-      checkout_starts_30_days: checkoutStartsSeries30,
       funnel_conversion_by_stage: funnelByStage,
       top_products_by_revenue: topProducts,
       top_services_by_bookings: topServices,
