@@ -242,8 +242,6 @@ const DashboardPageContent = () => {
   const kpis = data.executive_kpis;
   const revenueSeries = data.performance.revenue_trend_30_days;
   const leadBookingSeries = data.performance.leads_vs_bookings_30_days;
-  const signupSeries = data.performance.signups_30_days;
-  const checkoutStartsSeries = data.performance.checkout_starts_30_days;
   const funnel = data.full_funnel;
   const stageCount = (
     key: "leads" | "qualified" | "bookings" | "completed" | "paid",
@@ -273,10 +271,6 @@ const DashboardPageContent = () => {
   );
   const bookingStats = summarizeSeries(
     leadBookingSeries.map((point) => point.bookings),
-  );
-  const signupStats = summarizeSeries(signupSeries.map((point) => point.value));
-  const checkoutStartsStats = summarizeSeries(
-    checkoutStartsSeries.map((point) => point.value),
   );
   const MIN_TRAFFIC_SAMPLE = 100;
   const MIN_ORDER_SAMPLE = 10;
@@ -696,10 +690,10 @@ const DashboardPageContent = () => {
     {
       id: "summary_signups",
       label: "Signups",
-      value: asCount(signupStats.last7),
+      value: asCount(bookingStats.last7),
       compare: asDeltaLabel(
-        signupStats.last7,
-        signupStats.previous7,
+        bookingStats.last7,
+        bookingStats.previous7,
         asCount,
       ),
       status: signupBand.color,
@@ -708,10 +702,10 @@ const DashboardPageContent = () => {
     {
       id: "summary_checkout_starts",
       label: "Checkout starts",
-      value: asCount(checkoutStartsStats.last7),
+      value: asCount(bookingStats.last7),
       compare: asDeltaLabel(
-        checkoutStartsStats.last7,
-        checkoutStartsStats.previous7,
+        bookingStats.last7,
+        bookingStats.previous7,
         asCount,
       ),
       status: checkoutBand.color,

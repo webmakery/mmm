@@ -51,8 +51,6 @@ export type DashboardResponse = {
   performance: {
     revenue_trend_30_days: Array<{ date: string; label: string; value: number }>
     leads_vs_bookings_30_days: Array<{ date: string; label: string; leads: number; bookings: number }>
-    signups_30_days: Array<{ date: string; label: string; value: number }>
-    checkout_starts_30_days: Array<{ date: string; label: string; value: number }>
     funnel_conversion_by_stage: Array<{
       stage: string
       count: number
