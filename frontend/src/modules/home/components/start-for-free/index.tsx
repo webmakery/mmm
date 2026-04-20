@@ -13,66 +13,63 @@ type FeatureCard = {
 }
 
 const logoItems = [
-  "allbirds",
-  "GYMSHARK",
-  "brooklinen",
-  "Leesa",
-  "KYLIE",
-  "Crate&Barrel",
-  "MONOS",
+  "Migration mit klarem Fahrplan",
+  "3 Tage kostenlos testen",
+  "Danach 3 Monate für 1 €/Monat",
+  "Keine Kreditkarte für den Test",
 ]
 
 const featureCards: FeatureCard[] = [
   {
-    eyebrow: "CUSTOMIZABLE THEMES",
-    visual: "Storefront mockup",
-    title: "Create a stunning store in seconds",
+    eyebrow: "SCHNELLER START",
+    visual: "Storefront-Setup",
+    title: "Dein Shop ist in kurzer Zeit startklar",
     description:
-      "Pre-built designs make it fast and easy to kickstart your brand.",
+      "Geführtes Setup und klare Schritte helfen dir, ohne Technik-Stress live zu gehen.",
   },
   {
-    eyebrow: "GET REWARDED",
-    visual: "Revenue chart mockup",
-    title: "Your plan can pay for itself",
+    eyebrow: "PLANBARE KOSTEN",
+    visual: "Preis & Plan",
+    title: "Transparent starten statt später überrascht werden",
     description:
-      "Turn sales into savings with 1% back as subscription credits.",
+      "Teste 3 Tage kostenlos und starte danach mit 1 €/Monat für 3 Monate.",
   },
   {
-    eyebrow: "MEET SIDEKICK",
-    visual: "AI assistant mockup",
-    title: "Level up with an AI assistant",
+    eyebrow: "WECHSEL OHNE CHAOS",
+    visual: "Migrations-Checkliste",
+    title: "Von Shopify oder WooCommerce strukturiert wechseln",
     description:
-      "Selling is easy with a built-in business partner who can help scale your vision.",
+      "Produkte, Kund:innen und SEO werden mit Validierung und klarer Reihenfolge übernommen.",
   },
   {
-    eyebrow: "ALL-IN-ONE",
-    visual: "Payments device mockup",
-    title: "Getting stuff done? Done.",
+    eyebrow: "WACHSTUM MIT KONTROLLE",
+    visual: "Checkout & Kundenkonto",
+    title: "Verkaufen, verwalten und ausbauen in einem System",
     description:
-      "Shopify handles everything from secure payments to marketing and hardware.",
+      "Sichere Checkouts, Abos, Buchungen und Kundenkonto-Funktionen laufen über eine Plattform.",
   },
 ]
 
 const faqs = [
   {
-    question: "What is Shopify and how does it work?",
+    question: "Was bekomme ich beim kostenlosen Start konkret?",
     answer:
-      "Shopify is an all-in-one commerce platform to build, run, and grow your business online and in person from one dashboard.",
+      "Du erstellst direkt ein Konto, testest die Plattform 3 Tage kostenlos und kannst danach mit 1 €/Monat für 3 Monate weitermachen.",
   },
   {
-    question: "How much does Shopify cost?",
+    question: "Brauche ich für den Start eine Kreditkarte?",
     answer:
-      "Plans vary by business stage. You can start with a low-cost trial offer and choose a full plan as your business grows.",
+      "Nein. Für den kostenlosen Test ist keine Kreditkarte erforderlich.",
   },
   {
-    question: "Can I use my own domain name with Shopify?",
+    question: "Kann ich mit eigener Domain arbeiten?",
     answer:
-      "Yes. You can connect an existing domain or purchase a new one and manage it directly in your Shopify admin.",
+      "Ja. Eigene Domains und Domain-Verknüpfungen sind Teil der Plattform und lassen sich im Admin verwalten.",
   },
   {
-    question: "Do I need to be a designer or developer to use Shopify?",
+    question: "Könnt ihr beim Wechsel von Shopify oder WooCommerce helfen?",
     answer:
-      "No. Shopify is designed for non-technical users with templates, guided setup, and built-in tools for launching quickly.",
+      "Ja. Es gibt einen geführten Migrationsprozess mit Planung, Datenübernahme, Validierung und Go-live-Begleitung.",
   },
 ]
 
@@ -86,28 +83,28 @@ const StickyFooterCTA = ({ visible }: { visible: boolean }) => {
     >
       <form
         className="mx-auto w-full max-w-[560px] rounded-[28px] border border-black/45 bg-[#020810] px-4 py-4 text-white shadow-[0_24px_60px_rgba(0,0,0,0.42)]"
-        aria-label="Sticky email signup form"
+        aria-label="Fixiertes E-Mail-Formular"
       >
-        <h2 className="text-xl-semi small:text-2xl-semi">Start for free</h2>
+        <h2 className="text-xl-semi small:text-2xl-semi">Jetzt kostenlos starten</h2>
         <p className="mt-1 text-small-regular text-white/75">
-          You agree to receive marketing emails.
+          Kein Risiko: 3 Tage kostenlos testen. Keine Kreditkarte nötig.
         </p>
 
         <label htmlFor="mobile-sticky-email" className="sr-only">
-          Enter your email
+          E-Mail eingeben
         </label>
         <div className="mt-3 flex items-center rounded-full border border-white/25 bg-white/[0.06] p-1.5 pl-4">
           <input
             id="mobile-sticky-email"
             type="email"
             required
-            placeholder="Enter your email"
+            placeholder="Geschäftliche E-Mail"
             className="w-full bg-transparent text-base-regular text-white outline-none placeholder:text-white/62 small:text-large-regular"
           />
           <button
             type="submit"
             className="flex size-10 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#020810]"
-            aria-label="Submit email"
+            aria-label="Kostenlos starten"
           >
             <ArrowRightMini />
           </button>
@@ -143,42 +140,45 @@ const HeroCollage = ({ heroRef }: { heroRef: RefObject<HTMLElement | null> }) =>
         <div className="w-full max-w-[477px]">
           <div className="rounded-[42px] bg-white px-7 py-7 shadow-[0_24px_60px_rgba(0,0,0,0.24)] small:px-8 small:py-8">
             <h1 className="max-w-[450px] text-3xl-semi text-ui-fg-base">
-              Your business starts with Webmakerr
+              Starte deinen Shop mit Webmakerr
             </h1>
             <p className="mt-3 max-w-[430px] text-large-regular text-ui-fg-subtle">
-              Try 3 days free, then 1 €/month for 3 months. What are you waiting
-              for?
+              3 Tage kostenlos testen, danach 3 Monate für 1 €/Monat. Schnell
+              eingerichtet, klar geführt, ohne unnötige Hürden.
             </p>
           </div>
 
           <form
             className="mt-2 rounded-[40px] border border-black/45 bg-[#020810] px-6 py-5 text-white shadow-[0_24px_60px_rgba(0,0,0,0.42)]"
-            aria-label="Email signup form"
+            aria-label="E-Mail-Formular zum Start"
           >
-            <h2 className="text-xl-semi small:text-2xl-semi">Start for free</h2>
+            <h2 className="text-xl-semi small:text-2xl-semi">Kostenlos starten</h2>
             <p className="mt-1 text-small-regular text-white/78">
-              You agree to receive marketing emails.
+              Keine Kreditkarte für den Test. Konto in wenigen Minuten erstellt.
             </p>
 
             <label htmlFor="hero-email" className="sr-only">
-              Enter your email
+              E-Mail eingeben
             </label>
             <div className="email-field-animated-border mt-3 flex items-center p-1.5 pl-4">
               <input
                 id="hero-email"
                 type="email"
                 required
-                placeholder="Enter your email"
+                placeholder="Geschäftliche E-Mail"
                 className="w-full bg-transparent text-base-regular text-white outline-none placeholder:text-white/62 small:text-large-regular"
               />
               <button
                 type="submit"
                 className="flex size-10 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#020810] small:size-12"
-                aria-label="Submit email"
+                aria-label="Jetzt kostenlos starten"
               >
                 <ArrowRightMini />
               </button>
             </div>
+            <p className="mt-3 text-small-regular text-white/65">
+              Mit Klick auf „Starten“ stimmst du unseren Marketing-E-Mails zu.
+            </p>
           </form>
         </div>
       </div>
@@ -235,11 +235,11 @@ const TestimonialBlock = () => {
     <section className="bg-ui-bg-subtle py-12 small:py-16">
       <div className="content-container border-t border-ui-border-base pt-12">
         <blockquote className="max-w-[860px] text-2xl-semi text-ui-fg-base small:text-3xl-semi">
-          “We&apos;ve tripled in size since we first started on Shopify. It
-          gives us the tools we need to keep pushing forward.”
+          „Der Wechsel lief strukturiert, unser Team hatte endlich einen klaren
+          Prozess – und wir konnten schneller live gehen als gedacht.“
         </blockquote>
         <p className="mt-6 text-base-regular text-ui-fg-subtle">
-          Clare Jerome, NEOM Wellbeing
+          Growth Lead, DTC-Marke
         </p>
       </div>
     </section>
@@ -252,36 +252,36 @@ const SecondaryCTA = () => {
       <div className="content-container">
         <div className="mx-auto max-w-[980px] rounded-[28px] bg-[#4a14d0] px-6 py-10 text-center text-white shadow-[0_24px_60px_rgba(74,20,208,0.35)] small:px-10 small:py-12">
           <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-white text-3xl-semi text-[#4a14d0]">
-            S
+            W
           </div>
           <h2 className="mx-auto mt-6 max-w-[560px] text-2xl-semi small:text-3xl-semi">
-            No risk, all rewards. Try Shopify for 1 €/month.
+            Ohne Risiko starten. 3 Tage kostenlos, dann 3 Monate für 1 €/Monat.
           </h2>
           <form
             className="mx-auto mt-7 w-full max-w-[560px]"
-            aria-label="Shopify promo email signup form"
+            aria-label="E-Mail-Formular für Testzugang"
           >
             <label htmlFor="shopify-promo-email" className="sr-only">
-              Enter your email
+              E-Mail eingeben
             </label>
             <div className="flex items-center rounded-full bg-white p-1.5 pl-5">
               <input
                 id="shopify-promo-email"
                 type="email"
                 required
-                placeholder="Enter your email"
+                placeholder="Geschäftliche E-Mail"
                 className="w-full bg-transparent text-large-regular text-ui-fg-base outline-none placeholder:text-ui-fg-subtle"
               />
               <button
                 type="submit"
                 className="flex size-12 items-center justify-center rounded-full bg-black text-white transition-colors hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#4a14d0]"
-                aria-label="Submit email"
+                aria-label="Testzugang anfordern"
               >
                 <ArrowRightMini />
               </button>
             </div>
             <p className="mt-4 text-small-regular text-white/65">
-              You agree to receive Shopify marketing emails.
+              Du erhältst E-Mails zum Produktstart und zur Kontoaktivierung.
             </p>
           </form>
         </div>
@@ -290,7 +290,7 @@ const SecondaryCTA = () => {
   )
 }
 
-const StartForFreeLanding = () => {
+const StartForFreeLanding = ({ countryCode }: { countryCode?: string }) => {
   const heroRef = useRef<HTMLElement>(null)
   const footerTriggerRef = useRef<HTMLDivElement>(null)
   const [isHeroVisible, setIsHeroVisible] = useState(true)
@@ -328,7 +328,10 @@ const StartForFreeLanding = () => {
   }, [])
 
   return (
-    <main className={`bg-ui-bg-subtle ${isHeroVisible ? "" : "pb-44"}`}>
+    <main
+      className={`bg-ui-bg-subtle ${isHeroVisible ? "" : "pb-44"}`}
+      data-country-code={countryCode}
+    >
       <HeroCollage heroRef={heroRef} />
       <LogoStrip />
       <FeatureGrid />
@@ -337,7 +340,7 @@ const StartForFreeLanding = () => {
 
       <section className="bg-ui-bg-subtle pb-12 small:pb-16">
         <div className="content-container">
-          <h2 className="mb-6 text-xl-semi">Questions?</h2>
+          <h2 className="mb-6 text-xl-semi">Häufige Fragen</h2>
           <FAQAccordion items={faqs} />
         </div>
       </section>

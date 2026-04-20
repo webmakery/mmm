@@ -3,11 +3,17 @@ import { Metadata } from "next"
 import StartForFreeLanding from "@modules/home/components/start-for-free"
 
 export const metadata: Metadata = {
-  title: "Start for free",
+  title: "Kostenlos starten",
   description:
-    "Launch your business with a polished storefront and start selling with a low-risk trial.",
+    "Starte deinen Online‑Shop mit geführtem Setup und teste Webmakerr ohne Risiko.",
 }
 
-export default function StartForFreePage() {
-  return <StartForFreeLanding />
+type Props = {
+  params: Promise<{ countryCode: string }>
+}
+
+export default async function StartForFreePage({ params }: Props) {
+  const { countryCode } = await params
+
+  return <StartForFreeLanding countryCode={countryCode} />
 }
