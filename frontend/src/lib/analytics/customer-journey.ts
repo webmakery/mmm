@@ -20,15 +20,18 @@ const getBackendBase = () =>
 
 const trimTrailingSlashes = (value: string) => value.replace(/\/+$/, "")
 
+const trimLeadingSlashes = (value: string) => value.replace(/^\/+/, "")
+
 const buildUrl = (path: string) => {
   const backendBase = getBackendBase()
+  const normalizedPath = trimLeadingSlashes(path)
 
   if (backendBase) {
-    return new URL(path, `${trimTrailingSlashes(backendBase)}/`).toString()
+    return new URL(normalizedPath, `${trimTrailingSlashes(backendBase)}/`).toString()
   }
 
   if (typeof window !== "undefined") {
-    return new URL(path, window.location.origin).toString()
+    return new URL(normalizedPath, `${window.location.origin}/`).toString()
   }
 
   return path
