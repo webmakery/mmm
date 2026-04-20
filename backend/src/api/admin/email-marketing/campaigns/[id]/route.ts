@@ -17,7 +17,7 @@ export const PostAdminEmailCampaignUpdateSchema = z.object({
   template_id: z.string().optional(),
   scheduled_at: z.string().datetime().optional().nullable(),
   audience_filter: CampaignAudienceFilterSchema.optional(),
-  status: z.enum(["draft", "scheduled", "failed"]).optional(),
+  status: z.enum(["draft", "scheduled", "automated", "failed"]).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 })
 

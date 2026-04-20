@@ -2,7 +2,7 @@ import { model } from "@medusajs/framework/utils"
 import EmailTemplate from "./template"
 import EmailCampaignLog from "./campaign-log"
 
-export const CampaignStatuses = ["draft", "scheduled", "processing", "sent", "failed"] as const
+export const CampaignStatuses = ["draft", "scheduled", "automated", "processing", "sent", "failed"] as const
 
 const EmailCampaign = model.define("email_campaign", {
   id: model.id().primaryKey(),
