@@ -52,6 +52,7 @@ type JourneyEvent = {
   visitor_id?: string | null
   customer_id?: string | null
   normalized_source?: string | null
+  utm_source?: string | null
 }
 
 type JourneyAttributionTouch = {
@@ -279,7 +280,7 @@ export const GET = async (
       }),
       query.graph({
         entity: "journey_event",
-        fields: ["id", "event_name", "occurred_at", "visitor_id", "customer_id", "normalized_source"],
+        fields: ["id", "event_name", "occurred_at", "visitor_id", "customer_id", "normalized_source", "utm_source"],
         pagination: {
           order: {
             occurred_at: "DESC",
@@ -653,10 +654,12 @@ export const GET = async (
         }
       >()
 
+      const customerEventSource = new Map<string, { source: string; occurredAt: number }>()
+
       const getSourceForEvent = (event: JourneyEvent) =>
         attributionByModel[model].customer.get(event.customer_id || "")?.source ||
         attributionByModel[model].visitor.get(event.visitor_id || "")?.source ||
-        ensureSource(event.normalized_source)
+        ensureSource(event.normalized_source || event.utm_source)
 
       const ensureEntry = (source: string) => {
         const key = ensureSource(source)
@@ -698,6 +701,21 @@ export const GET = async (
         if (event.event_name === "checkout_started" && identityKey) {
           entry.checkout_starts.add(identityKey)
         }
+
+        const customerId = (event.customer_id || "").trim()
+        const occurredAt = toDate(event.occurred_at)?.getTime() || 0
+        if (customerId) {
+          const existing = customerEventSource.get(customerId)
+          const shouldReplace =
+            !existing ||
+            (model === "first_touch"
+              ? occurredAt < existing.occurredAt
+              : occurredAt > existing.occurredAt)
+
+          if (shouldReplace) {
+            customerEventSource.set(customerId, { source, occurredAt })
+          }
+        }
       })
 
       orderList
@@ -707,7 +725,9 @@ export const GET = async (
         })
         .forEach((order) => {
           const source =
-            attributionByModel[model].customer.get(order.customer_id || "")?.source || "direct"
+            attributionByModel[model].customer.get(order.customer_id || "")?.source ||
+            customerEventSource.get((order.customer_id || "").trim())?.source ||
+            "direct"
           const entry = ensureEntry(source)
           entry.purchases += 1
           entry.revenue += toMoneyAmount(order.total)
