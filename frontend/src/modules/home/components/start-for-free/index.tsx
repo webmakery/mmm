@@ -138,19 +138,19 @@ const EmailCTA = ({ dark = false }: { dark?: boolean }) => {
   )
 }
 
-const MobileStickyCTA = ({ visible }: { visible: boolean }) => {
+const StickyFooterCTA = ({ visible }: { visible: boolean }) => {
   return (
     <div
-      className={`fixed inset-x-0 bottom-0 z-40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] transition-opacity duration-200 small:hidden ${
+      className={`fixed inset-x-0 bottom-0 z-40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] transition-opacity duration-200 ${
         visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
       }`}
       aria-hidden={!visible}
     >
       <form
         className="mx-auto w-full max-w-[560px] rounded-[28px] border border-black/45 bg-[#020810] px-4 py-4 text-white shadow-[0_24px_60px_rgba(0,0,0,0.42)]"
-        aria-label="Mobile sticky email signup form"
+        aria-label="Sticky email signup form"
       >
-        <h2 className="text-2xl-semi">Start for free</h2>
+        <h2 className="text-xl-semi small:text-2xl-semi">Start for free</h2>
         <p className="mt-1 text-small-regular text-white/75">
           You agree to receive marketing emails.
         </p>
@@ -164,7 +164,7 @@ const MobileStickyCTA = ({ visible }: { visible: boolean }) => {
             type="email"
             required
             placeholder="Enter your email"
-            className="w-full bg-transparent text-large-regular text-white outline-none placeholder:text-white/62"
+            className="w-full bg-transparent text-base-regular text-white outline-none placeholder:text-white/62 small:text-large-regular"
           />
           <button
             type="submit"
@@ -202,42 +202,40 @@ const HeroCollage = ({ heroRef }: { heroRef: RefObject<HTMLElement | null> }) =>
       <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
 
       <div className="content-container relative z-10 flex h-full items-center justify-center py-10">
-        <div className="w-full max-w-[520px]">
-          <div className="rounded-[42px] bg-white px-8 py-8 shadow-[0_24px_60px_rgba(0,0,0,0.24)] small:px-9 small:py-9">
-            <h1 className="max-w-[450px] text-3xl-regular text-ui-fg-base small:text-5xl small:leading-[1.1]">
+        <div className="w-full max-w-[560px]">
+          <div className="rounded-[42px] bg-white px-7 py-7 shadow-[0_24px_60px_rgba(0,0,0,0.24)] small:px-8 small:py-8">
+            <h1 className="max-w-[450px] text-3xl-regular text-ui-fg-base">
               Your business starts with Shopify
             </h1>
-            <p className="mt-4 max-w-[430px] text-large-regular text-ui-fg-subtle small:text-xl">
+            <p className="mt-3 max-w-[430px] text-large-regular text-ui-fg-subtle">
               Try 3 days free, then 1 €/month for 3 months. What are you waiting
               for?
             </p>
           </div>
 
           <form
-            className="mt-2 rounded-[40px] border border-black/45 bg-[#020810] px-7 py-6 text-white shadow-[0_24px_60px_rgba(0,0,0,0.42)]"
+            className="mt-2 rounded-[40px] border border-black/45 bg-[#020810] px-6 py-5 text-white shadow-[0_24px_60px_rgba(0,0,0,0.42)]"
             aria-label="Email signup form"
           >
-            <h2 className="text-2xl-semi small:text-3xl-semi">
-              Start for free
-            </h2>
-            <p className="mt-2 text-base-regular text-white/78">
+            <h2 className="text-xl-semi small:text-2xl-semi">Start for free</h2>
+            <p className="mt-1 text-small-regular text-white/78">
               You agree to receive marketing emails.
             </p>
 
             <label htmlFor="hero-email" className="sr-only">
               Enter your email
             </label>
-            <div className="mt-5 flex items-center rounded-full border border-white/25 bg-white/[0.06] p-2 pl-6">
+            <div className="mt-3 flex items-center rounded-full border border-white/25 bg-white/[0.06] p-1.5 pl-4">
               <input
                 id="hero-email"
                 type="email"
                 required
                 placeholder="Enter your email"
-                className="w-full bg-transparent text-large-regular text-white outline-none placeholder:text-white/62 small:text-xl-regular"
+                className="w-full bg-transparent text-base-regular text-white outline-none placeholder:text-white/62 small:text-large-regular"
               />
               <button
                 type="submit"
-                className="flex size-12 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#020810] small:size-[72px]"
+                className="flex size-10 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#020810] small:size-12"
                 aria-label="Submit email"
               >
                 <ArrowRightMini />
@@ -404,7 +402,7 @@ const StartForFreeLanding = () => {
   }, [])
 
   return (
-    <main className={`bg-ui-bg-subtle ${isHeroVisible ? "" : "pb-44 small:pb-0"}`}>
+    <main className={`bg-ui-bg-subtle ${isHeroVisible ? "" : "pb-44"}`}>
       <HeroCollage heroRef={heroRef} />
       <LogoStrip />
       <FeatureGrid />
@@ -419,7 +417,7 @@ const StartForFreeLanding = () => {
       </section>
 
       <Footer />
-      <MobileStickyCTA visible={!isHeroVisible} />
+      <StickyFooterCTA visible={!isHeroVisible} />
     </main>
   )
 }
