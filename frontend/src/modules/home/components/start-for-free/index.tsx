@@ -1,5 +1,8 @@
+"use client"
+
 import { ArrowRightMini } from "@medusajs/icons"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import { RefObject, useEffect, useRef, useState } from "react"
 
 import FAQAccordion from "./faq-accordion"
 
@@ -113,7 +116,7 @@ const EmailCTA = ({ dark = false }: { dark?: boolean }) => {
           type="email"
           required
           placeholder="Enter your email"
-          className={`w-full bg-transparent text-base-regular outline-none placeholder:text-small-regular ${
+          className={`w-full bg-transparent text-base-regular outline-none ${
             dark
               ? "text-white placeholder:text-white/65"
               : "text-ui-fg-base placeholder:text-ui-fg-subtle"
@@ -135,9 +138,53 @@ const EmailCTA = ({ dark = false }: { dark?: boolean }) => {
   )
 }
 
-const HeroCollage = () => {
+const MobileStickyCTA = ({ visible }: { visible: boolean }) => {
   return (
-    <section className="relative h-[760px] overflow-hidden border-b border-ui-border-base">
+    <div
+      className={`fixed inset-x-0 bottom-0 z-40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] transition-opacity duration-200 small:hidden ${
+        visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+      }`}
+      aria-hidden={!visible}
+    >
+      <form
+        className="mx-auto w-full max-w-[560px] rounded-[28px] border border-black/45 bg-[#020810] px-4 py-4 text-white shadow-[0_24px_60px_rgba(0,0,0,0.42)]"
+        aria-label="Mobile sticky email signup form"
+      >
+        <h2 className="text-2xl-semi">Start for free</h2>
+        <p className="mt-1 text-small-regular text-white/75">
+          You agree to receive marketing emails.
+        </p>
+
+        <label htmlFor="mobile-sticky-email" className="sr-only">
+          Enter your email
+        </label>
+        <div className="mt-3 flex items-center rounded-full border border-white/25 bg-white/[0.06] p-1.5 pl-4">
+          <input
+            id="mobile-sticky-email"
+            type="email"
+            required
+            placeholder="Enter your email"
+            className="w-full bg-transparent text-large-regular text-white outline-none placeholder:text-white/62"
+          />
+          <button
+            type="submit"
+            className="flex size-10 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#020810]"
+            aria-label="Submit email"
+          >
+            <ArrowRightMini />
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+const HeroCollage = ({ heroRef }: { heroRef: RefObject<HTMLElement | null> }) => {
+  return (
+    <section
+      ref={heroRef}
+      className="relative h-[760px] overflow-hidden border-b border-ui-border-base"
+    >
       <video
         className="absolute inset-0 h-full w-full object-cover"
         autoPlay
@@ -157,10 +204,10 @@ const HeroCollage = () => {
       <div className="content-container relative z-10 flex h-full items-center justify-center py-10">
         <div className="w-full max-w-[520px]">
           <div className="rounded-[42px] bg-white px-8 py-8 shadow-[0_24px_60px_rgba(0,0,0,0.24)] small:px-9 small:py-9">
-            <h1 className="max-w-[450px] text-[44px] font-semibold leading-[0.96] tracking-[-0.035em] text-ui-fg-base small:text-[56px]">
+            <h1 className="max-w-[450px] text-3xl-regular text-ui-fg-base small:text-5xl small:leading-[1.1]">
               Your business starts with Shopify
             </h1>
-            <p className="mt-4 max-w-[430px] text-xl font-normal leading-[1.2] text-ui-fg-subtle small:text-[32px] small:leading-[1.14] small:tracking-[-0.01em]">
+            <p className="mt-4 max-w-[430px] text-large-regular text-ui-fg-subtle small:text-xl">
               Try 3 days free, then 1 €/month for 3 months. What are you waiting
               for?
             </p>
@@ -170,10 +217,10 @@ const HeroCollage = () => {
             className="mt-2 rounded-[40px] border border-black/45 bg-[#020810] px-7 py-6 text-white shadow-[0_24px_60px_rgba(0,0,0,0.42)]"
             aria-label="Email signup form"
           >
-            <h2 className="text-[42px] font-medium leading-[0.96] tracking-[-0.02em] small:text-[50px]">
+            <h2 className="text-2xl-semi small:text-3xl-semi">
               Start for free
             </h2>
-            <p className="mt-2 text-base-regular text-white/78 small:text-[24px] small:leading-[1.2]">
+            <p className="mt-2 text-base-regular text-white/78">
               You agree to receive marketing emails.
             </p>
 
@@ -186,7 +233,7 @@ const HeroCollage = () => {
                 type="email"
                 required
                 placeholder="Enter your email"
-                className="w-full bg-transparent text-xl text-white outline-none placeholder:text-xl placeholder:text-white/62 small:text-[40px] small:leading-none small:placeholder:text-[40px]"
+                className="w-full bg-transparent text-large-regular text-white outline-none placeholder:text-white/62 small:text-xl-regular"
               />
               <button
                 type="submit"
@@ -251,7 +298,7 @@ const TestimonialBlock = () => {
   return (
     <section className="bg-ui-bg-subtle py-12 small:py-16">
       <div className="content-container border-t border-ui-border-base pt-12">
-        <blockquote className="max-w-[860px] text-[38px] font-semibold leading-[1.1] tracking-[-0.02em] text-ui-fg-base small:text-[54px]">
+        <blockquote className="max-w-[860px] text-2xl-semi text-ui-fg-base small:text-3xl-semi">
           “We&apos;ve tripled in size since we first started on Shopify. It
           gives us the tools we need to keep pushing forward.”
         </blockquote>
@@ -268,10 +315,10 @@ const SecondaryCTA = () => {
     <section className="bg-ui-bg-subtle py-4 pb-12 small:pb-16">
       <div className="content-container">
         <div className="mx-auto max-w-[980px] rounded-[28px] bg-[#4a14d0] px-6 py-10 text-center text-white shadow-[0_24px_60px_rgba(74,20,208,0.35)] small:px-10 small:py-12">
-          <p className="text-small-semi uppercase tracking-[0.14em] text-white/80">
+          <p className="text-small-semi uppercase text-white/80">
             shopify
           </p>
-          <h2 className="mx-auto mt-4 max-w-[560px] text-[34px] font-semibold leading-[1.08] tracking-[-0.02em] small:text-[48px]">
+          <h2 className="mx-auto mt-4 max-w-[560px] text-2xl-semi small:text-3xl-semi">
             No risk, all rewards. Try Shopify for $1/month.
           </h2>
           <p className="mx-auto mt-3 max-w-[500px] text-base-regular text-white/80">
@@ -335,9 +382,30 @@ const Footer = () => {
 }
 
 const StartForFreeLanding = () => {
+  const heroRef = useRef<HTMLElement>(null)
+  const [isHeroVisible, setIsHeroVisible] = useState(true)
+
+  useEffect(() => {
+    const hero = heroRef.current
+    if (!hero) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsHeroVisible(entry.isIntersecting)
+      },
+      {
+        threshold: 0.1,
+      }
+    )
+
+    observer.observe(hero)
+
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <main className="bg-ui-bg-subtle">
-      <HeroCollage />
+    <main className={`bg-ui-bg-subtle ${isHeroVisible ? "" : "pb-44 small:pb-0"}`}>
+      <HeroCollage heroRef={heroRef} />
       <LogoStrip />
       <FeatureGrid />
       <TestimonialBlock />
@@ -345,12 +413,13 @@ const StartForFreeLanding = () => {
 
       <section className="bg-ui-bg-subtle pb-12 small:pb-16">
         <div className="content-container">
-          <h2 className="mb-6 text-3xl-semi">Questions?</h2>
+          <h2 className="mb-6 text-xl-semi">Questions?</h2>
           <FAQAccordion items={faqs} />
         </div>
       </section>
 
       <Footer />
+      <MobileStickyCTA visible={!isHeroVisible} />
     </main>
   )
 }
