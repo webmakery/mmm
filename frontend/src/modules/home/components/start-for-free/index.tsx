@@ -10,17 +10,6 @@ type FeatureCard = {
   visual: string
 }
 
-const collageTiles = [
-  "from-[#7db9d8] to-[#5f9dc5]",
-  "from-[#cdd6df] to-[#e7edf3]",
-  "from-[#95a9bb] to-[#7192a8]",
-  "from-[#c2d4e5] to-[#a1bdd3]",
-  "from-[#d4dee6] to-[#f1f4f8]",
-  "from-[#7fa4c0] to-[#527f9e]",
-  "from-[#e9eef2] to-[#c8d7e4]",
-  "from-[#9eb6c9] to-[#6f95b0]",
-]
-
 const logoItems = [
   "allbirds",
   "GYMSHARK",
@@ -148,36 +137,66 @@ const EmailCTA = ({ dark = false }: { dark?: boolean }) => {
 
 const HeroCollage = () => {
   return (
-    <section className="overflow-hidden border-b border-ui-border-base bg-[#d9e8f3] pt-8 small:pt-10">
-      <div className="content-container relative pb-10 small:pb-14">
-        <div className="pointer-events-none absolute inset-x-6 top-0 grid grid-cols-4 gap-3 small:grid-cols-8">
-          {collageTiles.map((tile, index) => (
-            <div
-              key={tile + index}
-              className={`h-[92px] rounded-3xl border border-white/70 bg-gradient-to-br ${tile} shadow-[0_10px_28px_rgba(43,71,96,0.16)] ${
-                index % 2 === 0 ? "translate-y-0" : "translate-y-5"
-              }`}
-            />
-          ))}
-        </div>
+    <section className="relative h-[700px] overflow-hidden border-b border-ui-border-base">
+      <video
+        className="absolute inset-0 h-full w-full object-cover"
+        autoPlay
+        loop
+        muted
+        playsInline
+        aria-hidden="true"
+      >
+        <source
+          src="https://www.w3schools.com/html/mov_bbb.mp4"
+          type="video/mp4"
+        />
+      </video>
 
-        <div className="relative z-10 mx-auto flex max-w-[860px] flex-col items-center pt-14 small:pt-16">
-          <div className="w-full max-w-[520px] rounded-[34px] bg-white px-8 py-7 text-center shadow-[0_30px_70px_rgba(31,58,90,0.2)]">
-            <p className="mb-5 text-small-semi uppercase tracking-[0.14em] text-ui-fg-subtle">
-              shopify
-            </p>
-            <h1 className="text-[38px] font-semibold leading-[1.05] tracking-[-0.03em] text-ui-fg-base small:text-[52px]">
+      <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
+
+      <div className="content-container relative z-10 flex h-full items-center">
+        <div className="w-full max-w-[520px] pt-16 small:pt-0">
+          <div className="rounded-[40px] bg-white px-7 py-8 shadow-[0_24px_60px_rgba(0,0,0,0.24)] small:px-9 small:py-10">
+            <h1 className="max-w-[430px] text-[46px] font-semibold leading-[0.98] tracking-[-0.035em] text-ui-fg-base small:text-[52px]">
               Your business starts with Shopify
             </h1>
-            <p className="mx-auto mt-4 max-w-[440px] text-base-regular text-ui-fg-subtle">
-              Start for free, keep building for $1/month. Plus, earn up to
-              $10,000 in credits as you sell.
+            <p className="mt-5 max-w-[420px] text-xl font-normal leading-[1.22] text-ui-fg-subtle">
+              Try 3 days free, then 1 €/month for 3 months. What are you waiting
+              for?
             </p>
           </div>
 
-          <div className="mt-[-20px] w-full max-w-[640px] small:mt-[-26px]">
-            <EmailCTA />
-          </div>
+          <form
+            className="mt-3 rounded-[40px] bg-[#06070b] px-6 py-6 text-white shadow-[0_24px_60px_rgba(0,0,0,0.38)] small:px-7"
+            aria-label="Email signup form"
+          >
+            <h2 className="text-[42px] font-medium leading-none tracking-[-0.01em] small:text-[46px]">
+              Start for free
+            </h2>
+            <p className="mt-2 text-small-regular text-white/75">
+              You agree to receive marketing emails.
+            </p>
+
+            <label htmlFor="hero-email" className="sr-only">
+              Enter your email
+            </label>
+            <div className="mt-5 flex items-center rounded-full border border-white/20 bg-white/[0.06] p-2 pl-5">
+              <input
+                id="hero-email"
+                type="email"
+                required
+                placeholder="Enter your email"
+                className="w-full bg-transparent text-xl text-white outline-none placeholder:text-xl placeholder:text-white/55"
+              />
+              <button
+                type="submit"
+                className="flex size-12 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#06070b]"
+                aria-label="Submit email"
+              >
+                <ArrowRightMini />
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </section>
