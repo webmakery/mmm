@@ -1,7 +1,6 @@
 "use client"
 
 import { ArrowRightMini } from "@medusajs/icons"
-import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { RefObject, useEffect, useRef, useState } from "react"
 
 import FAQAccordion from "./faq-accordion"
@@ -77,67 +76,6 @@ const faqs = [
   },
 ]
 
-const EmailCTA = ({ dark = false }: { dark?: boolean }) => {
-  return (
-    <form
-      className={`mx-auto flex w-full max-w-[580px] flex-col gap-3 rounded-[28px] border p-2 shadow-sm small:flex-row small:items-center ${
-        dark
-          ? "border-black/20 bg-black text-white"
-          : "border-ui-border-base bg-ui-bg-base text-ui-fg-base"
-      }`}
-      aria-label="Email signup form"
-    >
-      <div className="px-4 pt-2 small:w-[220px] small:pt-0">
-        <p className="text-large-semi">Start for free</p>
-        <p
-          className={`text-small-regular ${
-            dark ? "text-white/70" : "text-ui-fg-subtle"
-          }`}
-        >
-          You agree to receive marketing emails.
-        </p>
-      </div>
-
-      <label
-        htmlFor={dark ? "secondary-email" : "primary-email"}
-        className="sr-only"
-      >
-        Enter your email
-      </label>
-      <div
-        className={`flex flex-1 items-center rounded-full border px-4 py-2 ${
-          dark
-            ? "border-white/30 bg-transparent"
-            : "border-ui-border-base bg-ui-bg-base"
-        }`}
-      >
-        <input
-          id={dark ? "secondary-email" : "primary-email"}
-          type="email"
-          required
-          placeholder="Enter your email"
-          className={`w-full bg-transparent text-base-regular outline-none ${
-            dark
-              ? "text-white placeholder:text-white/65"
-              : "text-ui-fg-base placeholder:text-ui-fg-subtle"
-          }`}
-        />
-        <button
-          type="submit"
-          className={`flex size-10 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-            dark
-              ? "bg-white text-black hover:bg-white/90 focus-visible:ring-white focus-visible:ring-offset-[#4a14d0]"
-              : "bg-black text-white hover:bg-black/80 focus-visible:ring-black"
-          }`}
-          aria-label="Submit email"
-        >
-          <ArrowRightMini />
-        </button>
-      </div>
-    </form>
-  )
-}
-
 const StickyFooterCTA = ({ visible }: { visible: boolean }) => {
   return (
     <div
@@ -202,7 +140,7 @@ const HeroCollage = ({ heroRef }: { heroRef: RefObject<HTMLElement | null> }) =>
       <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
 
       <div className="content-container relative z-10 flex h-full items-center justify-center py-10">
-        <div className="w-full max-w-[560px]">
+        <div className="w-full max-w-[477px]">
           <div className="rounded-[42px] bg-white px-7 py-7 shadow-[0_24px_60px_rgba(0,0,0,0.24)] small:px-8 small:py-8">
             <h1 className="max-w-[450px] text-3xl-regular text-ui-fg-base">
               Your business starts with Shopify
@@ -313,75 +251,50 @@ const SecondaryCTA = () => {
     <section className="bg-ui-bg-subtle py-4 pb-12 small:pb-16">
       <div className="content-container">
         <div className="mx-auto max-w-[980px] rounded-[28px] bg-[#4a14d0] px-6 py-10 text-center text-white shadow-[0_24px_60px_rgba(74,20,208,0.35)] small:px-10 small:py-12">
-          <p className="text-small-semi uppercase text-white/80">
-            shopify
-          </p>
-          <h2 className="mx-auto mt-4 max-w-[560px] text-2xl-semi small:text-3xl-semi">
-            No risk, all rewards. Try Shopify for $1/month.
-          </h2>
-          <p className="mx-auto mt-3 max-w-[500px] text-base-regular text-white/80">
-            Plus, earn up to $10,000 in credits as you sell.
-          </p>
-          <div className="mx-auto mt-7 max-w-[620px]">
-            <EmailCTA dark />
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-white text-3xl-semi text-[#4a14d0]">
+            S
           </div>
+          <h2 className="mx-auto mt-6 max-w-[560px] text-2xl-semi small:text-3xl-semi">
+            No risk, all rewards. Try Shopify for 1 €/month.
+          </h2>
+          <form
+            className="mx-auto mt-7 w-full max-w-[560px]"
+            aria-label="Shopify promo email signup form"
+          >
+            <label htmlFor="shopify-promo-email" className="sr-only">
+              Enter your email
+            </label>
+            <div className="flex items-center rounded-full bg-white p-1.5 pl-5">
+              <input
+                id="shopify-promo-email"
+                type="email"
+                required
+                placeholder="Enter your email"
+                className="w-full bg-transparent text-large-regular text-ui-fg-base outline-none placeholder:text-ui-fg-subtle"
+              />
+              <button
+                type="submit"
+                className="flex size-12 items-center justify-center rounded-full bg-black text-white transition-colors hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#4a14d0]"
+                aria-label="Submit email"
+              >
+                <ArrowRightMini />
+              </button>
+            </div>
+            <p className="mt-4 text-small-regular text-white/65">
+              You agree to receive Shopify marketing emails.
+            </p>
+          </form>
         </div>
       </div>
     </section>
   )
 }
 
-const Footer = () => {
-  return (
-    <footer className="bg-ui-bg-subtle py-12">
-      <div className="content-container flex flex-col items-center justify-between gap-6 border-t border-ui-border-base pt-8 text-small-regular text-ui-fg-subtle small:flex-row">
-        <div className="rounded-md border border-ui-border-base px-2 py-1 text-small-semi text-ui-fg-base">
-          S
-        </div>
-        <nav aria-label="Footer links">
-          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
-            <li>
-              <LocalizedClientLink
-                href="/terms-of-service"
-                className="transition-colors hover:text-ui-fg-base focus-visible:outline-none focus-visible:underline"
-              >
-                Terms of Service
-              </LocalizedClientLink>
-            </li>
-            <li>
-              <LocalizedClientLink
-                href="/privacy-policy"
-                className="transition-colors hover:text-ui-fg-base focus-visible:outline-none focus-visible:underline"
-              >
-                Privacy Policy
-              </LocalizedClientLink>
-            </li>
-            <li>
-              <LocalizedClientLink
-                href="/sitemap"
-                className="transition-colors hover:text-ui-fg-base focus-visible:outline-none focus-visible:underline"
-              >
-                Sitemap
-              </LocalizedClientLink>
-            </li>
-            <li>
-              <LocalizedClientLink
-                href="/privacy-choices"
-                className="transition-colors hover:text-ui-fg-base focus-visible:outline-none focus-visible:underline"
-              >
-                Your Privacy Choices
-              </LocalizedClientLink>
-            </li>
-          </ul>
-        </nav>
-      </div>
-    </footer>
-  )
-}
-
 const StartForFreeLanding = () => {
   const heroRef = useRef<HTMLElement>(null)
+  const footerTriggerRef = useRef<HTMLDivElement>(null)
   const [isHeroVisible, setIsHeroVisible] = useState(true)
+  const [isFooterVisible, setIsFooterVisible] = useState(false)
 
   useEffect(() => {
     const hero = heroRef.current
@@ -401,6 +314,19 @@ const StartForFreeLanding = () => {
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    const footerTrigger = footerTriggerRef.current
+    if (!footerTrigger) return
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsFooterVisible(entry.isIntersecting)
+    })
+
+    observer.observe(footerTrigger)
+
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <main className={`bg-ui-bg-subtle ${isHeroVisible ? "" : "pb-44"}`}>
       <HeroCollage heroRef={heroRef} />
@@ -415,9 +341,8 @@ const StartForFreeLanding = () => {
           <FAQAccordion items={faqs} />
         </div>
       </section>
-
-      <Footer />
-      <StickyFooterCTA visible={!isHeroVisible} />
+      <div ref={footerTriggerRef} aria-hidden="true" />
+      <StickyFooterCTA visible={!isHeroVisible && !isFooterVisible} />
     </main>
   )
 }

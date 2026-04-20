@@ -4,6 +4,7 @@ import { Button, Heading, Text } from "@medusajs/ui"
 import { ChatBubble } from "@medusajs/icons"
 import Input from "@modules/common/components/input"
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
+import { usePathname } from "next/navigation"
 
 type ChatMessage = {
   id: string
@@ -61,6 +62,7 @@ const formatTime = (value: string) => {
 const validateEmail = (email: string) => /\S+@\S+\.\S+/.test(email)
 
 export default function WebChatWidget() {
+  const pathname = usePathname()
   const unreadCount = 2
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"home" | "messages">("home")
@@ -193,6 +195,10 @@ export default function WebChatWidget() {
     () => Boolean(name.trim() && validateEmail(email.trim())),
     [name, email]
   )
+
+  if (pathname?.endsWith("/start-for-free")) {
+    return null
+  }
 
   const startLiveChat = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
