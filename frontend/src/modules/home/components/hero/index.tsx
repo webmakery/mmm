@@ -1,28 +1,21 @@
-import { Button, Heading } from "@medusajs/ui"
+import { Heading } from "@medusajs/ui"
+import { HttpTypes } from "@medusajs/types"
+import EmailSignup from "@modules/account/components/email-signup"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
-const Hero = () => {
+type HeroProps = {
+  storeName: string
+  countryCode: string
+  regions: HttpTypes.StoreRegion[]
+}
+
+const Hero = ({ storeName, countryCode, regions }: HeroProps) => {
   return (
-    <section className="relative h-[75vh] w-full overflow-hidden border-b border-ui-border-base bg-ui-bg-subtle">
-      <video
-        className="absolute inset-0 h-full w-full object-cover"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        aria-hidden="true"
-      >
-        <source
-          src="https://pub-ba24c3daf8c64c0289537005de0266f9.r2.dev/Assets/video/webmaker-hero.mp4"
-          type="video/mp4"
-        />
-      </video>
+    <section className="relative w-full overflow-hidden border-b border-ui-border-base bg-gradient-to-br from-[#19060f] via-[#2b0913] via-40% to-[#081a38]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(120,23,52,0.35),transparent_48%),radial-gradient(circle_at_bottom_right,rgba(15,45,95,0.3),transparent_52%)]" />
 
-      <div className="absolute inset-0 bg-black/50" />
-
-      <div className="relative z-10 mx-auto flex h-full w-full max-w-screen-2xl items-center px-6 py-10 small:px-10">
-        <div className="flex max-w-xl flex-col gap-6">
+      <div className="relative z-10 mx-auto grid w-full max-w-screen-2xl gap-10 px-6 py-12 small:px-10 small:py-16 medium:grid-cols-[minmax(0,1fr)_420px] medium:items-center">
+        <div className="flex max-w-2xl flex-col gap-6">
           <Heading
             level="h1"
             className="text-3xl font-normal leading-10 text-white small:text-5xl small:leading-[1.1]"
@@ -38,7 +31,7 @@ const Hero = () => {
           </Heading>
           <p className="text-small-regular text-white/90">
             Launch in days with support, flexible storefronts, and predictable
-            pricing. Switching from Shopify or WooCommerce?
+            pricing. Switching from Shopify or WooCommerce?{" "}
             <LocalizedClientLink
               href="/compare/shopify"
               className="underline underline-offset-4"
@@ -47,19 +40,15 @@ const Hero = () => {
             </LocalizedClientLink>
             .
           </p>
+        </div>
 
-          <div className="flex flex-col gap-3 small:flex-row">
-            <Button className="w-full small:w-auto" variant="primary" asChild>
-              <LocalizedClientLink href="/signup">
-                Start for free
-              </LocalizedClientLink>
-            </Button>
-            <Button className="w-full small:w-auto" variant="secondary" asChild>
-              <LocalizedClientLink href="/plans">
-                View plans
-              </LocalizedClientLink>
-            </Button>
-          </div>
+        <div className="w-full">
+          <EmailSignup
+            embedded
+            storeName={storeName}
+            countryCode={countryCode}
+            regions={regions}
+          />
         </div>
       </div>
     </section>
