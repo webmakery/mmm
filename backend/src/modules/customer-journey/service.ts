@@ -25,7 +25,56 @@ type JourneyEventInput = {
   utm_source?: string | null
   utm_medium?: string | null
   utm_campaign?: string | null
+  utm_term?: string | null
+  utm_content?: string | null
   payload?: Record<string, unknown> | null
+}
+
+const normalizeText = (value?: string | null) => {
+  const normalized = value?.trim()
+  return normalized ? normalized : null
+}
+
+const getReferrerHost = (referrer?: string | null) => {
+  const raw = normalizeText(referrer)
+  if (!raw) {
+    return null
+  }
+
+  try {
+    return new URL(raw).hostname || null
+  } catch {
+    return null
+  }
+}
+
+const deriveNormalizedAttribution = (input: {
+  utm_source?: string | null
+  utm_medium?: string | null
+  referrer_host?: string | null
+}) => {
+  const utmSource = normalizeText(input.utm_source)?.toLowerCase()
+  const utmMedium = normalizeText(input.utm_medium)?.toLowerCase()
+  const referrerHost = normalizeText(input.referrer_host)?.toLowerCase()
+
+  if (utmSource || utmMedium) {
+    return {
+      source: utmSource ?? referrerHost ?? "direct",
+      medium: utmMedium ?? "utm",
+    }
+  }
+
+  if (referrerHost) {
+    return {
+      source: referrerHost,
+      medium: "referral",
+    }
+  }
+
+  return {
+    source: "direct",
+    medium: "none",
+  }
 }
 
 type IdentifyUserInput = {
@@ -54,6 +103,7 @@ class CustomerJourneyModuleService extends MedusaService({
       occurred_at?: Date
       referrer?: string | null
       landing_page?: string | null
+      referrer_host?: string | null
       utm_source?: string | null
       utm_medium?: string | null
       utm_campaign?: string | null
@@ -100,9 +150,14 @@ class CustomerJourneyModuleService extends MedusaService({
       occurred_at?: Date
       landing_page?: string | null
       referrer?: string | null
+      referrer_host?: string | null
       utm_source?: string | null
       utm_medium?: string | null
       utm_campaign?: string | null
+      utm_term?: string | null
+      utm_content?: string | null
+      normalized_source?: string | null
+      normalized_medium?: string | null
       metadata?: Record<string, unknown> | null
     },
     @MedusaContext() sharedContext?: Context<EntityManager>
@@ -116,6 +171,7 @@ class CustomerJourneyModuleService extends MedusaService({
         occurred_at: occurredAt,
         landing_page: input.landing_page,
         referrer: input.referrer,
+        referrer_host: input.referrer_host,
         utm_source: input.utm_source,
         utm_medium: input.utm_medium,
         utm_campaign: input.utm_campaign,
@@ -131,10 +187,21 @@ class CustomerJourneyModuleService extends MedusaService({
       `insert into journey_session (
           id, session_id, visitor_id, started_at, last_seen_at,
           landing_page, referrer, utm_source, utm_medium, utm_campaign,
+          referrer_host, utm_term, utm_content, normalized_source, normalized_medium,
           metadata, created_at, updated_at
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, now(), now())
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, now(), now())
         on conflict (session_id) do update set
           last_seen_at = excluded.last_seen_at,
+          landing_page = coalesce(journey_session.landing_page, excluded.landing_page),
+          referrer = coalesce(journey_session.referrer, excluded.referrer),
+          referrer_host = coalesce(journey_session.referrer_host, excluded.referrer_host),
+          utm_source = coalesce(journey_session.utm_source, excluded.utm_source),
+          utm_medium = coalesce(journey_session.utm_medium, excluded.utm_medium),
+          utm_campaign = coalesce(journey_session.utm_campaign, excluded.utm_campaign),
+          utm_term = coalesce(journey_session.utm_term, excluded.utm_term),
+          utm_content = coalesce(journey_session.utm_content, excluded.utm_content),
+          normalized_source = coalesce(journey_session.normalized_source, excluded.normalized_source),
+          normalized_medium = coalesce(journey_session.normalized_medium, excluded.normalized_medium),
           updated_at = now(),
           metadata = coalesce(journey_session.metadata, excluded.metadata)
         returning *`,
@@ -149,6 +216,11 @@ class CustomerJourneyModuleService extends MedusaService({
         input.utm_source ?? null,
         input.utm_medium ?? null,
         input.utm_campaign ?? null,
+        input.referrer_host ?? null,
+        input.utm_term ?? null,
+        input.utm_content ?? null,
+        input.normalized_source ?? null,
+        input.normalized_medium ?? null,
         JSON.stringify(input.metadata ?? null),
       ]
     )
@@ -163,6 +235,12 @@ class CustomerJourneyModuleService extends MedusaService({
   ) {
     const manager = sharedContext?.manager
     const occurredAt = input.occurred_at ? new Date(input.occurred_at) : new Date()
+    const referrerHost = getReferrerHost(input.referrer)
+    const normalized = deriveNormalizedAttribution({
+      utm_source: input.utm_source,
+      utm_medium: input.utm_medium,
+      referrer_host: referrerHost,
+    })
 
     const visitor = await this.upsertVisitor(
       {
@@ -170,6 +248,7 @@ class CustomerJourneyModuleService extends MedusaService({
         occurred_at: occurredAt,
         landing_page: input.page_url,
         referrer: input.referrer,
+        referrer_host: referrerHost,
         utm_source: input.utm_source,
         utm_medium: input.utm_medium,
         utm_campaign: input.utm_campaign,
@@ -188,9 +267,14 @@ class CustomerJourneyModuleService extends MedusaService({
             occurred_at: occurredAt,
             landing_page: input.page_url,
             referrer: input.referrer,
+            referrer_host: referrerHost,
             utm_source: input.utm_source,
             utm_medium: input.utm_medium,
             utm_campaign: input.utm_campaign,
+            utm_term: input.utm_term,
+            utm_content: input.utm_content,
+            normalized_source: normalized.source,
+            normalized_medium: normalized.medium,
           },
           sharedContext
         )
@@ -216,9 +300,10 @@ class CustomerJourneyModuleService extends MedusaService({
       `insert into journey_event (
           id, event_id, idempotency_key, event_name, occurred_at,
           visitor_id, session_id, customer_id, event_source,
-          page_url, referrer, utm_source, utm_medium, utm_campaign,
+          page_url, referrer, referrer_host, utm_source, utm_medium, utm_campaign,
+          utm_term, utm_content, normalized_source, normalized_medium,
           payload, created_at, updated_at
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, now(), now())
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, now(), now())
         on conflict (idempotency_key) do nothing
         returning *`,
       [
@@ -233,14 +318,193 @@ class CustomerJourneyModuleService extends MedusaService({
         input.event_source ?? null,
         input.page_url ?? null,
         input.referrer ?? null,
+        referrerHost,
         input.utm_source ?? null,
         input.utm_medium ?? null,
         input.utm_campaign ?? null,
+        input.utm_term ?? null,
+        input.utm_content ?? null,
+        normalized.source,
+        normalized.medium,
         JSON.stringify(input.payload ?? null),
       ]
     )
 
+    if (rows?.[0]) {
+      await this.refreshVisitorAttribution(visitor.id, sharedContext)
+    }
+
+    if (rows?.[0] && resolvedCustomerId) {
+      await this.upsertAttributionTouch(
+        {
+          customer_id: resolvedCustomerId,
+          visitor_id: visitor.id,
+          session_id: session?.id ?? null,
+          touched_at: occurredAt,
+          source: normalized.source,
+          medium: normalized.medium,
+          campaign: input.utm_campaign ?? null,
+          term: input.utm_term ?? null,
+          content: input.utm_content ?? null,
+          landing_page: input.page_url ?? null,
+          referrer: input.referrer ?? null,
+          referrer_host: referrerHost,
+        },
+        sharedContext
+      )
+
+    }
+
     return rows?.[0] ?? null
+  }
+
+  @InjectManager()
+  async upsertAttributionTouch(
+    input: {
+      customer_id: string
+      visitor_id?: string | null
+      session_id?: string | null
+      touched_at: Date
+      source: string
+      medium: string
+      campaign?: string | null
+      term?: string | null
+      content?: string | null
+      landing_page?: string | null
+      referrer?: string | null
+      referrer_host?: string | null
+    },
+    @MedusaContext() sharedContext?: Context<EntityManager>
+  ) {
+    const manager = sharedContext?.manager
+
+    const firstTouch = await manager?.execute(
+      `select id, touched_at
+       from journey_attribution_touch
+       where customer_id = ? and touch_type = 'first_touch' and deleted_at is null
+       limit 1`,
+      [input.customer_id]
+    )
+
+    const first = firstTouch?.[0]
+    if (!first || new Date(input.touched_at) < new Date(first.touched_at)) {
+      await manager?.execute(
+        `insert into journey_attribution_touch (
+            id, customer_id, visitor_id, session_id, touched_at, touch_type,
+            source, medium, campaign, term, content, landing_page, referrer, referrer_host,
+            dedupe_key, metadata, created_at, updated_at
+          ) values (?, ?, ?, ?, ?, 'first_touch', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, now(), now())
+          on conflict (dedupe_key) do update set
+            visitor_id = excluded.visitor_id,
+            session_id = excluded.session_id,
+            touched_at = excluded.touched_at,
+            source = excluded.source,
+            medium = excluded.medium,
+            campaign = excluded.campaign,
+            term = excluded.term,
+            content = excluded.content,
+            landing_page = excluded.landing_page,
+            referrer = excluded.referrer,
+            referrer_host = excluded.referrer_host,
+            updated_at = now()`,
+        [
+          `jat:${input.customer_id}:first_touch`,
+          input.customer_id,
+          input.visitor_id ?? null,
+          input.session_id ?? null,
+          input.touched_at,
+          input.source,
+          input.medium,
+          input.campaign ?? null,
+          input.term ?? null,
+          input.content ?? null,
+          input.landing_page ?? null,
+          input.referrer ?? null,
+          input.referrer_host ?? null,
+          `${input.customer_id}:first_touch`,
+          JSON.stringify({ derived: true }),
+        ]
+      )
+    }
+
+    await manager?.execute(
+      `insert into journey_attribution_touch (
+          id, customer_id, visitor_id, session_id, touched_at, touch_type,
+          source, medium, campaign, term, content, landing_page, referrer, referrer_host,
+          dedupe_key, metadata, created_at, updated_at
+        ) values (?, ?, ?, ?, ?, 'last_touch', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, now(), now())
+        on conflict (dedupe_key) do update set
+          visitor_id = excluded.visitor_id,
+          session_id = excluded.session_id,
+          touched_at = excluded.touched_at,
+          source = excluded.source,
+          medium = excluded.medium,
+          campaign = excluded.campaign,
+          term = excluded.term,
+          content = excluded.content,
+          landing_page = excluded.landing_page,
+          referrer = excluded.referrer,
+          referrer_host = excluded.referrer_host,
+          updated_at = now()`,
+      [
+        `jat:${input.customer_id}:last_touch`,
+        input.customer_id,
+        input.visitor_id ?? null,
+        input.session_id ?? null,
+        input.touched_at,
+        input.source,
+        input.medium,
+        input.campaign ?? null,
+        input.term ?? null,
+        input.content ?? null,
+        input.landing_page ?? null,
+        input.referrer ?? null,
+        input.referrer_host ?? null,
+        `${input.customer_id}:last_touch`,
+        JSON.stringify({ derived: true }),
+      ]
+    )
+  }
+
+  @InjectManager()
+  async refreshVisitorAttribution(visitorId: string, @MedusaContext() sharedContext?: Context<EntityManager>) {
+    const manager = sharedContext?.manager
+
+    const rows = await manager?.execute(
+      `select
+          (array_agg(e.referrer order by e.occurred_at asc) filter (where e.referrer is not null))[1] as first_referrer,
+          (array_agg(e.page_url order by e.occurred_at asc) filter (where e.page_url is not null))[1] as first_landing_page,
+          (array_agg(e.utm_source order by e.occurred_at asc) filter (where e.utm_source is not null))[1] as first_utm_source,
+          (array_agg(e.utm_medium order by e.occurred_at asc) filter (where e.utm_medium is not null))[1] as first_utm_medium,
+          (array_agg(e.utm_campaign order by e.occurred_at asc) filter (where e.utm_campaign is not null))[1] as first_utm_campaign
+       from journey_event e
+       where e.visitor_id = ? and e.deleted_at is null`,
+      [visitorId]
+    )
+
+    const summary = rows?.[0]
+    if (!summary) {
+      return
+    }
+
+    await manager?.execute(
+      `update journey_visitor
+       set first_referrer = coalesce(?, first_referrer),
+           first_landing_page = coalesce(?, first_landing_page),
+           first_utm_source = coalesce(?, first_utm_source),
+           first_utm_medium = coalesce(?, first_utm_medium),
+           first_utm_campaign = coalesce(?, first_utm_campaign),
+           updated_at = now()
+       where id = ?`,
+      [
+        summary.first_referrer ?? null,
+        summary.first_landing_page ?? null,
+        summary.first_utm_source ?? null,
+        summary.first_utm_medium ?? null,
+        summary.first_utm_campaign ?? null,
+        visitorId,
+      ]
+    )
   }
 
   @InjectManager()
@@ -272,6 +536,66 @@ class CustomerJourneyModuleService extends MedusaService({
       ]
     )
 
+    await manager?.execute(
+      `update journey_event
+       set customer_id = ?, updated_at = now()
+       where visitor_id = ? and customer_id is null and deleted_at is null`,
+      [input.customer_id, visitor.id]
+    )
+
+    const historicalTouchRows =
+      (await manager?.execute(
+      `select *
+       from journey_event
+       where visitor_id = ? and customer_id = ? and deleted_at is null
+         and (normalized_source is not null or utm_source is not null or referrer is not null)
+       order by occurred_at asc`,
+      [visitor.id, input.customer_id]
+    )) || []
+
+    const firstHistoricalTouch = historicalTouchRows?.[0]
+    const lastHistoricalTouch = historicalTouchRows[historicalTouchRows.length - 1]
+
+    if (firstHistoricalTouch) {
+      await this.upsertAttributionTouch(
+        {
+          customer_id: input.customer_id,
+          visitor_id: visitor.id,
+          session_id: firstHistoricalTouch.session_id ?? null,
+          touched_at: new Date(firstHistoricalTouch.occurred_at),
+          source: firstHistoricalTouch.normalized_source ?? firstHistoricalTouch.utm_source ?? "direct",
+          medium: firstHistoricalTouch.normalized_medium ?? firstHistoricalTouch.utm_medium ?? "none",
+          campaign: firstHistoricalTouch.utm_campaign ?? null,
+          term: firstHistoricalTouch.utm_term ?? null,
+          content: firstHistoricalTouch.utm_content ?? null,
+          landing_page: firstHistoricalTouch.page_url ?? null,
+          referrer: firstHistoricalTouch.referrer ?? null,
+          referrer_host: firstHistoricalTouch.referrer_host ?? getReferrerHost(firstHistoricalTouch.referrer),
+        },
+        sharedContext
+      )
+    }
+
+    if (lastHistoricalTouch && lastHistoricalTouch !== firstHistoricalTouch) {
+      await this.upsertAttributionTouch(
+        {
+          customer_id: input.customer_id,
+          visitor_id: visitor.id,
+          session_id: lastHistoricalTouch.session_id ?? null,
+          touched_at: new Date(lastHistoricalTouch.occurred_at),
+          source: lastHistoricalTouch.normalized_source ?? lastHistoricalTouch.utm_source ?? "direct",
+          medium: lastHistoricalTouch.normalized_medium ?? lastHistoricalTouch.utm_medium ?? "none",
+          campaign: lastHistoricalTouch.utm_campaign ?? null,
+          term: lastHistoricalTouch.utm_term ?? null,
+          content: lastHistoricalTouch.utm_content ?? null,
+          landing_page: lastHistoricalTouch.page_url ?? null,
+          referrer: lastHistoricalTouch.referrer ?? null,
+          referrer_host: lastHistoricalTouch.referrer_host ?? getReferrerHost(lastHistoricalTouch.referrer),
+        },
+        sharedContext
+      )
+    }
+
     if (input.session_id) {
       await this.upsertSession(
         {
@@ -294,7 +618,18 @@ class CustomerJourneyModuleService extends MedusaService({
   ) {
     const manager = sharedContext?.manager
     const summaryRows = await manager?.execute(
-      `select
+      `with touch as (
+         select
+           max(case when touch_type = 'first_touch' then source end) as first_touch_source,
+           max(case when touch_type = 'first_touch' then medium end) as first_touch_medium,
+           max(case when touch_type = 'first_touch' then campaign end) as first_touch_campaign,
+           max(case when touch_type = 'last_touch' then source end) as latest_source,
+           max(case when touch_type = 'last_touch' then medium end) as latest_medium,
+           max(case when touch_type = 'last_touch' then campaign end) as latest_campaign
+         from journey_attribution_touch
+         where customer_id = ? and touch_type in ('first_touch', 'last_touch') and deleted_at is null
+       )
+       select
         min(e.occurred_at) as first_seen_at,
         min(case when e.event_name = 'signup_completed' then e.occurred_at end) as first_signup_at,
         min(case when e.event_name = 'order_placed' then e.occurred_at end) as first_order_at,
@@ -303,14 +638,18 @@ class CustomerJourneyModuleService extends MedusaService({
         min(case when e.event_name = 'signup_completed' then e.occurred_at end) as signup_completed_at,
         max(e.occurred_at) as last_event_at,
         (array_agg(e.event_name order by e.occurred_at desc))[1] as last_event_name,
-        (array_agg(e.utm_source order by e.occurred_at desc))[1] as latest_source,
-        (array_agg(e.utm_medium order by e.occurred_at desc))[1] as latest_medium,
-        (array_agg(e.utm_campaign order by e.occurred_at desc))[1] as latest_campaign,
+        touch.first_touch_source,
+        touch.first_touch_medium,
+        touch.first_touch_campaign,
+        touch.latest_source,
+        touch.latest_medium,
+        touch.latest_campaign,
         count(*)::int as total_events,
         count(distinct e.session_id)::int as total_sessions
       from journey_event e
+      cross join touch
       where e.customer_id = ? and e.deleted_at is null`,
-      [customerId]
+      [customerId, customerId]
     )
 
     const summary = summaryRows?.[0]
@@ -357,7 +696,15 @@ class CustomerJourneyModuleService extends MedusaService({
         summary.latest_source,
         summary.latest_medium,
         summary.latest_campaign,
-        JSON.stringify({ recomputed_at: new Date().toISOString() }),
+        JSON.stringify({
+          recomputed_at: new Date().toISOString(),
+          first_touch_source: summary.first_touch_source ?? null,
+          first_touch_medium: summary.first_touch_medium ?? null,
+          first_touch_campaign: summary.first_touch_campaign ?? null,
+          last_touch_source: summary.latest_source ?? null,
+          last_touch_medium: summary.latest_medium ?? null,
+          last_touch_campaign: summary.latest_campaign ?? null,
+        }),
       ]
     )
 

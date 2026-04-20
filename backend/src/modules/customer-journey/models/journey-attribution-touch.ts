@@ -10,8 +10,11 @@ const JourneyAttributionTouch = model.define("journey_attribution_touch", {
   source: model.text().nullable(),
   medium: model.text().nullable(),
   campaign: model.text().nullable(),
+  term: model.text().nullable(),
+  content: model.text().nullable(),
   landing_page: model.text().nullable(),
   referrer: model.text().nullable(),
+  referrer_host: model.text().nullable(),
   dedupe_key: model.text().unique(),
   metadata: model.json().nullable(),
 })
