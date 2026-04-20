@@ -61,6 +61,15 @@ import { GetAdminBlogPostsSchema, PostAdminCreateBlogPostSchema } from "./admin/
 import { PostAdminUpdateBlogPostSchema } from "./admin/blog-posts/[id]/route"
 import { GetAdminBlogCategoriesSchema, PostAdminCreateBlogCategorySchema } from "./admin/blog-categories/route"
 import { GetStoreBlogPostsSchema } from "./store/blog-posts/route"
+import { GetAdminEmailSubscribersSchema, PostAdminEmailSubscriberSchema } from "./admin/email-marketing/subscribers/route"
+import { PostAdminEmailSubscriberUpdateSchema } from "./admin/email-marketing/subscribers/[id]/route"
+import { PostAdminEmailSubscriberImportSchema } from "./admin/email-marketing/subscribers/import/route"
+import { GetAdminEmailTemplatesSchema, PostAdminEmailTemplateSchema } from "./admin/email-marketing/templates/route"
+import { PostAdminEmailTemplateUpdateSchema } from "./admin/email-marketing/templates/[id]/route"
+import { PostAdminEmailTemplatePreviewSchema } from "./admin/email-marketing/templates/preview/route"
+import { GetAdminEmailCampaignsSchema, PostAdminEmailCampaignSchema } from "./admin/email-marketing/campaigns/route"
+import { PostAdminEmailCampaignUpdateSchema } from "./admin/email-marketing/campaigns/[id]/route"
+import { PostStoreEmailUnsubscribeSchema } from "./store/email-marketing/unsubscribe/route"
 
 export const GetSubscriptionsSchema = createFindParams()
 export const GetSubscriptionPlansSchema = createFindParams()
@@ -172,6 +181,124 @@ export default defineMiddlewares({
       matcher: "/admin/blog-categories/:id",
       methods: ["DELETE"],
       middlewares: [authenticate("user", ["bearer", "session"])],
+    },
+    {
+      matcher: "/admin/email-marketing/subscribers",
+      methods: ["GET"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformQuery(GetAdminEmailSubscribersSchema, { isList: true }),
+      ],
+    },
+    {
+      matcher: "/admin/email-marketing/subscribers",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminEmailSubscriberSchema),
+      ],
+    },
+    {
+      matcher: "/admin/email-marketing/subscribers/import",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminEmailSubscriberImportSchema),
+      ],
+    },
+    {
+      matcher: "/admin/email-marketing/subscribers/:id",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminEmailSubscriberUpdateSchema),
+      ],
+    },
+    {
+      matcher: "/admin/email-marketing/subscribers/:id",
+      methods: ["GET", "DELETE"],
+      middlewares: [authenticate("user", ["bearer", "session"])],
+    },
+    {
+      matcher: "/admin/email-marketing/templates",
+      methods: ["GET"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformQuery(GetAdminEmailTemplatesSchema, { isList: true }),
+      ],
+    },
+    {
+      matcher: "/admin/email-marketing/templates",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminEmailTemplateSchema),
+      ],
+    },
+    {
+      matcher: "/admin/email-marketing/templates/preview",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminEmailTemplatePreviewSchema),
+      ],
+    },
+    {
+      matcher: "/admin/email-marketing/templates/:id",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminEmailTemplateUpdateSchema),
+      ],
+    },
+    {
+      matcher: "/admin/email-marketing/templates/:id",
+      methods: ["GET", "DELETE"],
+      middlewares: [authenticate("user", ["bearer", "session"])],
+    },
+    {
+      matcher: "/admin/email-marketing/campaigns",
+      methods: ["GET"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformQuery(GetAdminEmailCampaignsSchema, { isList: true }),
+      ],
+    },
+    {
+      matcher: "/admin/email-marketing/campaigns",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminEmailCampaignSchema),
+      ],
+    },
+    {
+      matcher: "/admin/email-marketing/campaigns/:id",
+      methods: ["POST"],
+      middlewares: [
+        authenticate("user", ["bearer", "session"]),
+        validateAndTransformBody(PostAdminEmailCampaignUpdateSchema),
+      ],
+    },
+    {
+      matcher: "/admin/email-marketing/campaigns/:id",
+      methods: ["GET", "DELETE"],
+      middlewares: [authenticate("user", ["bearer", "session"])],
+    },
+    {
+      matcher: "/admin/email-marketing/campaigns/:id/send",
+      methods: ["POST"],
+      middlewares: [authenticate("user", ["bearer", "session"])],
+    },
+    {
+      matcher: "/admin/email-marketing/campaigns/:id/analytics",
+      methods: ["GET"],
+      middlewares: [authenticate("user", ["bearer", "session"])],
+    },
+    {
+      matcher: "/store/email-marketing/unsubscribe",
+      methods: ["POST"],
+      middlewares: [validateAndTransformBody(PostStoreEmailUnsubscribeSchema)],
     },
     {
       matcher: "/store/blog-posts",
