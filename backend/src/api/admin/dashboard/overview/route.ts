@@ -189,6 +189,38 @@ const ensureSource = (value?: string | null) => {
   return output || "direct"
 }
 
+const JOURNEY_TOUCH_PAGE_SIZE = 5000
+
+const fetchAllJourneyAttributionTouches = async (query: any) => {
+  const rows: JourneyAttributionTouch[] = []
+  let skip = 0
+
+  while (true) {
+    const page = await query.graph({
+      entity: "journey_attribution_touch",
+      fields: ["id", "customer_id", "visitor_id", "touch_type", "source", "touched_at"],
+      pagination: {
+        order: {
+          touched_at: "DESC",
+        },
+        skip,
+        take: JOURNEY_TOUCH_PAGE_SIZE,
+      },
+    })
+
+    const pageRows = (page.data as JourneyAttributionTouch[]) || []
+    rows.push(...pageRows)
+
+    if (pageRows.length < JOURNEY_TOUCH_PAGE_SIZE) {
+      break
+    }
+
+    skip += JOURNEY_TOUCH_PAGE_SIZE
+  }
+
+  return rows
+}
+
 export const GET = async (
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
@@ -200,7 +232,7 @@ export const GET = async (
   const monthStart = getUtcMonthStart(now)
   const previousMonthStart = getPreviousUtcMonthStart(now)
 
-  const [orderResult, customerResult, leadResult, bookingResult, journeyEventResult, touchResult] =
+  const [orderResult, customerResult, leadResult, bookingResult, journeyEventResult, journeyTouches] =
     await Promise.all([
       query.graph({
         entity: "order",
@@ -288,17 +320,7 @@ export const GET = async (
           take: 5000,
         },
       }),
-      query.graph({
-        entity: "journey_attribution_touch",
-        fields: ["id", "customer_id", "visitor_id", "touch_type", "source", "touched_at"],
-        pagination: {
-          order: {
-            touched_at: "DESC",
-          },
-          skip: 0,
-          take: 5000,
-        },
-      }),
+      fetchAllJourneyAttributionTouches(query),
     ])
 
   const orderList = (orderResult.data as DashboardOrder[]) || []
@@ -306,7 +328,6 @@ export const GET = async (
   const leadList = (leadResult.data as DashboardLead[]) || []
   const bookingList = (bookingResult.data as DashboardBooking[]) || []
   const journeyEvents = (journeyEventResult.data as JourneyEvent[]) || []
-  const journeyTouches = (touchResult.data as JourneyAttributionTouch[]) || []
 
   const ordersThisMonth = orderList.filter((order) => inRange(order.created_at, monthStart, now))
   const ordersPreviousMonth = orderList.filter((order) => inRange(order.created_at, previousMonthStart, monthStart))
