@@ -29,6 +29,20 @@ const asDate = (value?: string | null) => {
   return date.toLocaleString();
 };
 
+const asUtcDate = (value?: string | null) => {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toISOString().replace("T", " ").replace("Z", " UTC");
+};
+
 const toTitle = (value: string) =>
   value
     .split("_")
@@ -421,6 +435,7 @@ const DashboardPageContent = () => {
           signal: `Revenue trend proxy: ${asCurrency(revenueStats.latest, data.currency_code)} latest day vs ${asCurrency(revenueStats.avg, data.currency_code)} avg/day.`,
           action:
             "Verify tracking + campaign delivery today, then shift 10–20% budget to stable sources if decline persists.",
+          sample: `${asCount(leadStats.last7 + bookingStats.last7)} visits (last 7d)`,
           href: "/leads",
         },
         {
@@ -444,6 +459,7 @@ const DashboardPageContent = () => {
           signal: "Qualified lead signal from current funnel stage counts.",
           action:
             "Pause the weakest ad set and tighten creative-to-landing page match.",
+          sample: `${asCount(qualifiedCount)} qualified leads (current sample)`,
           href: "/leads",
         },
         {
@@ -478,6 +494,7 @@ const DashboardPageContent = () => {
           signal: `Lead-to-booking trend: ${asChangeLabel(kpis.lead_to_booking_conversion.change_percent)} month over month.`,
           action:
             "Run one landing/form A/B test this week and ship the winner.",
+          sample: `${asCount(leadStats.last7)} leads / ${asCount(bookingStats.last7)} bookings (last 7d)`,
           href: "/leads",
         },
       ],
@@ -508,6 +525,7 @@ const DashboardPageContent = () => {
           signal: `Checkout starts: ${asCount(stageCount("bookings"))} · Completed: ${asCount(stageCount("completed"))}.`,
           action:
             "Review checkout/payment failures and mobile checkout speed today.",
+          sample: `${asCount(stageCount("bookings"))} checkout starts (current window)`,
           href: "/bookings",
         },
         {
@@ -537,11 +555,12 @@ const DashboardPageContent = () => {
           )} month).`,
           action:
             "Trigger checkout recovery at 30m and 6h and review payment failures.",
+          sample: `${asCount(stageCount("bookings"))} bookings / ${asCount(stageCount("paid"))} paid (current window)`,
           href: "/orders",
         },
         {
           id: "revenue_orders",
-          metric: "Revenue, orders_count, total_revenue",
+          metric: "Revenue and orders",
           threshold: "Yellow: -10% / Red: -20% vs prior period",
           state:
             kpis.revenue_this_month.change_percent < -20
@@ -568,6 +587,7 @@ const DashboardPageContent = () => {
           signal: `Revenue ${asChangeLabel(kpis.revenue_this_month.change_percent)} · Bookings ${asChangeLabel(kpis.bookings_this_month.change_percent)} month over month.`,
           action:
             "Reduce spend in weak sources and push cart/checkout recovery immediately when trend weakens.",
+          sample: `${asCount(kpis.bookings_this_month.value)} orders (month to date)`,
           href: "/orders",
         },
       ],
@@ -601,6 +621,7 @@ const DashboardPageContent = () => {
           signal: `AOV change: ${asChangeLabel(kpis.average_order_value.change_percent)} month over month.`,
           action:
             "Enable bundles, in-cart cross-sell, and free-shipping threshold messaging.",
+          sample: `${asCount(bookingsCount)} orders (month to date)`,
           href: "/orders",
         },
         {
@@ -628,6 +649,7 @@ const DashboardPageContent = () => {
           )}.`,
           action:
             "Prioritize win-back and repeat purchase CRM before scaling paid acquisition.",
+          sample: `${asCount(stageCount("bookings"))} bookings (current funnel sample)`,
           href: "/orders",
         },
         {
@@ -653,6 +675,7 @@ const DashboardPageContent = () => {
           signal: `Current lead→booking velocity: ${asHours(funnel.derived_metrics.average_hours_lead_to_booking)}.`,
           action:
             "Tighten first-72h onboarding with first-order incentive and reminder flow.",
+          sample: `${asCount(stageCount("leads"))} leads / ${asCount(stageCount("bookings"))} bookings (current funnel sample)`,
           href: "/leads",
         },
       ],
@@ -743,7 +766,7 @@ const DashboardPageContent = () => {
             data.
           </Text>
           <Text size="xsmall" className="mt-1 text-ui-fg-muted">
-            Updated {asDate(data.generated_at)} ({data.timezone})
+            Updated {asDate(data.generated_at)} (local) · {asUtcDate(data.generated_at)} · Source TZ: {data.timezone}
           </Text>
         </div>
 
@@ -879,6 +902,9 @@ const DashboardPageContent = () => {
                     </Text>
                     <Text size="xsmall" className="mt-1 text-ui-fg-muted">
                       Last 14d: {item.sparkline}
+                    </Text>
+                    <Text size="xsmall" className="mt-1 text-ui-fg-muted">
+                      Sample: {item.sample}
                     </Text>
                     <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
                       {item.signal}
