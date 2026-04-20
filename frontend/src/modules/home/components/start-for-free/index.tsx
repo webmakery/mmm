@@ -137,7 +137,7 @@ const EmailCTA = ({ dark = false }: { dark?: boolean }) => {
 
 const HeroCollage = () => {
   return (
-    <section className="relative h-[700px] overflow-hidden border-b border-ui-border-base">
+    <section className="relative h-[760px] overflow-hidden border-b border-ui-border-base">
       <video
         className="absolute inset-0 h-full w-full object-cover"
         autoPlay
@@ -154,43 +154,43 @@ const HeroCollage = () => {
 
       <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
 
-      <div className="content-container relative z-10 flex h-full items-center">
-        <div className="w-full max-w-[520px] pt-16 small:pt-0">
-          <div className="rounded-[40px] bg-white px-7 py-8 shadow-[0_24px_60px_rgba(0,0,0,0.24)] small:px-9 small:py-10">
-            <h1 className="max-w-[430px] text-[46px] font-semibold leading-[0.98] tracking-[-0.035em] text-ui-fg-base small:text-[52px]">
+      <div className="content-container relative z-10 flex h-full items-center justify-center py-10">
+        <div className="w-full max-w-[520px]">
+          <div className="rounded-[42px] bg-white px-8 py-8 shadow-[0_24px_60px_rgba(0,0,0,0.24)] small:px-9 small:py-9">
+            <h1 className="max-w-[450px] text-[44px] font-semibold leading-[0.96] tracking-[-0.035em] text-ui-fg-base small:text-[56px]">
               Your business starts with Shopify
             </h1>
-            <p className="mt-5 max-w-[420px] text-xl font-normal leading-[1.22] text-ui-fg-subtle">
+            <p className="mt-4 max-w-[430px] text-xl font-normal leading-[1.2] text-ui-fg-subtle small:text-[32px] small:leading-[1.14] small:tracking-[-0.01em]">
               Try 3 days free, then 1 €/month for 3 months. What are you waiting
               for?
             </p>
           </div>
 
           <form
-            className="mt-3 rounded-[40px] bg-[#06070b] px-6 py-6 text-white shadow-[0_24px_60px_rgba(0,0,0,0.38)] small:px-7"
+            className="mt-2 rounded-[40px] border border-black/45 bg-[#020810] px-7 py-6 text-white shadow-[0_24px_60px_rgba(0,0,0,0.42)]"
             aria-label="Email signup form"
           >
-            <h2 className="text-[42px] font-medium leading-none tracking-[-0.01em] small:text-[46px]">
+            <h2 className="text-[42px] font-medium leading-[0.96] tracking-[-0.02em] small:text-[50px]">
               Start for free
             </h2>
-            <p className="mt-2 text-small-regular text-white/75">
+            <p className="mt-2 text-base-regular text-white/78 small:text-[24px] small:leading-[1.2]">
               You agree to receive marketing emails.
             </p>
 
             <label htmlFor="hero-email" className="sr-only">
               Enter your email
             </label>
-            <div className="mt-5 flex items-center rounded-full border border-white/20 bg-white/[0.06] p-2 pl-5">
+            <div className="mt-5 flex items-center rounded-full border border-white/25 bg-white/[0.06] p-2 pl-6">
               <input
                 id="hero-email"
                 type="email"
                 required
                 placeholder="Enter your email"
-                className="w-full bg-transparent text-xl text-white outline-none placeholder:text-xl placeholder:text-white/55"
+                className="w-full bg-transparent text-xl text-white outline-none placeholder:text-xl placeholder:text-white/62 small:text-[40px] small:leading-none small:placeholder:text-[40px]"
               />
               <button
                 type="submit"
-                className="flex size-12 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#06070b]"
+                className="flex size-12 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#020810] small:size-[72px]"
                 aria-label="Submit email"
               >
                 <ArrowRightMini />
