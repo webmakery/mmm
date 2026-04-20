@@ -15,11 +15,6 @@ export type JourneyEventName =
   | "cart_view"
   | "checkout_started"
 
-const getBackendBase = () =>
-  process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || ""
-
-const buildUrl = (path: string) => `${getBackendBase()}${path}`
-
 const randomId = (prefix: string) => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return `${prefix}_${crypto.randomUUID()}`
@@ -121,7 +116,7 @@ export const trackJourneyEvent = async (
     payload,
   }
 
-  await fetch(buildUrl("/store/journey/events"), {
+  await fetch("/api/journey/events", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -138,7 +133,7 @@ export const trackIdentifyUser = async (customerId: string) => {
     return
   }
 
-  await fetch(buildUrl("/store/journey/identify"), {
+  await fetch("/api/journey/identify", {
     method: "POST",
     headers: {
       "content-type": "application/json",
