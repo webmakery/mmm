@@ -17,8 +17,7 @@ export async function POST(req: MedusaRequest<z.infer<typeof PostAdminCustomerTa
   const customerMetadata = (customer.metadata as Record<string, unknown>) || {}
   const nextTags = dedupeTags(req.validatedBody.tags)
 
-  const updatedCustomer = await customerService.updateCustomers({
-    id: req.params.id,
+  const updatedCustomer = await customerService.updateCustomers(req.params.id, {
     metadata: {
       ...customerMetadata,
       tags: nextTags,
