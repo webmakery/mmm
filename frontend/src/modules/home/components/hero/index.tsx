@@ -38,15 +38,26 @@ const Hero = () => {
           </Heading>
           <p className="text-small-regular text-white/90">
             Launch in days with support, flexible storefronts, and predictable
-            pricing.
+            pricing. Switching from Shopify or WooCommerce?
+            <LocalizedClientLink
+              href="/compare/shopify"
+              className="underline underline-offset-4"
+            >
+              Compare migration options
+            </LocalizedClientLink>
+            .
           </p>
 
           <div className="flex flex-col gap-3 small:flex-row">
             <Button className="w-full small:w-auto" variant="primary" asChild>
-              <LocalizedClientLink href="/signup">Start for free</LocalizedClientLink>
+              <LocalizedClientLink href="/signup">
+                Start for free
+              </LocalizedClientLink>
             </Button>
             <Button className="w-full small:w-auto" variant="secondary" asChild>
-              <LocalizedClientLink href="/plans">View plans</LocalizedClientLink>
+              <LocalizedClientLink href="/plans">
+                View plans
+              </LocalizedClientLink>
             </Button>
           </div>
         </div>
