@@ -41,8 +41,7 @@ export default async function emailMarketingOrderPlaced({ event, container }: Su
   const nextTags = mergeTags(extractTagsFromMetadata(customerMetadata), [PURCHASED_TAG])
 
   if (customerId) {
-    await customerService.updateCustomers({
-      id: customerId,
+    await customerService.updateCustomers(customerId, {
       metadata: {
         ...customerMetadata,
         tags: nextTags,

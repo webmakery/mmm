@@ -1,9 +1,9 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
 import { Modules } from "@medusajs/framework/utils"
-import { EMAIL_MARKETING_MODULE } from "../../../../../../modules/email-marketing"
-import EmailMarketingModuleService from "../../../../../../modules/email-marketing/service"
-import { dedupeTags, tagsToRecord } from "../../../../../../modules/email-marketing/tag-utils"
+import { EMAIL_MARKETING_MODULE } from "../../../../../modules/email-marketing"
+import EmailMarketingModuleService from "../../../../../modules/email-marketing/service"
+import { dedupeTags, tagsToRecord } from "../../../../../modules/email-marketing/tag-utils"
 
 export const PostAdminCustomerTagsSchema = z.object({
   tags: z.array(z.string().min(1)).default([]),
@@ -17,8 +17,7 @@ export async function POST(req: MedusaRequest<z.infer<typeof PostAdminCustomerTa
   const customerMetadata = (customer.metadata as Record<string, unknown>) || {}
   const nextTags = dedupeTags(req.validatedBody.tags)
 
-  const updatedCustomer = await customerService.updateCustomers({
-    id: req.params.id,
+  const updatedCustomer = await customerService.updateCustomers(req.params.id, {
     metadata: {
       ...customerMetadata,
       tags: nextTags,

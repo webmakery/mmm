@@ -31,8 +31,7 @@ export default async function emailMarketingCustomerCreated({
   const customerMetadata = (customer.metadata as Record<string, unknown>) || {}
   const nextTags = mergeTags(extractTagsFromMetadata(customerMetadata), [ACCOUNT_CREATED_TAG])
 
-  await customerService.updateCustomers({
-    id: customer.id,
+  await customerService.updateCustomers(customer.id, {
     metadata: {
       ...customerMetadata,
       tags: nextTags,
