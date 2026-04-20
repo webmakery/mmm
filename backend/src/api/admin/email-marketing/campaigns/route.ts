@@ -3,6 +3,14 @@ import { z } from "@medusajs/framework/zod"
 import { EMAIL_MARKETING_MODULE } from "../../../../modules/email-marketing"
 import EmailMarketingModuleService from "../../../../modules/email-marketing/service"
 
+const CampaignAudienceFilterSchema = z
+  .object({
+    include_tags: z.array(z.string().min(1)).default([]),
+    exclude_tags: z.array(z.string().min(1)).default([]),
+    tag_match_mode: z.enum(["any", "all"]).default("any"),
+  })
+  .default({})
+
 export const GetAdminEmailCampaignsSchema = z.object({
   status: z.enum(["draft", "scheduled", "processing", "sent", "failed"]).optional(),
   limit: z.coerce.number().min(1).max(100).default(20),
@@ -16,7 +24,7 @@ export const PostAdminEmailCampaignSchema = z.object({
   sender_email: z.string().email(),
   template_id: z.string(),
   scheduled_at: z.string().datetime().optional().nullable(),
-  audience_filter: z.record(z.string(), z.unknown()).optional(),
+  audience_filter: CampaignAudienceFilterSchema.optional(),
   status: z.enum(["draft", "scheduled"]).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 })
