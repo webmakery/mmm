@@ -10,26 +10,26 @@ export const metadata: Metadata = {
 }
 
 const trustPoints = [
-  "Trusted by new and scaling brands",
-  "Migration support from Shopify and WooCommerce",
-  "Transparent plans with predictable pricing",
+  "Trusted by teams launching, switching, and scaling",
+  "Guided migrations from Shopify and WooCommerce",
+  "Transparent plans with no hidden platform surprises",
 ]
 
 const valueProps = [
   {
-    title: "Launch faster",
+    title: "Go live faster",
     description:
-      "Go live in days with a guided setup path, proven storefront patterns, and direct support.",
+      "Launch with a guided setup path, conversion-ready storefront patterns, and support that keeps momentum high.",
   },
   {
-    title: "Switch with confidence",
+    title: "Switch without guesswork",
     description:
-      "Migrate catalog, customers, and SEO carefully with a clear plan and low-risk go-live process.",
+      "Migrate catalog, customers, and SEO with a clear checklist, validation steps, and lower go-live risk.",
   },
   {
-    title: "Scale without lock-in",
+    title: "Scale with control",
     description:
-      "Keep flexibility as you grow with a commerce stack designed for performance and control.",
+      "Keep performance and flexibility as your stack grows, without getting boxed into rigid platform limits.",
   },
 ]
 
@@ -37,8 +37,8 @@ const stageContent = [
   {
     title: "New merchants",
     description:
-      "Start with a clean setup, clear onboarding, and the essentials you need to launch your first store confidently.",
-    primaryLabel: "Start for free",
+      "Start strong with guided setup, proven storefront structure, and the essentials to launch confidently.",
+    primaryLabel: "Start free",
     primaryHref: "/signup",
     secondaryLabel: "See plans",
     secondaryHref: "/plans",
@@ -47,7 +47,7 @@ const stageContent = [
   {
     title: "Shopify / WooCommerce switchers",
     description:
-      "Move without guesswork using guided migration support, structured validation, and side-by-side comparisons.",
+      "Move with less risk through guided migration support, structured validation, and platform-by-platform comparisons.",
     primaryLabel: "Compare Shopify",
     primaryHref: "/compare/shopify",
     secondaryLabel: "Compare WooCommerce",
@@ -57,7 +57,7 @@ const stageContent = [
   {
     title: "Scaling brands",
     description:
-      "Reduce platform friction and unlock more control across performance, integrations, and growth workflows.",
+      "Unlock faster storefront performance, deeper integrations, and workflows built for larger teams.",
     primaryLabel: "Talk to sales",
     primaryHref: "/booking",
     secondaryLabel: "View plans",
@@ -70,30 +70,30 @@ const howItWorks = [
   {
     title: "1. Pick your path",
     description:
-      "Choose a new launch or migration path, then align on goals, timeline, and technical requirements.",
+      "Choose launch or migration, then align scope, timeline, and technical requirements.",
   },
   {
-    title: "2. Launch with confidence",
+    title: "2. Set up and validate",
     description:
-      "Set up catalog, storefront, checkout, and integrations with guided implementation and pre-launch checks.",
+      "Configure catalog, storefront, checkout, and integrations with guided implementation and pre-launch checks.",
   },
   {
-    title: "3. Grow with support",
+    title: "3. Launch and scale",
     description:
-      "Optimize conversion and operations post-launch with a stack built to support long-term scale.",
+      "Go live with support and keep improving conversion, operations, and performance as you grow.",
   },
 ]
 
 const testimonials = [
   {
     quote:
-      "We migrated from Shopify in under two weeks and immediately gained more flexibility across our storefront and operations.",
-    byline: "DTC apparel brand, growth team lead",
+      "We moved from Shopify quickly and gained noticeably more control over our storefront experience.",
+    byline: "Growth lead, DTC apparel brand",
   },
   {
     quote:
-      "The onboarding path made it easy for our team to launch fast without feeling locked into rigid templates.",
-    byline: "New merchant, founder",
+      "The onboarding flow removed a lot of uncertainty for our team and helped us launch with confidence.",
+    byline: "Founder, new merchant brand",
   },
 ]
 
@@ -101,7 +101,7 @@ const faqs = [
   {
     question: "How quickly can we launch?",
     answer:
-      "Most teams can launch quickly using the guided setup path, with exact timing based on catalog size and integration needs.",
+      "Most teams can launch quickly with the guided path. Timelines depend on catalog size, integrations, and migration complexity.",
   },
   {
     question: "Can you help us migrate from Shopify or WooCommerce?",
@@ -111,7 +111,7 @@ const faqs = [
   {
     question: "Will we outgrow this setup?",
     answer:
-      "No. The platform is built to support brands from early launch through scale without forcing a replatform.",
+      "No. The platform supports brands from first launch through larger-scale operations without forcing a replatform.",
   },
   {
     question: "Where can I compare plans before signing up?",
@@ -127,6 +127,7 @@ export default function Home() {
 
       <div className="content-container py-10 small:py-12">
         <section className="mb-10 border border-ui-border-base bg-ui-bg-subtle px-4 py-4 small:px-6">
+          <p className="mb-3 text-small-plus text-ui-fg-muted">Trusted by ambitious commerce teams</p>
           <ul className="flex flex-col gap-3 small:flex-row small:items-center small:justify-between">
             {trustPoints.map((point) => (
               <li key={point} className="text-small-semi text-ui-fg-subtle">
@@ -137,7 +138,10 @@ export default function Home() {
         </section>
 
         <section className="mb-10">
-          <h2 className="mb-4 text-xl-semi">Why brands choose WebMaker</h2>
+          <h2 className="mb-2 text-xl-semi">Why teams choose WebMaker</h2>
+          <p className="mb-4 max-w-3xl text-base-regular text-ui-fg-subtle">
+            Everything you need to launch quickly, switch safely, and scale confidently.
+          </p>
           <ul className="grid gap-4 small:grid-cols-3">
             {valueProps.map((item) => (
               <li
@@ -154,7 +158,10 @@ export default function Home() {
         </section>
 
         <section className="mb-10">
-          <h2 className="mb-4 text-xl-semi">Built for your stage</h2>
+          <h2 className="mb-2 text-xl-semi">Built for your stage</h2>
+          <p className="mb-4 max-w-3xl text-base-regular text-ui-fg-subtle">
+            Choose the path that matches your business today and the goals you are growing toward.
+          </p>
           <ul className="flex flex-col border border-ui-border-base">
             {stageContent.map((item) => (
               <li
@@ -191,7 +198,10 @@ export default function Home() {
         </section>
 
         <section className="mb-10">
-          <h2 className="mb-4 text-xl-semi">How it works</h2>
+          <h2 className="mb-2 text-xl-semi">How it works</h2>
+          <p className="mb-4 max-w-3xl text-base-regular text-ui-fg-subtle">
+            A simple path from first step to confident launch.
+          </p>
           <ul className="grid gap-4 small:grid-cols-3">
             {howItWorks.map((step) => (
               <li key={step.title} className="border border-ui-border-base p-6">
@@ -205,7 +215,10 @@ export default function Home() {
         </section>
 
         <section className="mb-10">
-          <h2 className="mb-4 text-xl-semi">What teams say after switching</h2>
+          <h2 className="mb-2 text-xl-semi">Teams see results quickly</h2>
+          <p className="mb-4 max-w-3xl text-base-regular text-ui-fg-subtle">
+            Real feedback from brands that launched or switched with WebMaker.
+          </p>
           <ul className="grid gap-4 small:grid-cols-2">
             {testimonials.map((item) => (
               <li key={item.quote} className="border border-ui-border-base bg-ui-bg-subtle p-6">
@@ -221,8 +234,8 @@ export default function Home() {
         <section className="mb-10 border border-ui-border-base p-6">
           <h2 className="mb-2 text-xl-semi">Thinking about switching platforms?</h2>
           <p className="mb-4 text-base-regular text-ui-fg-subtle">
-            Compare WebMaker vs Shopify or WooCommerce to see migration paths,
-            feature differences, and support options.
+            Compare WebMaker vs Shopify and WooCommerce to review migration paths,
+            key differences, and support options side by side.
           </p>
           <div className="flex flex-col gap-3 small:flex-row">
             <Button className="w-full small:w-auto" variant="primary" asChild>
@@ -247,10 +260,9 @@ export default function Home() {
         </section>
 
         <section className="mb-10 border border-ui-border-base bg-ui-bg-subtle p-6">
-          <h2 className="mb-2 text-xl-semi">Simple, transparent pricing</h2>
+          <h2 className="mb-2 text-xl-semi">Clear pricing, no surprises</h2>
           <p className="mb-4 text-base-regular text-ui-fg-subtle">
-            See plan details up front and choose the right path for where your
-            business is today.
+            Review plan details upfront and choose the right option for your current stage.
           </p>
           <Button className="w-full small:w-auto" variant="primary" asChild>
             <TrackedCtaLink
@@ -264,7 +276,10 @@ export default function Home() {
         </section>
 
         <section className="mb-10">
-          <h2 className="mb-4 text-xl-semi">Frequently asked questions</h2>
+          <h2 className="mb-2 text-xl-semi">Answers before you commit</h2>
+          <p className="mb-4 max-w-3xl text-base-regular text-ui-fg-subtle">
+            Get clarity on launch speed, migration, and long-term fit.
+          </p>
           <ul className="flex flex-col border border-ui-border-base">
             {faqs.map((item) => (
               <li
@@ -281,10 +296,9 @@ export default function Home() {
         </section>
 
         <section className="border border-ui-border-base p-6">
-          <h2 className="mb-2 text-xl-semi">Ready to start or switch?</h2>
+          <h2 className="mb-2 text-xl-semi">Ready to launch, switch, or scale?</h2>
           <p className="mb-4 text-base-regular text-ui-fg-subtle">
-            Start free, review plans, or book a short demo to map your next
-            move.
+            Start free, review plans, or book a short demo to map your next move with confidence.
           </p>
           <div className="flex flex-col gap-3 small:flex-row">
             <Button className="w-full small:w-auto" variant="primary" asChild>
