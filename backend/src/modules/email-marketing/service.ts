@@ -10,6 +10,42 @@ import EmailTemplate from "./models/template"
 type SubscriberStatus = (typeof SubscriberStatuses)[number]
 
 type ListConfig = { limit: number; offset: number }
+type AudienceFilter = Record<string, unknown>
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value)
+
+const matchesAudienceValue = (subscriberValue: unknown, filterValue: unknown): boolean => {
+  if (Array.isArray(filterValue)) {
+    if (!Array.isArray(subscriberValue)) {
+      return false
+    }
+
+    return filterValue.every((value) => subscriberValue.includes(value))
+  }
+
+  if (isRecord(filterValue)) {
+    if (!isRecord(subscriberValue)) {
+      return false
+    }
+
+    return Object.entries(filterValue).every(([key, value]) =>
+      matchesAudienceValue(subscriberValue[key], value)
+    )
+  }
+
+  return subscriberValue === filterValue
+}
+
+const matchesAudienceFilter = (subscriber: Record<string, unknown>, filter?: AudienceFilter | null): boolean => {
+  if (!filter || Object.keys(filter).length === 0) {
+    return true
+  }
+
+  return Object.entries(filter).every(([key, value]) =>
+    matchesAudienceValue(subscriber[key], value)
+  )
+}
 
 class EmailMarketingModuleService extends MedusaService({
   Subscriber,
@@ -164,15 +200,19 @@ class EmailMarketingModuleService extends MedusaService({
     }
 
     const activeSubscribers = await this.listSubscribers({ status: "active" }, {}, sharedContext)
+    const audienceFilter = campaign.audience_filter as AudienceFilter | null | undefined
+    const recipients = activeSubscribers.filter((subscriber) =>
+      matchesAudienceFilter(subscriber as unknown as Record<string, unknown>, audienceFilter)
+    )
 
-    if (!activeSubscribers.length) {
-      throw new MedusaError(MedusaError.Types.INVALID_DATA, "No active subscribers available")
+    if (!recipients.length) {
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, "No subscribers match the campaign audience")
     }
 
     await this.updateEmailCampaigns({ id: campaign.id, status: "processing" }, sharedContext)
 
     await this.createEmailCampaignLogs(
-      activeSubscribers.map((subscriber) => ({
+      recipients.map((subscriber) => ({
         campaign_id: campaign.id,
         subscriber_id: subscriber.id,
         status: "queued",

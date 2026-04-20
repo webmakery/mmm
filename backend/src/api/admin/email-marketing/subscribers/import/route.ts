@@ -22,7 +22,6 @@ export async function POST(req: MedusaRequest<z.infer<typeof PostAdminEmailSubsc
     req.validatedBody.subscribers.map((subscriber) =>
       service.createOrUpdateSubscriber({
         ...subscriber,
-        status: "active",
         tags: subscriber.tags || {},
       })
     )
