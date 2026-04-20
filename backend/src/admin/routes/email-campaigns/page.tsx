@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMemo, useState } from "react"
 import { sdk } from "../../lib/sdk"
 
-type CampaignStatus = "draft" | "scheduled" | "processing" | "sent" | "failed"
+type CampaignStatus = "draft" | "scheduled" | "automated" | "processing" | "sent" | "failed"
 
 type Campaign = {
   id: string
@@ -34,7 +34,7 @@ type CampaignForm = {
   sender_name: string
   sender_email: string
   template_id: string
-  status: "draft" | "scheduled"
+  status: "draft" | "scheduled" | "automated"
   scheduled_at: string
   include_tags: string
   exclude_tags: string
@@ -111,7 +111,7 @@ const EmailCampaignsPage = () => {
       sender_name: campaign.sender_name,
       sender_email: campaign.sender_email,
       template_id: campaign.template_id,
-      status: campaign.status === "scheduled" ? "scheduled" : "draft",
+      status: campaign.status === "scheduled" ? "scheduled" : campaign.status === "automated" ? "automated" : "draft",
       scheduled_at: formatDateTimeLocal(campaign.scheduled_at),
       include_tags: (campaign.audience_filter?.include_tags || []).join(", "),
       exclude_tags: (campaign.audience_filter?.exclude_tags || []).join(", "),
@@ -323,7 +323,9 @@ const EmailCampaignsPage = () => {
                 <Select
                   modal={false}
                   value={form.status}
-                  onValueChange={(value: "draft" | "scheduled") => setForm((prev) => ({ ...prev, status: value }))}
+                  onValueChange={(value: "draft" | "scheduled" | "automated") =>
+                    setForm((prev) => ({ ...prev, status: value }))
+                  }
                 >
                   <Select.Trigger>
                     <Select.Value />
@@ -331,6 +333,7 @@ const EmailCampaignsPage = () => {
                   <Select.Content>
                     <Select.Item value="draft">Draft</Select.Item>
                     <Select.Item value="scheduled">Scheduled</Select.Item>
+                    <Select.Item value="automated">Automated (send when tags are applied)</Select.Item>
                   </Select.Content>
                 </Select>
               </div>

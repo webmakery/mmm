@@ -13,6 +13,7 @@ type CampaignAudienceFilter = {
   exclude_tags?: string[]
   tag_match_mode?: "any" | "all"
 }
+type CampaignStatus = "draft" | "scheduled" | "automated" | "processing" | "sent" | "failed"
 
 type ListConfig = { limit: number; offset: number }
 
@@ -82,6 +83,87 @@ class EmailMarketingModuleService extends MedusaService({
     })
   }
 
+  private doesTagSetMatchAudience(tagSet: Set<string>, audienceFilter: CampaignAudienceFilter | null | undefined) {
+    if (!audienceFilter) {
+      return true
+    }
+
+    const includeTags = (audienceFilter.include_tags || []).map((tag) => tag.trim().toLowerCase()).filter(Boolean)
+    const excludeTags = (audienceFilter.exclude_tags || []).map((tag) => tag.trim().toLowerCase()).filter(Boolean)
+    const tagMatchMode = audienceFilter.tag_match_mode === "all" ? "all" : "any"
+
+    const includesMatch =
+      includeTags.length === 0 ||
+      (tagMatchMode === "all" ? includeTags.every((tag) => tagSet.has(tag)) : includeTags.some((tag) => tagSet.has(tag)))
+
+    if (!includesMatch) {
+      return false
+    }
+
+    if (!excludeTags.length) {
+      return true
+    }
+
+    return !excludeTags.some((tag) => tagSet.has(tag))
+  }
+
+  @InjectManager()
+  async triggerAutomatedCampaignsForSubscriber(
+    input: {
+      subscriber_id: string
+      previous_tags?: Record<string, unknown> | null
+      next_tags?: Record<string, unknown> | null
+    },
+    @MedusaContext() sharedContext?: Context<EntityManager>
+  ) {
+    const previousTagSet = this.getSubscriberTagSet(input.previous_tags || {})
+    const nextTagSet = this.getSubscriberTagSet(input.next_tags || {})
+    const addedTags = Array.from(nextTagSet).filter((tag) => !previousTagSet.has(tag))
+
+    if (!addedTags.length) {
+      return
+    }
+
+    const campaigns = await this.listEmailCampaigns({ status: "automated" }, {}, sharedContext)
+
+    for (const campaign of campaigns) {
+      const audienceFilter = (campaign.audience_filter as CampaignAudienceFilter) || {}
+      const includeTags = (audienceFilter.include_tags || []).map((tag) => tag.trim().toLowerCase()).filter(Boolean)
+
+      if (includeTags.length && !addedTags.some((tag) => includeTags.includes(tag))) {
+        continue
+      }
+
+      if (!this.doesTagSetMatchAudience(nextTagSet, audienceFilter)) {
+        continue
+      }
+
+      const existingLogs = await this.listEmailCampaignLogs(
+        {
+          campaign_id: campaign.id,
+          subscriber_id: input.subscriber_id,
+        },
+        {
+          take: 1,
+        },
+        sharedContext
+      )
+
+      if (existingLogs.length) {
+        continue
+      }
+
+      await this.createEmailCampaignLogs(
+        {
+          campaign_id: campaign.id,
+          subscriber_id: input.subscriber_id,
+          status: "queued",
+        },
+        sharedContext
+      )
+    }
+  }
+
   @InjectManager()
   async createOrUpdateSubscriber(
     input: {
@@ -99,7 +181,7 @@ class EmailMarketingModuleService extends MedusaService({
     const existing = await this.listSubscribers({ email }, {}, sharedContext)
 
     if (!existing.length) {
-      return this.createSubscribers(
+      const createdSubscriber = await this.createSubscribers(
         {
           email,
           first_name: input.first_name ?? null,
@@ -112,9 +194,21 @@ class EmailMarketingModuleService extends MedusaService({
         },
         sharedContext
       )
+
+      await this.triggerAutomatedCampaignsForSubscriber(
+        {
+          subscriber_id: createdSubscriber.id,
+          previous_tags: {},
+          next_tags: input.tags || {},
+        },
+        sharedContext
+      )
+
+      return createdSubscriber
     }
 
-    return this.updateSubscribers(
+    const previousTags = (existing[0].tags as Record<string, unknown>) || {}
+    const updatedSubscriber = await this.updateSubscribers(
       {
         id: existing[0].id,
         first_name: input.first_name ?? existing[0].first_name,
@@ -126,6 +220,17 @@ class EmailMarketingModuleService extends MedusaService({
       },
       sharedContext
     )
+
+    await this.triggerAutomatedCampaignsForSubscriber(
+      {
+        subscriber_id: existing[0].id,
+        previous_tags: previousTags,
+        next_tags: (updatedSubscriber.tags as Record<string, unknown>) || previousTags,
+      },
+      sharedContext
+    )
+
+    return updatedSubscriber
   }
 
   @InjectManager()
@@ -204,7 +309,7 @@ class EmailMarketingModuleService extends MedusaService({
       template_id: string
       scheduled_at?: string | null
       audience_filter?: Record<string, unknown>
-      status?: "draft" | "scheduled"
+      status?: "draft" | "scheduled" | "automated"
       metadata?: Record<string, unknown>
     },
     @MedusaContext() sharedContext?: Context<EntityManager>
@@ -213,7 +318,7 @@ class EmailMarketingModuleService extends MedusaService({
       {
         ...input,
         template_id: input.template_id,
-        status: input.status || (input.scheduled_at ? "scheduled" : "draft"),
+        status: (input.status as CampaignStatus | undefined) || (input.scheduled_at ? "scheduled" : "draft"),
         scheduled_at: input.scheduled_at ? new Date(input.scheduled_at) : null,
       },
       sharedContext

@@ -12,7 +12,7 @@ const CampaignAudienceFilterSchema = z
   .default({})
 
 export const GetAdminEmailCampaignsSchema = z.object({
-  status: z.enum(["draft", "scheduled", "processing", "sent", "failed"]).optional(),
+  status: z.enum(["draft", "scheduled", "automated", "processing", "sent", "failed"]).optional(),
   limit: z.coerce.number().min(1).max(100).default(20),
   offset: z.coerce.number().min(0).default(0),
 })
@@ -25,7 +25,7 @@ export const PostAdminEmailCampaignSchema = z.object({
   template_id: z.string(),
   scheduled_at: z.string().datetime().optional().nullable(),
   audience_filter: CampaignAudienceFilterSchema.optional(),
-  status: z.enum(["draft", "scheduled"]).optional(),
+  status: z.enum(["draft", "scheduled", "automated"]).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
