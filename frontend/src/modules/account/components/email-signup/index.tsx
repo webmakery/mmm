@@ -14,9 +14,10 @@ type Props = {
   storeName: string
   countryCode: string
   regions: HttpTypes.StoreRegion[]
+  embedded?: boolean
 }
 
-const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
+const EmailSignup = ({ storeName, countryCode, regions, embedded = false }: Props) => {
   const [message, formAction] = useActionState(signupWithEmailPassword, null)
   const isSignupComplete = message === "signup_success"
 
@@ -34,6 +35,122 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
 
   const currentRegion =
     regionOptions.find((option) => option.value === countryCode) ?? regionOptions[0]
+
+  const formPanel = (
+    <div className="relative w-full border border-ui-border-base bg-ui-bg-base rounded-rounded p-5 small:p-6 flex flex-col gap-y-3 text-ui-fg-base">
+      {isSignupComplete ? (
+        <div className="w-full flex flex-col gap-y-3 text-center">
+          <h2 className="text-2xl font-normal">Thank you for signing up</h2>
+          <p className="text-base-regular text-ui-fg-subtle">
+            Your account has been created successfully.
+          </p>
+          <p className="text-base-regular text-ui-fg-subtle">
+            We appreciate your trust and look forward to supporting your journey.
+          </p>
+        </div>
+      ) : (
+        <>
+          <form
+            className="w-full flex flex-col gap-y-3"
+            action={formAction}
+            onSubmitCapture={() => {
+              void trackJourneyEvent("signup_started", {}, { debounceMs: 5000 })
+            }}
+          >
+            <Input
+              label="Email address"
+              name="email"
+              type="email"
+              title="Enter a valid email address."
+              autoComplete="email"
+              required
+              data-testid="signup-email-input"
+            />
+            <Input
+              label="Password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              data-testid="signup-password-input"
+            />
+            <input type="hidden" name="country_code" value={countryCode} />
+
+            <ErrorMessage error={message} data-testid="signup-error-message" />
+
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full"
+              data-testid="signup-submit-button"
+            >
+              Continue with email
+            </Button>
+            <p className="text-small-regular text-ui-fg-subtle text-center">
+              No credit card required for the free trial.
+            </p>
+          </form>
+
+          <div className="flex items-center gap-x-4 py-1">
+            <span className="h-px flex-1 bg-ui-border-base" />
+            <span className="text-small-regular text-ui-fg-subtle">or</span>
+            <span className="h-px flex-1 bg-ui-border-base" />
+          </div>
+
+          <Button variant="secondary" className="w-full justify-start gap-x-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://pub-ba24c3daf8c64c0289537005de0266f9.r2.dev/Assets/google.svg"
+              alt="Google"
+              className="h-5 w-5"
+            />
+            Continue with Google
+          </Button>
+          <Button variant="secondary" className="w-full justify-start gap-x-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://pub-ba24c3daf8c64c0289537005de0266f9.r2.dev/Assets/facebook.svg"
+              alt="Facebook"
+              className="h-5 w-5"
+            />
+            Continue with Facebook
+          </Button>
+
+          <span className="text-center text-small-regular text-ui-fg-base mt-2">
+            Already have a {storeName} account?{" "}
+            <LocalizedClientLink href="/account" className="underline">
+              Log in
+            </LocalizedClientLink>
+          </span>
+        </>
+      )}
+    </div>
+  )
+
+  if (embedded) {
+    return (
+      <div className="w-full max-w-md space-y-4">
+        {formPanel}
+
+        <div className="flex items-center gap-x-2 justify-center text-small-regular text-ui-fg-base">
+          {currentRegion?.value ? (
+            <>
+              {/* @ts-ignore */}
+              <ReactCountryFlag
+                svg
+                style={{
+                  width: "16px",
+                  height: "16px",
+                }}
+                countryCode={currentRegion.value}
+              />
+              <span>{currentRegion.label}</span>
+            </>
+          ) : null}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-black text-white flex items-center justify-center px-6 py-8">
@@ -57,94 +174,7 @@ const EmailSignup = ({ storeName, countryCode, regions }: Props) => {
           </p>
         </div>
 
-        <div className="relative w-full border border-ui-border-base bg-ui-bg-base rounded-rounded p-5 small:p-6 flex flex-col gap-y-3 text-ui-fg-base">
-          {isSignupComplete ? (
-            <div className="w-full flex flex-col gap-y-3 text-center">
-              <h2 className="text-2xl font-normal">Thank you for signing up</h2>
-              <p className="text-base-regular text-ui-fg-subtle">
-                Your account has been created successfully.
-              </p>
-              <p className="text-base-regular text-ui-fg-subtle">
-                We appreciate your trust and look forward to supporting your journey.
-              </p>
-            </div>
-          ) : (
-            <>
-              <form
-                className="w-full flex flex-col gap-y-3"
-                action={formAction}
-                onSubmitCapture={() => {
-                  void trackJourneyEvent("signup_started", {}, { debounceMs: 5000 })
-                }}
-              >
-                <Input
-                  label="Email address"
-                  name="email"
-                  type="email"
-                  title="Enter a valid email address."
-                  autoComplete="email"
-                  required
-                  data-testid="signup-email-input"
-                />
-                <Input
-                  label="Password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  data-testid="signup-password-input"
-                />
-                <input type="hidden" name="country_code" value={countryCode} />
-
-                <ErrorMessage error={message} data-testid="signup-error-message" />
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="w-full"
-                  data-testid="signup-submit-button"
-                >
-                  Continue with email
-                </Button>
-                <p className="text-small-regular text-ui-fg-subtle text-center">
-                  No credit card required for the free trial.
-                </p>
-              </form>
-
-              <div className="flex items-center gap-x-4 py-1">
-                <span className="h-px flex-1 bg-ui-border-base" />
-                <span className="text-small-regular text-ui-fg-subtle">or</span>
-                <span className="h-px flex-1 bg-ui-border-base" />
-              </div>
-
-              <Button variant="secondary" className="w-full justify-start gap-x-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="https://pub-ba24c3daf8c64c0289537005de0266f9.r2.dev/Assets/google.svg"
-                  alt="Google"
-                  className="h-5 w-5"
-                />
-                Continue with Google
-              </Button>
-              <Button variant="secondary" className="w-full justify-start gap-x-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="https://pub-ba24c3daf8c64c0289537005de0266f9.r2.dev/Assets/facebook.svg"
-                  alt="Facebook"
-                  className="h-5 w-5"
-                />
-                Continue with Facebook
-              </Button>
-
-              <span className="text-center text-small-regular text-ui-fg-base mt-2">
-                Already have a {storeName} account?{" "}
-                <LocalizedClientLink href="/account" className="underline">
-                  Log in
-                </LocalizedClientLink>
-              </span>
-            </>
-          )}
-        </div>
+        {formPanel}
 
         <div className="flex items-center gap-x-2 text-small-regular text-ui-fg-base">
           {currentRegion?.value ? (

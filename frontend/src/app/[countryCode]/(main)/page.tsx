@@ -3,6 +3,8 @@ import { Metadata } from "next"
 import { Button } from "@medusajs/ui"
 import Hero from "@modules/home/components/hero"
 import TrackedCtaLink from "@modules/home/components/tracked-cta-link"
+import { getStoreBranding } from "@lib/data/store-branding"
+import { listRegions } from "@lib/data/regions"
 
 export const metadata: Metadata = {
   title: "Storefront",
@@ -120,10 +122,20 @@ const faqs = [
   },
 ]
 
-export default function Home() {
+type Props = {
+  params: Promise<{ countryCode: string }>
+}
+
+export default async function Home({ params }: Props) {
+  const { countryCode } = await params
+
+  const [branding, regions] = await Promise.all([
+    getStoreBranding(),
+    listRegions().then((storeRegions) => storeRegions ?? []),
+  ])
   return (
     <>
-      <Hero />
+      <Hero storeName={branding.store_name} countryCode={countryCode} regions={regions} />
 
       <div className="content-container py-10 small:py-12">
         <section className="mb-10 border border-ui-border-base bg-ui-bg-subtle px-4 py-4 small:px-6">
