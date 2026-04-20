@@ -13,33 +13,33 @@ type FeatureCard = {
 }
 
 const logoItems = [
-  "Migration mit klarem Fahrplan",
+  "Für Shopify- & WooCommerce-Shops",
   "3 Tage kostenlos testen",
   "Danach 3 Monate für 1 €/Monat",
-  "Keine Kreditkarte für den Test",
+  "Ohne Kreditkarte starten",
 ]
 
 const featureCards: FeatureCard[] = [
   {
     eyebrow: "SCHNELLER START",
     visual: "Storefront-Setup",
-    title: "Dein Shop ist in kurzer Zeit startklar",
+    title: "Vom Signup zum verkaufsbereiten Shop mit klaren Schritten",
     description:
-      "Geführtes Setup und klare Schritte helfen dir, ohne Technik-Stress live zu gehen.",
+      "Geführtes Setup zeigt deinem Team die nächsten Schritte, damit ihr schneller live gehen könnt.",
   },
   {
     eyebrow: "PLANBARE KOSTEN",
     visual: "Preis & Plan",
-    title: "Transparent starten statt später überrascht werden",
+    title: "Transparenter Einstieg statt versteckter Überraschungen",
     description:
-      "Teste 3 Tage kostenlos und starte danach mit 1 €/Monat für 3 Monate.",
+      "3 Tage kostenlos testen, danach 3 Monate für 1 €/Monat.",
   },
   {
     eyebrow: "WECHSEL OHNE CHAOS",
     visual: "Migrations-Checkliste",
-    title: "Von Shopify oder WooCommerce strukturiert wechseln",
+    title: "Migration mit Plan statt Risiko",
     description:
-      "Produkte, Kund:innen und SEO werden mit Validierung und klarer Reihenfolge übernommen.",
+      "Produkte, Kund:innen und SEO werden strukturiert übernommen und vor dem Go-live validiert.",
   },
   {
     eyebrow: "WACHSTUM MIT KONTROLLE",
@@ -52,24 +52,34 @@ const featureCards: FeatureCard[] = [
 
 const faqs = [
   {
-    question: "Was bekomme ich beim kostenlosen Start konkret?",
+    question: "Wie viel Aufwand ist der Start für mein Team?",
     answer:
-      "Du erstellst direkt ein Konto, testest die Plattform 3 Tage kostenlos und kannst danach mit 1 €/Monat für 3 Monate weitermachen.",
+      "Du legst dein Konto an und folgst einem geführten Setup. Der Prozess ist in klare Schritte aufgeteilt, damit dein Team ohne Technik-Chaos starten kann.",
   },
   {
-    question: "Brauche ich für den Start eine Kreditkarte?",
+    question: "Wie sicher ist die Migration von Shopify oder WooCommerce?",
     answer:
-      "Nein. Für den kostenlosen Test ist keine Kreditkarte erforderlich.",
+      "Die Migration folgt einem festen Ablauf mit Planung, Datenübernahme, Validierung und Go-live-Begleitung.",
+  },
+  {
+    question: "Wie klar ist das Pricing nach dem Test?",
+    answer:
+      "Du testest 3 Tage kostenlos. Danach zahlst du 3 Monate lang 1 €/Monat. So kannst du mit klaren Kosten entscheiden, ob Webmakerr zu deinem Shop passt.",
+  },
+  {
+    question: "Bekomme ich Hilfe bei Einrichtung und Go-live?",
+    answer:
+      "Ja. Du bekommst einen geführten Prozess für Setup und Migration inklusive Go-live-Begleitung.",
+  },
+  {
+    question: "Was passiert direkt nach der Anmeldung?",
+    answer:
+      "Nach dem Signup erstellst du dein Konto, startest den 3-tägigen Test und wirst Schritt für Schritt durch Einrichtung oder Migration geführt.",
   },
   {
     question: "Kann ich mit eigener Domain arbeiten?",
     answer:
       "Ja. Eigene Domains und Domain-Verknüpfungen sind Teil der Plattform und lassen sich im Admin verwalten.",
-  },
-  {
-    question: "Könnt ihr beim Wechsel von Shopify oder WooCommerce helfen?",
-    answer:
-      "Ja. Es gibt einen geführten Migrationsprozess mit Planung, Datenübernahme, Validierung und Go-live-Begleitung.",
   },
 ]
 
@@ -85,9 +95,9 @@ const StickyFooterCTA = ({ visible }: { visible: boolean }) => {
         className="mx-auto w-full max-w-[560px] rounded-[28px] border border-black/45 bg-[#020810] px-4 py-4 text-white shadow-[0_24px_60px_rgba(0,0,0,0.42)]"
         aria-label="Fixiertes E-Mail-Formular"
       >
-        <h2 className="text-xl-semi small:text-2xl-semi">Jetzt kostenlos starten</h2>
+        <h2 className="text-xl-semi small:text-2xl-semi">3 Tage kostenlos testen</h2>
         <p className="mt-1 text-small-regular text-white/75">
-          Kein Risiko: 3 Tage kostenlos testen. Keine Kreditkarte nötig.
+          Ohne Kreditkarte. Konto in wenigen Minuten erstellt.
         </p>
 
         <label htmlFor="mobile-sticky-email" className="sr-only">
@@ -98,13 +108,13 @@ const StickyFooterCTA = ({ visible }: { visible: boolean }) => {
             id="mobile-sticky-email"
             type="email"
             required
-            placeholder="Geschäftliche E-Mail"
+            placeholder="Geschäftliche E-Mail-Adresse"
             className="w-full bg-transparent text-base-regular text-white outline-none placeholder:text-white/62 small:text-large-regular"
           />
           <button
             type="submit"
             className="flex size-10 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#020810]"
-            aria-label="Kostenlos starten"
+            aria-label="Test starten"
           >
             <ArrowRightMini />
           </button>
@@ -140,11 +150,12 @@ const HeroCollage = ({ heroRef }: { heroRef: RefObject<HTMLElement | null> }) =>
         <div className="w-full max-w-[477px]">
           <div className="rounded-[42px] bg-white px-7 py-7 shadow-[0_24px_60px_rgba(0,0,0,0.24)] small:px-8 small:py-8">
             <h1 className="max-w-[450px] text-3xl-semi text-ui-fg-base">
-              Starte deinen Shop mit Webmakerr
+              Für wachsende Shops: strukturiert live gehen statt Monate verlieren
             </h1>
             <p className="mt-3 max-w-[430px] text-large-regular text-ui-fg-subtle">
-              3 Tage kostenlos testen, danach 3 Monate für 1 €/Monat. Schnell
-              eingerichtet, klar geführt, ohne unnötige Hürden.
+              Für Teams, die neu starten oder von Shopify/WooCommerce wechseln:
+              Geführtes Setup, klare Migration und 3 Tage kostenlos testen – ohne
+              Kreditkarte. Danach 3 Monate für 1 €/Monat.
             </p>
           </div>
 
@@ -152,9 +163,9 @@ const HeroCollage = ({ heroRef }: { heroRef: RefObject<HTMLElement | null> }) =>
             className="mt-2 rounded-[40px] border border-black/45 bg-[#020810] px-6 py-5 text-white shadow-[0_24px_60px_rgba(0,0,0,0.42)]"
             aria-label="E-Mail-Formular zum Start"
           >
-            <h2 className="text-xl-semi small:text-2xl-semi">Kostenlos starten</h2>
+            <h2 className="text-xl-semi small:text-2xl-semi">Jetzt Testzugang sichern</h2>
             <p className="mt-1 text-small-regular text-white/78">
-              Keine Kreditkarte für den Test. Konto in wenigen Minuten erstellt.
+              Kein Risiko: 3 Tage kostenlos testen. Danach 3 Monate für 1 €/Monat.
             </p>
 
             <label htmlFor="hero-email" className="sr-only">
@@ -165,19 +176,20 @@ const HeroCollage = ({ heroRef }: { heroRef: RefObject<HTMLElement | null> }) =>
                 id="hero-email"
                 type="email"
                 required
-                placeholder="Geschäftliche E-Mail"
+                placeholder="Geschäftliche E-Mail-Adresse"
                 className="w-full bg-transparent text-base-regular text-white outline-none placeholder:text-white/62 small:text-large-regular"
               />
               <button
                 type="submit"
                 className="flex size-10 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#020810] small:size-12"
-                aria-label="Jetzt kostenlos starten"
+                aria-label="Testzugang sichern"
               >
                 <ArrowRightMini />
               </button>
             </div>
             <p className="mt-3 text-small-regular text-white/65">
-              Mit Klick auf „Starten“ stimmst du unseren Marketing-E-Mails zu.
+              Wir senden dir nur Infos zur Kontoaktivierung und zum Start.
+              Abmeldung jederzeit möglich.
             </p>
           </form>
         </div>
@@ -255,7 +267,7 @@ const SecondaryCTA = () => {
             W
           </div>
           <h2 className="mx-auto mt-6 max-w-[560px] text-2xl-semi small:text-3xl-semi">
-            Ohne Risiko starten. 3 Tage kostenlos, dann 3 Monate für 1 €/Monat.
+            Starte jetzt mit klaren Schritten: 3 Tage kostenlos, danach 3 Monate für 1 €/Monat.
           </h2>
           <form
             className="mx-auto mt-7 w-full max-w-[560px]"
@@ -269,19 +281,20 @@ const SecondaryCTA = () => {
                 id="shopify-promo-email"
                 type="email"
                 required
-                placeholder="Geschäftliche E-Mail"
+                placeholder="Geschäftliche E-Mail-Adresse"
                 className="w-full bg-transparent text-large-regular text-ui-fg-base outline-none placeholder:text-ui-fg-subtle"
               />
               <button
                 type="submit"
                 className="flex size-12 items-center justify-center rounded-full bg-black text-white transition-colors hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#4a14d0]"
-                aria-label="Testzugang anfordern"
+                aria-label="Jetzt Test starten"
               >
                 <ArrowRightMini />
               </button>
             </div>
             <p className="mt-4 text-small-regular text-white/65">
-              Du erhältst E-Mails zum Produktstart und zur Kontoaktivierung.
+              Wir senden dir nur E-Mails für Kontoaktivierung und Produktstart.
+              Du kannst dich jederzeit abmelden.
             </p>
           </form>
         </div>
