@@ -18,7 +18,35 @@ export type JourneyEventName =
 const getBackendBase = () =>
   process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || ""
 
-const buildUrl = (path: string) => `${getBackendBase()}${path}`
+const trimTrailingSlashes = (value: string) => value.replace(/\/+$/, "")
+
+const buildUrl = (path: string) => {
+  const backendBase = getBackendBase()
+
+  if (backendBase) {
+    return new URL(path, `${trimTrailingSlashes(backendBase)}/`).toString()
+  }
+
+  if (typeof window !== "undefined") {
+    return new URL(path, window.location.origin).toString()
+  }
+
+  return path
+}
+
+const postJourney = async (path: string, body: Record<string, unknown>) => {
+  await fetch(buildUrl(path), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(body),
+    keepalive: true,
+  }).catch(() => {
+    // tracking should never block UX paths
+  })
+}
 
 const randomId = (prefix: string) => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -123,16 +151,7 @@ export const trackJourneyEvent = async (
     payload,
   }
 
-  await fetch(buildUrl("/store/journey/events"), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(requestBody),
-    keepalive: true,
-  }).catch(() => {
-    // tracking should never block UX paths
-  })
+  await postJourney("/store/journey/events", requestBody)
 }
 
 export const trackIdentifyUser = async (customerId: string) => {
@@ -140,20 +159,28 @@ export const trackIdentifyUser = async (customerId: string) => {
     return
   }
 
-  await fetch(buildUrl("/store/journey/identify"), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      anonymous_id: getOrCreateAnonymousId(),
-      session_id: getOrCreateSessionId(),
-      customer_id: customerId,
-      source: "storefront",
-    }),
-    keepalive: true,
-  }).catch(() => {
-    // tracking should never block UX paths
+  await postJourney("/store/journey/identify", {
+    anonymous_id: getOrCreateAnonymousId(),
+    session_id: getOrCreateSessionId(),
+    customer_id: customerId,
+    source: "storefront",
+  })
+}
+
+export const trackSignupCompleted = async (customerId: string) => {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  const utm = readUtmFromSearch()
+
+  await postJourney("/store/journey/signup-completed", {
+    anonymous_id: getOrCreateAnonymousId(),
+    session_id: getOrCreateSessionId(),
+    customer_id: customerId,
+    page_url: window.location.href,
+    referrer: document.referrer || undefined,
+    ...utm,
   })
 }
 
