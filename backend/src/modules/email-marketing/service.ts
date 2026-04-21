@@ -17,6 +17,7 @@ type CampaignStatus = "draft" | "scheduled" | "automated" | "processing" | "sent
 type QueueCampaignSendOptions = {
   subscriber_ids?: string[]
   allow_already_sent?: boolean
+  skip_processing_status_update?: boolean
 }
 
 type ListConfig = { limit: number; offset: number }
@@ -236,6 +237,7 @@ class EmailMarketingModuleService extends MedusaService({
       tags?: Record<string, unknown>
       source?: string | null
       metadata?: Record<string, unknown> | null
+      notification_module_service?: INotificationModuleService
     },
     @MedusaContext() sharedContext?: Context<EntityManager>
   ) {
@@ -266,6 +268,10 @@ class EmailMarketingModuleService extends MedusaService({
         sharedContext
       )
 
+      if (input.notification_module_service) {
+        await this.processQueuedAutomatedCampaignLogs(input.notification_module_service, sharedContext)
+      }
+
       return createdSubscriber
     }
 
@@ -291,6 +297,10 @@ class EmailMarketingModuleService extends MedusaService({
       },
       sharedContext
     )
+
+    if (input.notification_module_service) {
+      await this.processQueuedAutomatedCampaignLogs(input.notification_module_service, sharedContext)
+    }
 
     return updatedSubscriber
   }
@@ -377,6 +387,9 @@ class EmailMarketingModuleService extends MedusaService({
     @MedusaContext() sharedContext?: Context<EntityManager>
   ) {
     const parsedScheduledAt = input.scheduled_at ? new Date(input.scheduled_at) : null
+    if (parsedScheduledAt && Number.isNaN(parsedScheduledAt.getTime())) {
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, "Invalid scheduled_at datetime")
+    }
     const audienceFilter = this.normalizeAudienceFilter(input.audience_filter as CampaignAudienceFilter)
     const status = (input.status as CampaignStatus | undefined) || (parsedScheduledAt ? "scheduled" : "draft")
 
@@ -426,6 +439,9 @@ class EmailMarketingModuleService extends MedusaService({
           ? new Date(input.scheduled_at)
           : null
         : campaign.scheduled_at
+    if (nextScheduledAt && Number.isNaN(new Date(nextScheduledAt).getTime())) {
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, "Invalid scheduled_at datetime")
+    }
 
     const nextAudienceFilter = this.normalizeAudienceFilter(
       (input.audience_filter as CampaignAudienceFilter | undefined) ||
@@ -485,7 +501,9 @@ class EmailMarketingModuleService extends MedusaService({
       throw new MedusaError(MedusaError.Types.INVALID_DATA, "No matching subscribers for this campaign audience")
     }
 
-    await this.updateEmailCampaigns({ id: campaign.id, status: "processing" }, sharedContext)
+    if (!options.skip_processing_status_update) {
+      await this.updateEmailCampaigns({ id: campaign.id, status: "processing" }, sharedContext)
+    }
 
     const existingLogs = await this.listEmailCampaignLogs(
       { campaign_id: campaign.id },
@@ -594,26 +612,40 @@ class EmailMarketingModuleService extends MedusaService({
     notificationModuleService: INotificationModuleService,
     @MedusaContext() sharedContext?: Context<EntityManager>
   ) {
-    const dueCampaigns = await this.listEmailCampaigns(
-      {
-        status: "scheduled",
-      },
-      { take: 200, order: { scheduled_at: "ASC" } },
-      sharedContext
-    )
-    const now = new Date()
+    const manager = sharedContext?.manager
+    const claimedRows =
+      (await manager?.execute(
+        `
+          update email_campaign
+          set status = 'processing',
+              updated_at = now()
+          where id in (
+            select id
+            from email_campaign
+            where deleted_at is null
+              and status = 'scheduled'
+              and sent_at is null
+              and scheduled_at is not null
+              and scheduled_at <= now()
+            order by scheduled_at asc
+            limit 200
+          )
+          returning id
+        `
+      )) || []
+
+    const claimedCampaignIds = claimedRows
+      .map((row) => String((row as { id?: string }).id || ""))
+      .filter(Boolean)
     let processedCount = 0
 
-    for (const campaign of dueCampaigns) {
-      if (!campaign.scheduled_at || campaign.scheduled_at > now) {
-        continue
-      }
-
-      if (campaign.sent_at) {
-        continue
-      }
-
-      await this.queueCampaignSend(campaign.id, notificationModuleService, { allow_already_sent: false }, sharedContext)
+    for (const campaignId of claimedCampaignIds) {
+      await this.queueCampaignSend(
+        campaignId,
+        notificationModuleService,
+        { allow_already_sent: false, skip_processing_status_update: true },
+        sharedContext
+      )
       processedCount += 1
     }
 

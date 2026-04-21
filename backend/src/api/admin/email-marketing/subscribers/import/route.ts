@@ -1,5 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { INotificationModuleService } from "@medusajs/framework/types"
 import { z } from "@medusajs/framework/zod"
+import { Modules } from "@medusajs/framework/utils"
 import { EMAIL_MARKETING_MODULE } from "../../../../../modules/email-marketing"
 import EmailMarketingModuleService from "../../../../../modules/email-marketing/service"
 
@@ -17,6 +19,7 @@ export const PostAdminEmailSubscriberImportSchema = z.object({
 
 export async function POST(req: MedusaRequest<z.infer<typeof PostAdminEmailSubscriberImportSchema>>, res: MedusaResponse) {
   const service: EmailMarketingModuleService = req.scope.resolve(EMAIL_MARKETING_MODULE)
+  const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION)
 
   const subscribers = await Promise.all(
     req.validatedBody.subscribers.map((subscriber) =>
@@ -24,6 +27,7 @@ export async function POST(req: MedusaRequest<z.infer<typeof PostAdminEmailSubsc
         ...subscriber,
         status: "active",
         tags: subscriber.tags || {},
+        notification_module_service: notificationModuleService,
       })
     )
   )
