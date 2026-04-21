@@ -11,7 +11,6 @@ export default async function startEmailMarketingCampaignProcessor({ container }
   }
 
   const logger = container.resolve("logger")
-  const emailMarketingService: EmailMarketingModuleService = container.resolve(EMAIL_MARKETING_MODULE)
   const notificationModuleService: INotificationModuleService = container.resolve(Modules.NOTIFICATION)
   let isRunning = false
 
@@ -23,6 +22,7 @@ export default async function startEmailMarketingCampaignProcessor({ container }
     isRunning = true
 
     try {
+      const emailMarketingService: EmailMarketingModuleService = container.resolve(EMAIL_MARKETING_MODULE)
       const scheduledResult = await emailMarketingService.processDueScheduledCampaigns(notificationModuleService)
       const automatedResult = await emailMarketingService.processQueuedAutomatedCampaignLogs(notificationModuleService)
 
