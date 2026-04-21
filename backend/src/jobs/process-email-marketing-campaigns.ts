@@ -5,17 +5,25 @@ import EmailMarketingModuleService from "../modules/email-marketing/service"
 
 const EMAIL_MARKETING_MODULE_SERVICE = `${EMAIL_MARKETING_MODULE}ModuleService`
 
-const resolveEmailMarketingService = (container: MedusaContainer): EmailMarketingModuleService => {
+const resolveEmailMarketingService = (container: MedusaContainer): EmailMarketingModuleService | null => {
   try {
     return container.resolve(EMAIL_MARKETING_MODULE)
   } catch {
-    return container.resolve(EMAIL_MARKETING_MODULE_SERVICE)
+    try {
+      return container.resolve(EMAIL_MARKETING_MODULE_SERVICE)
+    } catch {
+      return null
+    }
   }
 }
 
 export default async function processEmailMarketingCampaignsJob(container: MedusaContainer) {
   const logger = container.resolve("logger")
   const emailMarketingService = resolveEmailMarketingService(container)
+  if (!emailMarketingService) {
+    logger.warn("[email-marketing] module service is unavailable, skipping processing job")
+    return
+  }
   const notificationModuleService: INotificationModuleService = container.resolve(Modules.NOTIFICATION)
 
   try {

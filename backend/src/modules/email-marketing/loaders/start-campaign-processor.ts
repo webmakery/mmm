@@ -6,11 +6,15 @@ import EmailMarketingModuleService from "../service"
 const PROCESSOR_INTERVAL_MS = Number(process.env.EMAIL_MARKETING_PROCESSOR_INTERVAL_MS || 60_000)
 const EMAIL_MARKETING_MODULE_SERVICE = `${EMAIL_MARKETING_MODULE}ModuleService`
 
-const resolveEmailMarketingService = (container: LoaderOptions["container"]): EmailMarketingModuleService => {
+const resolveEmailMarketingService = (container: LoaderOptions["container"]): EmailMarketingModuleService | null => {
   try {
     return container.resolve(EMAIL_MARKETING_MODULE)
   } catch {
-    return container.resolve(EMAIL_MARKETING_MODULE_SERVICE)
+    try {
+      return container.resolve(EMAIL_MARKETING_MODULE_SERVICE)
+    } catch {
+      return null
+    }
   }
 }
 
@@ -40,6 +44,10 @@ export default async function startEmailMarketingCampaignProcessor({ container }
       }
 
       const emailMarketingService = resolveEmailMarketingService(container)
+      if (!emailMarketingService) {
+        logger.warn("[email-marketing] module service is unavailable, skipping campaign processor run")
+        return
+      }
       const scheduledResult = await emailMarketingService.processDueScheduledCampaigns(notificationModuleService)
       const automatedResult = await emailMarketingService.processQueuedAutomatedCampaignLogs(notificationModuleService)
 
