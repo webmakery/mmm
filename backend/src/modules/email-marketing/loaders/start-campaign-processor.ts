@@ -1,21 +1,25 @@
 import { LoaderOptions, INotificationModuleService } from "@medusajs/framework/types"
 import { Modules } from "@medusajs/framework/utils"
-import { EMAIL_MARKETING_MODULE } from "../constants"
+import { EMAIL_MARKETING_MODULE, LEGACY_EMAIL_MARKETING_MODULE } from "../constants"
 import EmailMarketingModuleService from "../service"
 
 const PROCESSOR_INTERVAL_MS = Number(process.env.EMAIL_MARKETING_PROCESSOR_INTERVAL_MS || 60_000)
-const EMAIL_MARKETING_MODULE_SERVICE = `${EMAIL_MARKETING_MODULE}ModuleService`
-
 const resolveEmailMarketingService = (container: LoaderOptions["container"]): EmailMarketingModuleService | null => {
-  try {
-    return container.resolve(EMAIL_MARKETING_MODULE)
-  } catch {
+  const candidates = [
+    EMAIL_MARKETING_MODULE,
+    LEGACY_EMAIL_MARKETING_MODULE,
+    `${LEGACY_EMAIL_MARKETING_MODULE}ModuleService`,
+  ]
+
+  for (const candidate of candidates) {
     try {
-      return container.resolve(EMAIL_MARKETING_MODULE_SERVICE)
+      return container.resolve(candidate)
     } catch {
-      return null
+      continue
     }
   }
+
+  return null
 }
 
 export default async function startEmailMarketingCampaignProcessor({ container }: LoaderOptions) {

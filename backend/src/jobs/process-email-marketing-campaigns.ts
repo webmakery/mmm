@@ -1,20 +1,24 @@
 import type { MedusaContainer, INotificationModuleService } from "@medusajs/framework/types"
 import { Modules } from "@medusajs/framework/utils"
-import { EMAIL_MARKETING_MODULE } from "../modules/email-marketing"
+import { EMAIL_MARKETING_MODULE, LEGACY_EMAIL_MARKETING_MODULE } from "../modules/email-marketing"
 import EmailMarketingModuleService from "../modules/email-marketing/service"
 
-const EMAIL_MARKETING_MODULE_SERVICE = `${EMAIL_MARKETING_MODULE}ModuleService`
-
 const resolveEmailMarketingService = (container: MedusaContainer): EmailMarketingModuleService | null => {
-  try {
-    return container.resolve(EMAIL_MARKETING_MODULE)
-  } catch {
+  const candidates = [
+    EMAIL_MARKETING_MODULE,
+    LEGACY_EMAIL_MARKETING_MODULE,
+    `${LEGACY_EMAIL_MARKETING_MODULE}ModuleService`,
+  ]
+
+  for (const candidate of candidates) {
     try {
-      return container.resolve(EMAIL_MARKETING_MODULE_SERVICE)
+      return container.resolve(candidate)
     } catch {
-      return null
+      continue
     }
   }
+
+  return null
 }
 
 export default async function processEmailMarketingCampaignsJob(container: MedusaContainer) {
