@@ -194,7 +194,7 @@ const EmailCampaignsPage = () => {
     form.sender_name.trim() &&
     form.sender_email.trim() &&
     form.template_id &&
-    (form.status === "draft" || !!form.scheduled_at)
+    (form.status === "draft" || form.status === "automated" || !!form.scheduled_at)
 
   return (
     <Container>
