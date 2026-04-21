@@ -1,31 +1,12 @@
 import type { MedusaContainer, INotificationModuleService } from "@medusajs/framework/types"
 import { Modules } from "@medusajs/framework/utils"
-import { EMAIL_MARKETING_MODULE, LEGACY_EMAIL_MARKETING_MODULE } from "../modules/email-marketing"
-import EmailMarketingModuleService from "../modules/email-marketing/service"
-
-const resolveEmailMarketingService = (container: MedusaContainer): EmailMarketingModuleService | null => {
-  const candidates = [
-    EMAIL_MARKETING_MODULE,
-    LEGACY_EMAIL_MARKETING_MODULE,
-    `${LEGACY_EMAIL_MARKETING_MODULE}ModuleService`,
-  ]
-
-  for (const candidate of candidates) {
-    try {
-      return container.resolve(candidate)
-    } catch {
-      continue
-    }
-  }
-
-  return null
-}
+import { EMAIL_MARKETING_SERVICE_CANDIDATES, resolveEmailMarketingService } from "../modules/email-marketing/resolve-module-service"
 
 export default async function processEmailMarketingCampaignsJob(container: MedusaContainer) {
   const logger = container.resolve("logger")
   const emailMarketingService = resolveEmailMarketingService(container)
   if (!emailMarketingService) {
-    logger.warn("[email-marketing] module service is unavailable, skipping processing job")
+    logger.warn(`[email-marketing] module service is unavailable (checked: ${EMAIL_MARKETING_SERVICE_CANDIDATES.join(", ")}), skipping processing job`)
     return
   }
   const notificationModuleService: INotificationModuleService = container.resolve(Modules.NOTIFICATION)

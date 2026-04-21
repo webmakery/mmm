@@ -11,6 +11,7 @@ export const PostAdminCustomerTagsSchema = z.object({
 })
 
 export async function POST(req: MedusaRequest<z.infer<typeof PostAdminCustomerTagsSchema>>, res: MedusaResponse) {
+  const logger = req.scope.resolve("logger")
   const customerService = req.scope.resolve(Modules.CUSTOMER)
   const emailMarketingService: EmailMarketingModuleService = req.scope.resolve(EMAIL_MARKETING_MODULE)
   const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION)
@@ -38,6 +39,7 @@ export async function POST(req: MedusaRequest<z.infer<typeof PostAdminCustomerTa
       },
       notification_module_service: notificationModuleService,
     })
+    logger.info(`[email-marketing] synced customer tags for customer=${customer.id}, tags=${nextTags.join("|") || "none"}`)
   }
 
   res.json({ customer: updatedCustomer, tags: nextTags })
