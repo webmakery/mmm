@@ -111,11 +111,19 @@ class EmailMarketingModuleService extends MedusaService({
   async triggerAutomatedCampaignsForSubscriber(
     input: {
       subscriber_id: string
+      subscriber_status?: SubscriberStatus
       previous_tags?: Record<string, unknown> | null
       next_tags?: Record<string, unknown> | null
     },
     @MedusaContext() sharedContext?: Context<EntityManager>
   ) {
+    const subscriberStatus =
+      input.subscriber_status ?? (await this.retrieveSubscriber(input.subscriber_id, {}, sharedContext)).status
+
+    if (subscriberStatus !== "active") {
+      return
+    }
+
     const previousTagSet = this.getSubscriberTagSet(input.previous_tags || {})
     const nextTagSet = this.getSubscriberTagSet(input.next_tags || {})
     const addedTags = Array.from(nextTagSet).filter((tag) => !previousTagSet.has(tag))
@@ -198,6 +206,7 @@ class EmailMarketingModuleService extends MedusaService({
       await this.triggerAutomatedCampaignsForSubscriber(
         {
           subscriber_id: createdSubscriber.id,
+          subscriber_status: createdSubscriber.status,
           previous_tags: {},
           next_tags: input.tags || {},
         },
@@ -224,6 +233,7 @@ class EmailMarketingModuleService extends MedusaService({
     await this.triggerAutomatedCampaignsForSubscriber(
       {
         subscriber_id: existing[0].id,
+        subscriber_status: updatedSubscriber.status,
         previous_tags: previousTags,
         next_tags: (updatedSubscriber.tags as Record<string, unknown>) || previousTags,
       },
