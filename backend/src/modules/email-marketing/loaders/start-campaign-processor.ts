@@ -11,7 +11,6 @@ export default async function startEmailMarketingCampaignProcessor({ container }
   }
 
   const logger = container.resolve("logger")
-  const notificationModuleService: INotificationModuleService = container.resolve(Modules.NOTIFICATION)
   let isRunning = false
 
   const runProcessor = async () => {
@@ -22,6 +21,15 @@ export default async function startEmailMarketingCampaignProcessor({ container }
     isRunning = true
 
     try {
+      let notificationModuleService: INotificationModuleService
+
+      try {
+        notificationModuleService = container.resolve(Modules.NOTIFICATION)
+      } catch {
+        logger.warn("[email-marketing] notification module is unavailable, skipping campaign processor run")
+        return
+      }
+
       const emailMarketingService: EmailMarketingModuleService = container.resolve(EMAIL_MARKETING_MODULE)
       const scheduledResult = await emailMarketingService.processDueScheduledCampaigns(notificationModuleService)
       const automatedResult = await emailMarketingService.processQueuedAutomatedCampaignLogs(notificationModuleService)
