@@ -4,7 +4,7 @@ import startEmailMarketingCampaignProcessor from "./loaders/start-campaign-proce
 import EmailMarketingModuleService from "./service"
 import { EMAIL_MARKETING_MODULE } from "./constants"
 
-export { EMAIL_MARKETING_MODULE } from "./constants"
+export { EMAIL_MARKETING_MODULE, LEGACY_EMAIL_MARKETING_MODULE } from "./constants"
 
 export default Module(EMAIL_MARKETING_MODULE, {
   service: EmailMarketingModuleService,
