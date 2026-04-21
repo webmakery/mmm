@@ -134,7 +134,8 @@ const EmailCampaignsPage = () => {
         sender_email: form.sender_email.trim(),
         template_id: form.template_id,
         status: form.status,
-        scheduled_at: form.status === "scheduled" ? new Date(form.scheduled_at).toISOString() : null,
+        scheduled_at:
+          form.status === "scheduled" && form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null,
         audience_filter: {
           include_tags: parseTagList(form.include_tags),
           exclude_tags: parseTagList(form.exclude_tags),
@@ -194,7 +195,7 @@ const EmailCampaignsPage = () => {
     form.sender_name.trim() &&
     form.sender_email.trim() &&
     form.template_id &&
-    (form.status === "draft" || !!form.scheduled_at)
+    (form.status !== "scheduled" || !!form.scheduled_at)
 
   return (
     <Container>
@@ -324,7 +325,11 @@ const EmailCampaignsPage = () => {
                   modal={false}
                   value={form.status}
                   onValueChange={(value: "draft" | "scheduled" | "automated") =>
-                    setForm((prev) => ({ ...prev, status: value }))
+                    setForm((prev) => ({
+                      ...prev,
+                      status: value,
+                      scheduled_at: value === "scheduled" ? prev.scheduled_at : "",
+                    }))
                   }
                 >
                   <Select.Trigger>

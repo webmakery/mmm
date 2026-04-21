@@ -14,6 +14,10 @@ type CampaignAudienceFilter = {
   tag_match_mode?: "any" | "all"
 }
 type CampaignStatus = "draft" | "scheduled" | "automated" | "processing" | "sent" | "failed"
+type QueueCampaignSendOptions = {
+  subscriber_ids?: string[]
+  allow_already_sent?: boolean
+}
 
 type ListConfig = { limit: number; offset: number }
 
@@ -23,6 +27,47 @@ class EmailMarketingModuleService extends MedusaService({
   EmailCampaign,
   EmailCampaignLog,
 }) {
+  private normalizeAudienceFilter(audienceFilter: CampaignAudienceFilter | null | undefined): CampaignAudienceFilter {
+    const normalizeTags = (tags: string[] | undefined) =>
+      Array.from(
+        new Set(
+          (tags || [])
+            .map((tag) => tag.trim().toLowerCase())
+            .filter(Boolean)
+        )
+      )
+
+    return {
+      include_tags: normalizeTags(audienceFilter?.include_tags),
+      exclude_tags: normalizeTags(audienceFilter?.exclude_tags),
+      tag_match_mode: audienceFilter?.tag_match_mode === "all" ? "all" : "any",
+    }
+  }
+
+  private assertCampaignConfig(params: {
+    status: "draft" | "scheduled" | "automated"
+    scheduled_at: Date | null
+    audience_filter: CampaignAudienceFilter
+  }) {
+    if (params.status === "scheduled" && !params.scheduled_at) {
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, "Scheduled campaigns require scheduled_at")
+    }
+
+    if (params.status !== "scheduled" && params.scheduled_at) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Only campaigns with status 'scheduled' can define scheduled_at"
+      )
+    }
+
+    if (params.status === "automated" && !params.audience_filter.include_tags?.length) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Automated campaigns require at least one include tag in audience_filter.include_tags"
+      )
+    }
+  }
+
   private getErrorMessage(error: unknown) {
     if (error instanceof Error) {
       return error.message
@@ -63,10 +108,7 @@ class EmailMarketingModuleService extends MedusaService({
     return tagSet
   }
 
-  private filterSubscribersByAudience(
-    subscribers: Subscriber[],
-    audienceFilter: CampaignAudienceFilter | null | undefined
-  ) {
+  private filterSubscribersByAudience(subscribers: any[], audienceFilter: CampaignAudienceFilter | null | undefined) {
     if (!audienceFilter) {
       return subscribers
     }
@@ -165,14 +207,22 @@ class EmailMarketingModuleService extends MedusaService({
         continue
       }
 
-      await this.createEmailCampaignLogs(
-        {
-          campaign_id: campaign.id,
-          subscriber_id: input.subscriber_id,
-          status: "queued",
-        },
-        sharedContext
-      )
+      try {
+        await this.createEmailCampaignLogs(
+          {
+            campaign_id: campaign.id,
+            subscriber_id: input.subscriber_id,
+            status: "queued",
+          },
+          sharedContext
+        )
+      } catch (error) {
+        const errorMessage = this.getErrorMessage(error)
+
+        if (!errorMessage.toLowerCase().includes("duplicate")) {
+          throw error
+        }
+      }
     }
   }
 
@@ -326,13 +376,82 @@ class EmailMarketingModuleService extends MedusaService({
     },
     @MedusaContext() sharedContext?: Context<EntityManager>
   ) {
+    const parsedScheduledAt = input.scheduled_at ? new Date(input.scheduled_at) : null
+    const audienceFilter = this.normalizeAudienceFilter(input.audience_filter as CampaignAudienceFilter)
+    const status = (input.status as CampaignStatus | undefined) || (parsedScheduledAt ? "scheduled" : "draft")
+
+    if (status !== "draft" && status !== "scheduled" && status !== "automated") {
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, "Invalid campaign status")
+    }
+
+    this.assertCampaignConfig({
+      status,
+      scheduled_at: parsedScheduledAt,
+      audience_filter: audienceFilter,
+    })
+
     return this.createEmailCampaigns(
       {
         ...input,
         template_id: input.template_id,
-        status: (input.status as CampaignStatus | undefined) || (input.scheduled_at ? "scheduled" : "draft"),
-        scheduled_at: input.scheduled_at ? new Date(input.scheduled_at) : null,
+        status,
+        scheduled_at: parsedScheduledAt,
+        audience_filter: audienceFilter,
       },
+      sharedContext
+    )
+  }
+
+  @InjectManager()
+  async updateCampaignDraft(
+    campaignId: string,
+    input: {
+      name?: string
+      subject?: string
+      sender_name?: string
+      sender_email?: string
+      template_id?: string
+      scheduled_at?: string | null
+      audience_filter?: Record<string, unknown>
+      status?: "draft" | "scheduled" | "automated" | "failed"
+      metadata?: Record<string, unknown>
+    },
+    @MedusaContext() sharedContext?: Context<EntityManager>
+  ) {
+    const campaign = await this.retrieveEmailCampaign(campaignId, {}, sharedContext)
+    const nextStatus = (input.status || campaign.status) as CampaignStatus
+    const nextScheduledAt =
+      input.scheduled_at !== undefined
+        ? input.scheduled_at
+          ? new Date(input.scheduled_at)
+          : null
+        : campaign.scheduled_at
+
+    const nextAudienceFilter = this.normalizeAudienceFilter(
+      (input.audience_filter as CampaignAudienceFilter | undefined) ||
+        ((campaign.audience_filter as CampaignAudienceFilter) || {})
+    )
+
+    if (nextStatus === "sent" || nextStatus === "processing") {
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, "Campaign status cannot be set directly to this value")
+    }
+
+    if (nextStatus !== "failed") {
+      this.assertCampaignConfig({
+        status: nextStatus,
+        scheduled_at: nextScheduledAt,
+        audience_filter: nextAudienceFilter,
+      })
+    }
+
+    return this.updateEmailCampaigns(
+      {
+        id: campaignId,
+        ...input,
+        status: nextStatus,
+        scheduled_at: nextStatus === "scheduled" ? nextScheduledAt : null,
+        audience_filter: nextAudienceFilter,
+      } as any,
       sharedContext
     )
   }
@@ -341,6 +460,7 @@ class EmailMarketingModuleService extends MedusaService({
   async queueCampaignSend(
     campaignId: string,
     notificationModuleService: INotificationModuleService,
+    options: QueueCampaignSendOptions = {},
     @MedusaContext() sharedContext?: Context<EntityManager>
   ) {
     const campaign = await this.retrieveEmailCampaign(campaignId, {}, sharedContext)
@@ -350,11 +470,16 @@ class EmailMarketingModuleService extends MedusaService({
     }
     const template = await this.retrieveEmailTemplate(campaign.template_id, {}, sharedContext)
 
+    if (!options.allow_already_sent && campaign.status === "sent") {
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, "Campaign has already been sent")
+    }
+
+    const audienceFilter = this.normalizeAudienceFilter((campaign.audience_filter as CampaignAudienceFilter) || {})
     const activeSubscribers = await this.listSubscribers({ status: "active" }, {}, sharedContext)
-    const filteredSubscribers = this.filterSubscribersByAudience(
-      activeSubscribers,
-      (campaign.audience_filter as CampaignAudienceFilter) || {}
-    )
+    const audienceSubscribers = this.filterSubscribersByAudience(activeSubscribers, audienceFilter)
+    const filteredSubscribers = options.subscriber_ids?.length
+      ? audienceSubscribers.filter((subscriber) => options.subscriber_ids?.includes(subscriber.id))
+      : audienceSubscribers
 
     if (!filteredSubscribers.length) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, "No matching subscribers for this campaign audience")
@@ -362,23 +487,40 @@ class EmailMarketingModuleService extends MedusaService({
 
     await this.updateEmailCampaigns({ id: campaign.id, status: "processing" }, sharedContext)
 
-    const createdLogs = await this.createEmailCampaignLogs(
-      filteredSubscribers.map((subscriber) => ({
+    const existingLogs = await this.listEmailCampaignLogs(
+      { campaign_id: campaign.id },
+      { take: Math.max(filteredSubscribers.length * 2, 1000) },
+      sharedContext
+    )
+    const existingBySubscriber = new Map(existingLogs.map((log) => [log.subscriber_id, log]))
+
+    const logsToCreate = filteredSubscribers
+      .filter((subscriber) => !existingBySubscriber.has(subscriber.id))
+      .map((subscriber) => ({
         campaign_id: campaign.id,
         subscriber_id: subscriber.id,
         status: "queued",
-      })),
-      sharedContext
-    )
+      }))
+    const createdLogs =
+      logsToCreate.length > 0 ? await this.createEmailCampaignLogs(logsToCreate, sharedContext) : []
 
-    const logs = Array.isArray(createdLogs) ? createdLogs : [createdLogs]
-    const logBySubscriberId = new Map(logs.map((log) => [log.subscriber_id, log]))
+    const logs = Array.isArray(createdLogs) ? createdLogs : createdLogs ? [createdLogs] : []
+    const logBySubscriberId = new Map(
+      [...existingLogs, ...logs]
+        .filter((log) => filteredSubscribers.some((subscriber) => subscriber.id === log.subscriber_id))
+        .map((log) => [log.subscriber_id, log])
+    )
     let sentCount = 0
+    let failedCount = 0
 
     for (const subscriber of filteredSubscribers) {
       const log = logBySubscriberId.get(subscriber.id)
 
       if (!log) {
+        continue
+      }
+
+      if (["sent", "delivered", "opened", "clicked"].includes(String(log.status))) {
         continue
       }
 
@@ -405,6 +547,7 @@ class EmailMarketingModuleService extends MedusaService({
             id: log.id,
             status: "sent",
             error_message: null,
+            delivered_at: null,
           },
           sharedContext
         )
@@ -422,17 +565,108 @@ class EmailMarketingModuleService extends MedusaService({
           },
           sharedContext
         )
+        failedCount += 1
       }
+    }
+
+    if (campaign.status === "automated") {
+      return this.updateEmailCampaigns(
+        {
+          id: campaign.id,
+          status: "automated",
+        },
+        sharedContext
+      )
     }
 
     return this.updateEmailCampaigns(
       {
         id: campaign.id,
-        status: sentCount > 0 ? "sent" : "failed",
-        sent_at: new Date(),
+        status: failedCount > 0 ? "failed" : sentCount > 0 ? "sent" : "failed",
+        sent_at: failedCount === 0 && sentCount > 0 ? new Date() : null,
       },
       sharedContext
     )
+  }
+
+  @InjectManager()
+  async processDueScheduledCampaigns(
+    notificationModuleService: INotificationModuleService,
+    @MedusaContext() sharedContext?: Context<EntityManager>
+  ) {
+    const dueCampaigns = await this.listEmailCampaigns(
+      {
+        status: "scheduled",
+      },
+      { take: 200, order: { scheduled_at: "ASC" } },
+      sharedContext
+    )
+    const now = new Date()
+    let processedCount = 0
+
+    for (const campaign of dueCampaigns) {
+      if (!campaign.scheduled_at || campaign.scheduled_at > now) {
+        continue
+      }
+
+      if (campaign.sent_at) {
+        continue
+      }
+
+      await this.queueCampaignSend(campaign.id, notificationModuleService, { allow_already_sent: false }, sharedContext)
+      processedCount += 1
+    }
+
+    return { processed_count: processedCount }
+  }
+
+  @InjectManager()
+  async processQueuedAutomatedCampaignLogs(
+    notificationModuleService: INotificationModuleService,
+    @MedusaContext() sharedContext?: Context<EntityManager>
+  ) {
+    const queuedLogs = await this.listEmailCampaignLogs(
+      {
+        status: "queued",
+      },
+      {
+        take: 500,
+        order: { created_at: "ASC" },
+      },
+      sharedContext
+    )
+
+    const automatedCampaignIds = Array.from(new Set(queuedLogs.map((log) => String(log.campaign_id))))
+    let processedCount = 0
+
+    for (const campaignId of automatedCampaignIds) {
+      const campaign = await this.retrieveEmailCampaign(campaignId, {}, sharedContext)
+
+      if (campaign.status !== "automated") {
+        continue
+      }
+
+      const subscriberIds = queuedLogs
+        .filter((log) => String(log.campaign_id) === campaignId)
+        .map((log) => log.subscriber_id)
+
+      if (!subscriberIds.length) {
+        continue
+      }
+
+      await this.queueCampaignSend(
+        campaignId,
+        notificationModuleService,
+        {
+          subscriber_ids: subscriberIds,
+          allow_already_sent: true,
+        },
+        sharedContext
+      )
+      processedCount += subscriberIds.length
+    }
+
+    return { processed_count: processedCount }
   }
 
   @InjectManager()
