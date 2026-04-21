@@ -4,6 +4,15 @@ import { EMAIL_MARKETING_MODULE } from ".."
 import EmailMarketingModuleService from "../service"
 
 const PROCESSOR_INTERVAL_MS = Number(process.env.EMAIL_MARKETING_PROCESSOR_INTERVAL_MS || 60_000)
+const EMAIL_MARKETING_MODULE_SERVICE = `${EMAIL_MARKETING_MODULE}ModuleService`
+
+const resolveEmailMarketingService = (container: LoaderOptions["container"]): EmailMarketingModuleService => {
+  try {
+    return container.resolve(EMAIL_MARKETING_MODULE)
+  } catch {
+    return container.resolve(EMAIL_MARKETING_MODULE_SERVICE)
+  }
+}
 
 export default async function startEmailMarketingCampaignProcessor({ container }: LoaderOptions) {
   if (process.env.EMAIL_MARKETING_PROCESSOR_DISABLED === "true") {
@@ -30,7 +39,7 @@ export default async function startEmailMarketingCampaignProcessor({ container }
         return
       }
 
-      const emailMarketingService: EmailMarketingModuleService = container.resolve(EMAIL_MARKETING_MODULE)
+      const emailMarketingService = resolveEmailMarketingService(container)
       const scheduledResult = await emailMarketingService.processDueScheduledCampaigns(notificationModuleService)
       const automatedResult = await emailMarketingService.processQueuedAutomatedCampaignLogs(notificationModuleService)
 
