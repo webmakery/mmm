@@ -1,5 +1,5 @@
 import { EntityManager } from "@medusajs/framework/mikro-orm/knex"
-import { Context } from "@medusajs/framework/types"
+import { Context, INotificationModuleService } from "@medusajs/framework/types"
 import { InjectManager, MedusaContext, MedusaError, MedusaService } from "@medusajs/framework/utils"
 import crypto from "node:crypto"
 import EmailCampaign from "./models/campaign"
@@ -23,6 +23,18 @@ class EmailMarketingModuleService extends MedusaService({
   EmailCampaign,
   EmailCampaignLog,
 }) {
+  private getErrorMessage(error: unknown) {
+    if (error instanceof Error) {
+      return error.message
+    }
+
+    if (typeof error === "string") {
+      return error
+    }
+
+    return "Unknown notification error"
+  }
+
   private getSubscriberTagSet(tags: Record<string, unknown> | null | undefined) {
     if (!tags || typeof tags !== "object") {
       return new Set<string>()
@@ -326,12 +338,17 @@ class EmailMarketingModuleService extends MedusaService({
   }
 
   @InjectManager()
-  async queueCampaignSend(campaignId: string, @MedusaContext() sharedContext?: Context<EntityManager>) {
+  async queueCampaignSend(
+    campaignId: string,
+    notificationModuleService: INotificationModuleService,
+    @MedusaContext() sharedContext?: Context<EntityManager>
+  ) {
     const campaign = await this.retrieveEmailCampaign(campaignId, {}, sharedContext)
 
     if (!campaign.template_id) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, "Campaign template is required")
     }
+    const template = await this.retrieveEmailTemplate(campaign.template_id, {}, sharedContext)
 
     const activeSubscribers = await this.listSubscribers({ status: "active" }, {}, sharedContext)
     const filteredSubscribers = this.filterSubscribersByAudience(
@@ -345,7 +362,7 @@ class EmailMarketingModuleService extends MedusaService({
 
     await this.updateEmailCampaigns({ id: campaign.id, status: "processing" }, sharedContext)
 
-    await this.createEmailCampaignLogs(
+    const createdLogs = await this.createEmailCampaignLogs(
       filteredSubscribers.map((subscriber) => ({
         campaign_id: campaign.id,
         subscriber_id: subscriber.id,
@@ -354,10 +371,64 @@ class EmailMarketingModuleService extends MedusaService({
       sharedContext
     )
 
+    const logs = Array.isArray(createdLogs) ? createdLogs : [createdLogs]
+    const logBySubscriberId = new Map(logs.map((log) => [log.subscriber_id, log]))
+    let sentCount = 0
+
+    for (const subscriber of filteredSubscribers) {
+      const log = logBySubscriberId.get(subscriber.id)
+
+      if (!log) {
+        continue
+      }
+
+      try {
+        await notificationModuleService.createNotifications({
+          to: subscriber.email,
+          channel: "email",
+          template: "email-marketing-campaign",
+          data: {
+            campaign_id: campaign.id,
+            campaign_name: campaign.name,
+            subscriber_id: subscriber.id,
+            subscriber_email: subscriber.email,
+          },
+          content: {
+            subject: campaign.subject || template.subject,
+            html: template.html_content,
+            text: template.text_content || undefined,
+          },
+        })
+
+        await this.updateEmailCampaignLogs(
+          {
+            id: log.id,
+            status: "sent",
+            error_message: null,
+          },
+          sharedContext
+        )
+        sentCount += 1
+      } catch (error) {
+        const errorMessage = this.getErrorMessage(error)
+
+        console.error(`[email-marketing] Failed to send campaign ${campaign.id} to subscriber ${subscriber.id}: ${errorMessage}`)
+
+        await this.updateEmailCampaignLogs(
+          {
+            id: log.id,
+            status: "failed",
+            error_message: errorMessage,
+          },
+          sharedContext
+        )
+      }
+    }
+
     return this.updateEmailCampaigns(
       {
         id: campaign.id,
-        status: "sent",
+        status: sentCount > 0 ? "sent" : "failed",
         sent_at: new Date(),
       },
       sharedContext
