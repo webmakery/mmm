@@ -3,10 +3,19 @@ import { EMAIL_MARKETING_MODULE } from "../../../../../../modules/email-marketin
 import EmailMarketingModuleService from "../../../../../../modules/email-marketing/service"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
+  const logger = req.scope.resolve("logger")
   const service: EmailMarketingModuleService = req.scope.resolve(EMAIL_MARKETING_MODULE)
-  const analytics = await service.getCampaignAnalytics(req.params.id)
+  const campaignId = req.params.id
 
-  const logs = await service.listEmailCampaignLogs({ campaign_id: req.params.id }, { take: 250, order: { created_at: "DESC" } })
+  logger.info(`[email-marketing] GET analytics start campaign_id=${campaignId}`)
+
+  const analytics = await service.getCampaignAnalytics(campaignId)
+
+  const logs = await service.listEmailCampaignLogs({ campaign_id: campaignId }, { take: 250, order: { created_at: "DESC" } })
+
+  logger.info(
+    `[email-marketing] GET analytics success campaign_id=${campaignId} recipients=${analytics.total_recipients} sent=${analytics.sent_count} delivered=${analytics.delivered_count} failed=${analytics.failed_count} logs=${logs.length}`
+  )
 
   res.json({ analytics, logs })
 }
