@@ -1,5 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { INotificationModuleService } from "@medusajs/framework/types"
 import { z } from "@medusajs/framework/zod"
+import { Modules } from "@medusajs/framework/utils"
 import { EMAIL_MARKETING_MODULE } from "../../../../../modules/email-marketing"
 import EmailMarketingModuleService from "../../../../../modules/email-marketing/service"
 
@@ -21,6 +23,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
 export async function POST(req: MedusaRequest<z.infer<typeof PostAdminEmailSubscriberUpdateSchema>>, res: MedusaResponse) {
   const service: EmailMarketingModuleService = req.scope.resolve(EMAIL_MARKETING_MODULE)
+  const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION)
   const existingSubscriber = await service.retrieveSubscriber(req.params.id)
 
   const subscriber = await service.createOrUpdateSubscriber({
@@ -33,6 +36,7 @@ export async function POST(req: MedusaRequest<z.infer<typeof PostAdminEmailSubsc
     metadata:
       (req.validatedBody.metadata as Record<string, unknown> | null | undefined) ??
       ((existingSubscriber.metadata as Record<string, unknown>) || null),
+    notification_module_service: notificationModuleService,
   })
 
   if (req.validatedBody.status === "unsubscribed" || req.validatedBody.status === "bounced") {

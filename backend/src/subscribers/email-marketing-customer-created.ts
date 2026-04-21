@@ -1,5 +1,6 @@
 import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework"
 import { Modules } from "@medusajs/framework/utils"
+import { INotificationModuleService } from "@medusajs/framework/types"
 import { EMAIL_MARKETING_MODULE } from "../modules/email-marketing"
 import EmailMarketingModuleService from "../modules/email-marketing/service"
 import {
@@ -20,6 +21,7 @@ export default async function emailMarketingCustomerCreated({
   const logger = container.resolve("logger")
   const customerService = container.resolve(Modules.CUSTOMER)
   const emailMarketingService: EmailMarketingModuleService = container.resolve(EMAIL_MARKETING_MODULE)
+  const notificationModuleService: INotificationModuleService = container.resolve(Modules.NOTIFICATION)
 
   const customer = await customerService.retrieveCustomer(event.data.id)
 
@@ -47,6 +49,7 @@ export default async function emailMarketingCustomerCreated({
     metadata: {
       customer_id: customer.id,
     },
+    notification_module_service: notificationModuleService,
   })
 
   logger.info(`[email-marketing] synced Account Created tag for customer ${customer.id}`)

@@ -1,5 +1,6 @@
 import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework"
 import { Modules } from "@medusajs/framework/utils"
+import { INotificationModuleService } from "@medusajs/framework/types"
 import { EMAIL_MARKETING_MODULE } from "../modules/email-marketing"
 import EmailMarketingModuleService from "../modules/email-marketing/service"
 import {
@@ -18,6 +19,7 @@ export default async function emailMarketingOrderPlaced({ event, container }: Su
   const query = container.resolve("query")
   const customerService = container.resolve(Modules.CUSTOMER)
   const emailMarketingService: EmailMarketingModuleService = container.resolve(EMAIL_MARKETING_MODULE)
+  const notificationModuleService: INotificationModuleService = container.resolve(Modules.NOTIFICATION)
 
   const {
     data: [order],
@@ -60,6 +62,7 @@ export default async function emailMarketingOrderPlaced({ event, container }: Su
           customer_id: customerId,
         }
       : undefined,
+    notification_module_service: notificationModuleService,
   })
 
   logger.info(`[email-marketing] synced Purchased tag for order ${event.data.id}`)

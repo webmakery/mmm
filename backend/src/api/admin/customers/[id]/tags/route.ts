@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
 import { Modules } from "@medusajs/framework/utils"
+import { INotificationModuleService } from "@medusajs/framework/types"
 import { EMAIL_MARKETING_MODULE } from "../../../../../modules/email-marketing"
 import EmailMarketingModuleService from "../../../../../modules/email-marketing/service"
 import { dedupeTags, tagsToRecord } from "../../../../../modules/email-marketing/tag-utils"
@@ -12,6 +13,7 @@ export const PostAdminCustomerTagsSchema = z.object({
 export async function POST(req: MedusaRequest<z.infer<typeof PostAdminCustomerTagsSchema>>, res: MedusaResponse) {
   const customerService = req.scope.resolve(Modules.CUSTOMER)
   const emailMarketingService: EmailMarketingModuleService = req.scope.resolve(EMAIL_MARKETING_MODULE)
+  const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION)
 
   const customer = await customerService.retrieveCustomer(req.params.id)
   const customerMetadata = (customer.metadata as Record<string, unknown>) || {}
@@ -34,6 +36,7 @@ export async function POST(req: MedusaRequest<z.infer<typeof PostAdminCustomerTa
       metadata: {
         customer_id: customer.id,
       },
+      notification_module_service: notificationModuleService,
     })
   }
 
