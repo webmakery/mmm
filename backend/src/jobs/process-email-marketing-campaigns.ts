@@ -3,9 +3,19 @@ import { Modules } from "@medusajs/framework/utils"
 import { EMAIL_MARKETING_MODULE } from "../modules/email-marketing"
 import EmailMarketingModuleService from "../modules/email-marketing/service"
 
+const EMAIL_MARKETING_MODULE_SERVICE = `${EMAIL_MARKETING_MODULE}ModuleService`
+
+const resolveEmailMarketingService = (container: MedusaContainer): EmailMarketingModuleService => {
+  try {
+    return container.resolve(EMAIL_MARKETING_MODULE)
+  } catch {
+    return container.resolve(EMAIL_MARKETING_MODULE_SERVICE)
+  }
+}
+
 export default async function processEmailMarketingCampaignsJob(container: MedusaContainer) {
   const logger = container.resolve("logger")
-  const emailMarketingService: EmailMarketingModuleService = container.resolve(EMAIL_MARKETING_MODULE)
+  const emailMarketingService = resolveEmailMarketingService(container)
   const notificationModuleService: INotificationModuleService = container.resolve(Modules.NOTIFICATION)
 
   try {
