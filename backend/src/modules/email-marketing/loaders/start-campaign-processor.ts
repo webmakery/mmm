@@ -1,6 +1,6 @@
 import { LoaderOptions, INotificationModuleService } from "@medusajs/framework/types"
 import { Modules } from "@medusajs/framework/utils"
-import { EMAIL_MARKETING_MODULE } from ".."
+import { EMAIL_MARKETING_MODULE } from "../constants"
 import EmailMarketingModuleService from "../service"
 
 const PROCESSOR_INTERVAL_MS = Number(process.env.EMAIL_MARKETING_PROCESSOR_INTERVAL_MS || 60_000)
