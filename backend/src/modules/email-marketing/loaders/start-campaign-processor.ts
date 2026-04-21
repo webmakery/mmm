@@ -1,27 +1,8 @@
 import { LoaderOptions, INotificationModuleService } from "@medusajs/framework/types"
 import { Modules } from "@medusajs/framework/utils"
-import { EMAIL_MARKETING_MODULE, LEGACY_EMAIL_MARKETING_MODULE } from "../constants"
-import EmailMarketingModuleService from "../service"
+import { EMAIL_MARKETING_SERVICE_CANDIDATES, resolveEmailMarketingService } from "../resolve-module-service"
 
 const PROCESSOR_INTERVAL_MS = Number(process.env.EMAIL_MARKETING_PROCESSOR_INTERVAL_MS || 60_000)
-const resolveEmailMarketingService = (container: LoaderOptions["container"]): EmailMarketingModuleService | null => {
-  const candidates = [
-    EMAIL_MARKETING_MODULE,
-    LEGACY_EMAIL_MARKETING_MODULE,
-    `${LEGACY_EMAIL_MARKETING_MODULE}ModuleService`,
-  ]
-
-  for (const candidate of candidates) {
-    try {
-      return container.resolve(candidate)
-    } catch {
-      continue
-    }
-  }
-
-  return null
-}
-
 export default async function startEmailMarketingCampaignProcessor({ container }: LoaderOptions) {
   if (process.env.EMAIL_MARKETING_PROCESSOR_DISABLED === "true") {
     return
@@ -49,7 +30,7 @@ export default async function startEmailMarketingCampaignProcessor({ container }
 
       const emailMarketingService = resolveEmailMarketingService(container)
       if (!emailMarketingService) {
-        logger.warn("[email-marketing] module service is unavailable, skipping campaign processor run")
+        logger.warn(`[email-marketing] module service is unavailable (checked: ${EMAIL_MARKETING_SERVICE_CANDIDATES.join(", ")}), skipping campaign processor run`)
         return
       }
       const scheduledResult = await emailMarketingService.processDueScheduledCampaigns(notificationModuleService)
