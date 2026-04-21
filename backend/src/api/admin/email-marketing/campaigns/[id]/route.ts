@@ -31,13 +31,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 export async function POST(req: MedusaRequest<z.infer<typeof PostAdminEmailCampaignUpdateSchema>>, res: MedusaResponse) {
   const service: EmailMarketingModuleService = req.scope.resolve(EMAIL_MARKETING_MODULE)
   const body = req.validatedBody as z.infer<typeof PostAdminEmailCampaignUpdateSchema>
-  const campaign = await service.updateEmailCampaigns({
-    id: req.params.id,
-    ...body,
-    ...(body.scheduled_at !== undefined
-      ? { scheduled_at: body.scheduled_at ? new Date(body.scheduled_at) : null }
-      : {}),
-  } as any)
+  const campaign = await service.updateCampaignDraft(req.params.id, body)
 
   res.json({ campaign })
 }

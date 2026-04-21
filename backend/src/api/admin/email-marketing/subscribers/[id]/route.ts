@@ -21,13 +21,28 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
 export async function POST(req: MedusaRequest<z.infer<typeof PostAdminEmailSubscriberUpdateSchema>>, res: MedusaResponse) {
   const service: EmailMarketingModuleService = req.scope.resolve(EMAIL_MARKETING_MODULE)
+  const existingSubscriber = await service.retrieveSubscriber(req.params.id)
 
-  const subscriber = await service.updateSubscribers({
-    id: req.params.id,
-    ...req.validatedBody,
-    ...(req.validatedBody.status === "unsubscribed" ? { unsubscribed_at: new Date() } : {}),
-    ...(req.validatedBody.status === "bounced" ? { bounced_at: new Date() } : {}),
-  } as any)
+  const subscriber = await service.createOrUpdateSubscriber({
+    email: existingSubscriber.email,
+    first_name: req.validatedBody.first_name ?? existingSubscriber.first_name,
+    last_name: req.validatedBody.last_name ?? existingSubscriber.last_name,
+    status: (req.validatedBody.status as "active" | "unsubscribed" | "bounced" | undefined) ?? existingSubscriber.status,
+    tags: req.validatedBody.tags ?? (existingSubscriber.tags as Record<string, unknown>) ?? {},
+    source: req.validatedBody.source ?? existingSubscriber.source,
+    metadata:
+      (req.validatedBody.metadata as Record<string, unknown> | null | undefined) ??
+      ((existingSubscriber.metadata as Record<string, unknown>) || null),
+  })
+
+  if (req.validatedBody.status === "unsubscribed" || req.validatedBody.status === "bounced") {
+    await service.updateSubscribers({
+      id: subscriber.id,
+      ...(req.validatedBody.status === "unsubscribed"
+        ? { unsubscribed_at: new Date(), bounced_at: null }
+        : { bounced_at: new Date(), unsubscribed_at: null }),
+    } as any)
+  }
 
   res.json({ subscriber })
 }
