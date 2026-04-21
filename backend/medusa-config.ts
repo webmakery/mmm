@@ -187,6 +187,7 @@ module.exports = defineConfig({
     },
     {
       resolve: "./src/modules/email-marketing",
+      dependencies: [Modules.NOTIFICATION, ContainerRegistrationKeys.LOGGER],
     },
   ],
 })
