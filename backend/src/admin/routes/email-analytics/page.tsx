@@ -67,6 +67,7 @@ const EmailAnalyticsPage = () => {
     queryKey: ["email-campaign-analytics", effectiveCampaignId],
     queryFn: () => sdk.client.fetch(`/admin/email-marketing/campaigns/${effectiveCampaignId}/analytics`),
     enabled: !!effectiveCampaignId,
+    refetchInterval: 10000,
   })
 
   const clearLogsMutation = useMutation({

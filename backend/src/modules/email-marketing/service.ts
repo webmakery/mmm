@@ -37,6 +37,9 @@ class EmailMarketingModuleService extends MedusaService({
   EmailCampaign,
   EmailCampaignLog,
 }) {
+  private static readonly trackingPixelTransparentGifBase64 =
+    "R0lGODlhAQABAIAAAP///////yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+
   private readonly statusPriority: Record<CampaignDeliveryStatus, number> = {
     queued: 0,
     failed: 1,
@@ -97,6 +100,104 @@ class EmailMarketingModuleService extends MedusaService({
     }
 
     return "Unknown notification error"
+  }
+
+  private sanitizeOrigin(url: string) {
+    try {
+      return new URL(url).origin
+    } catch {
+      return ""
+    }
+  }
+
+  private getTrackingBaseUrl() {
+    const directUrl =
+      process.env.EMAIL_MARKETING_TRACKING_BASE_URL ||
+      process.env.MEDUSA_BACKEND_URL ||
+      process.env.BACKEND_URL
+
+    if (directUrl) {
+      const origin = this.sanitizeOrigin(directUrl)
+
+      if (origin) {
+        return origin
+      }
+    }
+
+    const corsOrigin = (process.env.STORE_CORS || process.env.ADMIN_CORS || "")
+      .split(",")
+      .map((value) => value.trim())
+      .find(Boolean)
+
+    if (corsOrigin) {
+      const origin = this.sanitizeOrigin(corsOrigin)
+
+      if (origin) {
+        return origin
+      }
+    }
+
+    return "http://localhost:9000"
+  }
+
+  private buildOpenTrackingToken(campaignId: string, subscriberId: string) {
+    const payload = JSON.stringify({
+      campaign_id: campaignId,
+      subscriber_id: subscriberId,
+    })
+    const payloadBase64 = Buffer.from(payload, "utf8").toString("base64url")
+    const signature = crypto
+      .createHmac("sha256", process.env.JWT_SECRET || "supersecret")
+      .update(payloadBase64)
+      .digest("base64url")
+
+    return `${payloadBase64}.${signature}`
+  }
+
+  private decodeOpenTrackingToken(token: string) {
+    const [payloadBase64, signature] = token.split(".")
+
+    if (!payloadBase64 || !signature) {
+      return null
+    }
+
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.JWT_SECRET || "supersecret")
+      .update(payloadBase64)
+      .digest("base64url")
+
+    if (expectedSignature !== signature) {
+      return null
+    }
+
+    try {
+      const payload = JSON.parse(Buffer.from(payloadBase64, "base64url").toString("utf8")) as {
+        campaign_id?: string
+        subscriber_id?: string
+      }
+
+      if (!payload.campaign_id || !payload.subscriber_id) {
+        return null
+      }
+
+      return payload
+    } catch {
+      return null
+    }
+  }
+
+  private appendTrackingPixel(html: string, trackingUrl: string) {
+    const pixelTag = `<img src="${trackingUrl}" width="1" height="1" alt="" style="display:block;opacity:0;max-height:1px;max-width:1px;" />`
+
+    if (/<\/body>/i.test(html)) {
+      return html.replace(/<\/body>/i, `${pixelTag}</body>`)
+    }
+
+    return `${html}${pixelTag}`
+  }
+
+  getTransparentTrackingPixelBuffer() {
+    return Buffer.from(EmailMarketingModuleService.trackingPixelTransparentGifBase64, "base64")
   }
 
   private getSubscriberTagSet(tags: Record<string, unknown> | null | undefined) {
@@ -599,6 +700,11 @@ class EmailMarketingModuleService extends MedusaService({
       }
 
       try {
+        const openTrackingToken = this.buildOpenTrackingToken(campaign.id, subscriber.id)
+        const trackingBaseUrl = this.getTrackingBaseUrl()
+        const openTrackingUrl = `${trackingBaseUrl}/store/email-marketing/campaigns/open?t=${encodeURIComponent(openTrackingToken)}`
+        const trackedHtml = this.appendTrackingPixel(template.html_content, openTrackingUrl)
+
         await notificationModuleService.createNotifications({
           to: subscriber.email,
           channel: "email",
@@ -608,10 +714,11 @@ class EmailMarketingModuleService extends MedusaService({
             campaign_name: campaign.name,
             subscriber_id: subscriber.id,
             subscriber_email: subscriber.email,
+            open_tracking_url: openTrackingUrl,
           },
           content: {
             subject: campaign.subject || template.subject,
-            html: template.html_content,
+            html: trackedHtml,
             text: template.text_content || undefined,
           },
         })
@@ -875,6 +982,32 @@ class EmailMarketingModuleService extends MedusaService({
     )
 
     return { updated: true, reason: "updated" as const, subscriber_id: subscriberId, log_id: log.id }
+  }
+
+  async applyOpenTrackingToken(
+    token: string,
+    metadata: Record<string, unknown> | null = null,
+    @MedusaContext() sharedContext?: Context<EntityManager>
+  ) {
+    const decoded = this.decodeOpenTrackingToken(token)
+
+    if (!decoded) {
+      return { updated: false, reason: "invalid_token" as const }
+    }
+
+    return this.applyCampaignDeliveryEvent(
+      {
+        campaign_id: decoded.campaign_id,
+        subscriber_id: decoded.subscriber_id,
+        status: "opened",
+        event_at: new Date(),
+        metadata: {
+          ...(metadata || {}),
+          tracking_source: "pixel",
+        },
+      },
+      sharedContext
+    )
   }
 
   @InjectManager()
