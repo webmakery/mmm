@@ -20,7 +20,7 @@ describe("EmailMarketingModuleService queue campaign open tracking", () => {
     )
   })
 
-  it("injects a tracking pixel url in outgoing campaign email html", async () => {
+  it("injects tracking pixel and browser-view fallback urls in outgoing campaign email html", async () => {
     process.env.JWT_SECRET = "queue-test-secret"
     process.env.EMAIL_MARKETING_TRACKING_BASE_URL = "https://backend.example.com"
 
@@ -50,6 +50,9 @@ describe("EmailMarketingModuleService queue campaign open tracking", () => {
       getTrackingBaseUrl: EmailMarketingModuleService.prototype["getTrackingBaseUrl"],
       sanitizeOrigin: EmailMarketingModuleService.prototype["sanitizeOrigin"],
       appendTrackingPixel: EmailMarketingModuleService.prototype["appendTrackingPixel"],
+      appendViewInBrowserLink: EmailMarketingModuleService.prototype["appendViewInBrowserLink"],
+      appendViewInBrowserText: EmailMarketingModuleService.prototype["appendViewInBrowserText"],
+      buildCampaignBrowserViewUrl: EmailMarketingModuleService.prototype["buildCampaignBrowserViewUrl"],
       getErrorMessage: EmailMarketingModuleService.prototype["getErrorMessage"],
       baseRepository_: { getFreshManager: () => ({}) },
     }
@@ -65,6 +68,9 @@ describe("EmailMarketingModuleService queue campaign open tracking", () => {
     expect(createNotifications).toHaveBeenCalledTimes(1)
     const payload = createNotifications.mock.calls[0][0]
     expect(payload.data.open_tracking_url).toContain("https://backend.example.com/email-marketing/campaigns/open?t=")
+    expect(payload.data.browser_view_url).toContain("https://backend.example.com/email-marketing/campaigns/view?t=")
     expect(payload.content.html).toContain(payload.data.open_tracking_url)
+    expect(payload.content.html).toContain(payload.data.browser_view_url)
+    expect(payload.content.text).toContain(payload.data.browser_view_url)
   })
 })
