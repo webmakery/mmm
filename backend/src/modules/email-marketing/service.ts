@@ -189,6 +189,27 @@ class EmailMarketingModuleService extends MedusaService({
     return `${html}${pixelTag}`
   }
 
+  private appendViewInBrowserLink(html: string, browserViewUrl: string) {
+    const browserViewBanner = `<div style="display:block;width:100%;padding:12px 16px;font-family:Arial,sans-serif;font-size:12px;line-height:18px;color:#6b7280;text-align:center;background:#f8fafc;border-bottom:1px solid #e5e7eb;">Having trouble viewing this email? <a href="${browserViewUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;">Open it in your browser</a>.</div>`
+
+    if (/<body[^>]*>/i.test(html)) {
+      return html.replace(/<body([^>]*)>/i, `<body$1>${browserViewBanner}`)
+    }
+
+    return `${browserViewBanner}${html}`
+  }
+
+  private appendViewInBrowserText(textContent: string, browserViewUrl: string) {
+    const trimmedText = textContent.trim()
+    const browserViewFooter = `View this email in your browser: ${browserViewUrl}`
+
+    return trimmedText ? `${trimmedText}\n\n${browserViewFooter}` : browserViewFooter
+  }
+
+  private buildCampaignBrowserViewUrl(token: string) {
+    return `${this.getTrackingBaseUrl()}/email-marketing/campaigns/view?t=${encodeURIComponent(token)}`
+  }
+
   getTransparentTrackingPixelBuffer() {
     return Buffer.from(EmailMarketingModuleService.trackingPixelTransparentGifBase64, "base64")
   }
@@ -739,7 +760,12 @@ class EmailMarketingModuleService extends MedusaService({
         const openTrackingToken = this.buildOpenTrackingToken(campaign.id, subscriber.id)
         const trackingBaseUrl = this.getTrackingBaseUrl()
         const openTrackingUrl = `${trackingBaseUrl}/email-marketing/campaigns/open?t=${encodeURIComponent(openTrackingToken)}`
-        const trackedHtml = this.appendTrackingPixel(template.html_content, openTrackingUrl)
+        const browserViewUrl = this.buildCampaignBrowserViewUrl(openTrackingToken)
+        const trackedHtml = this.appendTrackingPixel(
+          this.appendViewInBrowserLink(template.html_content, browserViewUrl),
+          openTrackingUrl
+        )
+        const trackedText = this.appendViewInBrowserText(template.text_content || "", browserViewUrl)
 
         console.info(
           `[email-marketing] tracking pixel url generated campaign_id=${campaign.id} subscriber_id=${subscriber.id} base_url=${trackingBaseUrl}`
@@ -755,11 +781,12 @@ class EmailMarketingModuleService extends MedusaService({
             subscriber_id: subscriber.id,
             subscriber_email: subscriber.email,
             open_tracking_url: openTrackingUrl,
+            browser_view_url: browserViewUrl,
           },
           content: {
             subject: campaign.subject || template.subject,
             html: trackedHtml,
-            text: template.text_content || undefined,
+            text: trackedText || undefined,
           },
         })
 
@@ -1102,6 +1129,31 @@ class EmailMarketingModuleService extends MedusaService({
       },
       sharedContext
     )
+  }
+
+  @InjectManager()
+  async getCampaignBrowserViewHtmlByToken(token: string, @MedusaContext() sharedContext?: Context<EntityManager>) {
+    const decoded = this.decodeOpenTrackingToken(token)
+
+    if (!decoded) {
+      return null
+    }
+
+    const campaign = await this.retrieveEmailCampaign(decoded.campaign_id, {}, sharedContext)
+
+    if (!campaign.template_id) {
+      return null
+    }
+
+    const template = await this.retrieveEmailTemplate(campaign.template_id, {}, sharedContext)
+    const openTrackingUrl = `${this.getTrackingBaseUrl()}/email-marketing/campaigns/open?t=${encodeURIComponent(token)}`
+    const browserViewUrl = this.buildCampaignBrowserViewUrl(token)
+
+    return {
+      campaign_id: decoded.campaign_id,
+      subscriber_id: decoded.subscriber_id,
+      html: this.appendTrackingPixel(this.appendViewInBrowserLink(template.html_content, browserViewUrl), openTrackingUrl),
+    }
   }
 
   @InjectManager()
