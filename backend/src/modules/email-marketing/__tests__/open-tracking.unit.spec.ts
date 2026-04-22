@@ -42,27 +42,71 @@ describe("EmailMarketingModuleService open tracking", () => {
     expect(trackedHtml).toContain("</body>")
   })
 
-  it("applies opened event when token is valid", async () => {
+  it("detects known machine-open proxy user agents", () => {
+    const detectMachineOpenReason = EmailMarketingModuleService.prototype["detectMachineOpenReason"]
+    const normalizeTrackingUserAgent = EmailMarketingModuleService.prototype["normalizeTrackingUserAgent"]
+
+    expect(
+      detectMachineOpenReason.call(
+        { normalizeTrackingUserAgent },
+        { user_agent: "Brevo/1.0 (redirection-images 1.88.33; +https://brevo.com)" }
+      )
+    ).toBe("brevo_image_proxy")
+
+    expect(detectMachineOpenReason.call({ normalizeTrackingUserAgent }, { user_agent: "Mozilla/5.0" })).toBeNull()
+  })
+
+  it("applies opened event when token is valid and not classified as machine traffic", async () => {
     const applyOpenTrackingToken = EmailMarketingModuleService.prototype.applyOpenTrackingToken
 
     const service = {
       decodeOpenTrackingToken: jest
         .fn()
         .mockReturnValue({ campaign_id: "campaign_123", subscriber_id: "subscriber_123" }),
+      detectMachineOpenReason: jest.fn().mockReturnValue(null),
       applyCampaignDeliveryEvent: jest.fn().mockResolvedValue({ updated: true, reason: "updated" }),
     }
 
-    const result = await applyOpenTrackingToken.call(service, "signed.token", { user_agent: "jest" })
+    const result = await applyOpenTrackingToken.call(service, "signed.token", { user_agent: "Mozilla/5.0" })
 
     expect(service.applyCampaignDeliveryEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         campaign_id: "campaign_123",
         subscriber_id: "subscriber_123",
         status: "opened",
+        metadata: expect.objectContaining({
+          tracking_source: "pixel",
+          tracking_classification: "human",
+          user_agent: "Mozilla/5.0",
+        }),
       }),
       undefined
     )
     expect(result).toEqual({ updated: true, reason: "updated" })
+  })
+
+  it("suppresses machine opens from known proxy user agents", async () => {
+    const applyOpenTrackingToken = EmailMarketingModuleService.prototype.applyOpenTrackingToken
+
+    const service = {
+      decodeOpenTrackingToken: jest
+        .fn()
+        .mockReturnValue({ campaign_id: "campaign_123", subscriber_id: "subscriber_123" }),
+      detectMachineOpenReason: jest.fn().mockReturnValue("brevo_image_proxy"),
+      applyCampaignDeliveryEvent: jest.fn(),
+    }
+
+    const result = await applyOpenTrackingToken.call(service, "signed.token", {
+      user_agent: "Brevo/1.0 (redirection-images 1.88.33; +https://brevo.com)",
+    })
+
+    expect(service.applyCampaignDeliveryEvent).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      updated: false,
+      reason: "machine_open_detected",
+      subscriber_id: "subscriber_123",
+      machine_open_reason: "brevo_image_proxy",
+    })
   })
 
   it("skips tracking update when token is invalid", async () => {
@@ -78,6 +122,7 @@ describe("EmailMarketingModuleService open tracking", () => {
     expect(service.applyCampaignDeliveryEvent).not.toHaveBeenCalled()
     expect(result).toEqual({ updated: false, reason: "invalid_token" })
   })
+
   it("falls back to provider_message_id log lookup and promotes to opened", async () => {
     const applyCampaignDeliveryEvent = EmailMarketingModuleService.prototype.applyCampaignDeliveryEvent
 
@@ -136,5 +181,4 @@ describe("EmailMarketingModuleService open tracking", () => {
     )
     expect(result).toEqual(expect.objectContaining({ updated: true, subscriber_id: "subscriber_123", log_id: "log_123" }))
   })
-
 })
