@@ -820,32 +820,59 @@ class EmailMarketingModuleService extends MedusaService({
   ) {
     const normalizedEmail = input.subscriber_email?.trim().toLowerCase() || ""
     let subscriberId = input.subscriber_id?.trim() || ""
+    const normalizedProviderMessageId = input.provider_message_id?.trim() || ""
 
     if (!subscriberId && normalizedEmail) {
       const matchedSubscribers = await this.listSubscribers({ email: normalizedEmail }, { take: 1 }, sharedContext)
       subscriberId = matchedSubscribers[0]?.id || ""
     }
 
+    let log = null as Awaited<ReturnType<typeof this.listEmailCampaignLogs>>[number] | null
+
+    if (!subscriberId && normalizedProviderMessageId) {
+      const providerMatchedLogs = await this.listEmailCampaignLogs(
+        {
+          campaign_id: input.campaign_id,
+          provider_message_id: normalizedProviderMessageId,
+        },
+        {
+          take: 1,
+          order: {
+            updated_at: "DESC",
+          },
+        },
+        sharedContext
+      )
+
+      if (providerMatchedLogs.length) {
+        log = providerMatchedLogs[0]
+        subscriberId = log.subscriber_id || ""
+      }
+    }
+
     if (!subscriberId) {
       return { updated: false, reason: "subscriber_not_found" as const }
     }
 
-    const matchedLogs = await this.listEmailCampaignLogs(
-      {
-        campaign_id: input.campaign_id,
-        subscriber_id: subscriberId,
-      },
-      {
-        take: 1,
-      },
-      sharedContext
-    )
+    if (!log) {
+      const matchedLogs = await this.listEmailCampaignLogs(
+        {
+          campaign_id: input.campaign_id,
+          subscriber_id: subscriberId,
+        },
+        {
+          take: 1,
+        },
+        sharedContext
+      )
 
-    if (!matchedLogs.length) {
+      log = matchedLogs[0] || null
+    }
+
+    if (!log) {
       return { updated: false, reason: "log_not_found" as const }
     }
 
-    const log = matchedLogs[0]
     const currentStatus = String(log.status || "queued") as CampaignDeliveryStatus
     const nextStatus = input.status
 
