@@ -11,6 +11,10 @@ export async function GET(req: MedusaRequest<z.infer<typeof GetStoreEmailCampaig
   const logger = req.scope.resolve("logger")
   const service: EmailMarketingModuleService = req.scope.resolve(EMAIL_MARKETING_MODULE)
 
+  logger.info(
+    `[email-marketing] open tracking route hit token_length=${req.validatedQuery.t.length} ip=${req.ip || "n/a"} ua=${String(req.headers["user-agent"] || "").slice(0, 120)}`
+  )
+
   const result = await service.applyOpenTrackingToken(req.validatedQuery.t, {
     user_agent: req.headers["user-agent"] || null,
     ip: req.ip || null,

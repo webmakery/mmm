@@ -111,31 +111,24 @@ class EmailMarketingModuleService extends MedusaService({
   }
 
   private getTrackingBaseUrl() {
-    const directUrl =
-      process.env.EMAIL_MARKETING_TRACKING_BASE_URL ||
-      process.env.MEDUSA_BACKEND_URL ||
-      process.env.BACKEND_URL
+    const trackingBaseUrlCandidates = [
+      process.env.EMAIL_MARKETING_TRACKING_BASE_URL,
+      process.env.MEDUSA_BACKEND_URL,
+      process.env.BACKEND_URL,
+      process.env.MEDUSA_URL,
+    ].filter(Boolean) as string[]
 
-    if (directUrl) {
-      const origin = this.sanitizeOrigin(directUrl)
-
-      if (origin) {
-        return origin
-      }
-    }
-
-    const corsOrigin = (process.env.STORE_CORS || process.env.ADMIN_CORS || "")
-      .split(",")
-      .map((value) => value.trim())
-      .find(Boolean)
-
-    if (corsOrigin) {
-      const origin = this.sanitizeOrigin(corsOrigin)
+    for (const candidate of trackingBaseUrlCandidates) {
+      const origin = this.sanitizeOrigin(candidate)
 
       if (origin) {
         return origin
       }
     }
+
+    console.warn(
+      "[email-marketing] Missing EMAIL_MARKETING_TRACKING_BASE_URL/MEDUSA_BACKEND_URL/BACKEND_URL. Falling back to http://localhost:9000 for open tracking URLs."
+    )
 
     return "http://localhost:9000"
   }
@@ -705,6 +698,10 @@ class EmailMarketingModuleService extends MedusaService({
         const openTrackingUrl = `${trackingBaseUrl}/store/email-marketing/campaigns/open?t=${encodeURIComponent(openTrackingToken)}`
         const trackedHtml = this.appendTrackingPixel(template.html_content, openTrackingUrl)
 
+        console.info(
+          `[email-marketing] tracking pixel url generated campaign_id=${campaign.id} subscriber_id=${subscriber.id} base_url=${trackingBaseUrl}`
+        )
+
         await notificationModuleService.createNotifications({
           to: subscriber.email,
           channel: "email",
@@ -926,30 +923,63 @@ class EmailMarketingModuleService extends MedusaService({
     @MedusaContext() sharedContext?: Context<EntityManager>
   ) {
     const normalizedEmail = input.subscriber_email?.trim().toLowerCase() || ""
+    const providerMessageId = input.provider_message_id?.trim() || ""
     let subscriberId = input.subscriber_id?.trim() || ""
 
     if (!subscriberId && normalizedEmail) {
       const matchedSubscribers = await this.listSubscribers({ email: normalizedEmail }, { take: 1 }, sharedContext)
       subscriberId = matchedSubscribers[0]?.id || ""
+
+      if (!subscriberId) {
+        console.warn(
+          `[email-marketing] campaign delivery event subscriber lookup failed campaign_id=${input.campaign_id} email=${normalizedEmail}`
+        )
+      }
+    }
+
+    let matchedLogs =
+      subscriberId.length > 0
+        ? await this.listEmailCampaignLogs(
+            {
+              campaign_id: input.campaign_id,
+              subscriber_id: subscriberId,
+            },
+            {
+              take: 1,
+            },
+            sharedContext
+          )
+        : []
+
+    if (!matchedLogs.length && providerMessageId) {
+      matchedLogs = await this.listEmailCampaignLogs(
+        {
+          campaign_id: input.campaign_id,
+          provider_message_id: providerMessageId,
+        },
+        {
+          take: 1,
+        },
+        sharedContext
+      )
+
+      if (matchedLogs[0]?.subscriber_id) {
+        subscriberId = String(matchedLogs[0].subscriber_id)
+      }
     }
 
     if (!subscriberId) {
+      console.warn(
+        `[email-marketing] campaign delivery event skipped campaign_id=${input.campaign_id} status=${input.status} reason=subscriber_not_found provider_message_id=${providerMessageId || "n/a"}`
+      )
       return { updated: false, reason: "subscriber_not_found" as const }
     }
 
-    const matchedLogs = await this.listEmailCampaignLogs(
-      {
-        campaign_id: input.campaign_id,
-        subscriber_id: subscriberId,
-      },
-      {
-        take: 1,
-      },
-      sharedContext
-    )
-
     if (!matchedLogs.length) {
-      return { updated: false, reason: "log_not_found" as const }
+      console.warn(
+        `[email-marketing] campaign delivery event skipped campaign_id=${input.campaign_id} subscriber_id=${subscriberId} status=${input.status} reason=log_not_found provider_message_id=${providerMessageId || "n/a"}`
+      )
+      return { updated: false, reason: "log_not_found" as const, subscriber_id: subscriberId }
     }
 
     const log = matchedLogs[0]
@@ -957,7 +987,7 @@ class EmailMarketingModuleService extends MedusaService({
     const nextStatus = input.status
 
     if (!this.shouldPromoteStatus(currentStatus, nextStatus)) {
-      return { updated: false, reason: "status_not_promoted" as const }
+      return { updated: false, reason: "status_not_promoted" as const, subscriber_id: subscriberId, log_id: log.id }
     }
 
     const eventDate = input.event_at ? new Date(input.event_at) : new Date()
@@ -966,7 +996,7 @@ class EmailMarketingModuleService extends MedusaService({
       {
         id: log.id,
         status: nextStatus,
-        provider_message_id: input.provider_message_id ?? log.provider_message_id ?? null,
+        provider_message_id: providerMessageId || log.provider_message_id || null,
         error_message: input.error_message ?? (nextStatus === "failed" ? "Email delivery failed" : null),
         delivered_at: ["delivered", "opened", "clicked"].includes(nextStatus) ? eventDate : log.delivered_at,
         opened_at: ["opened", "clicked"].includes(nextStatus) ? eventDate : log.opened_at,
@@ -981,6 +1011,10 @@ class EmailMarketingModuleService extends MedusaService({
       sharedContext
     )
 
+    console.info(
+      `[email-marketing] campaign delivery event applied campaign_id=${input.campaign_id} subscriber_id=${subscriberId} log_id=${log.id} status=${currentStatus}->${nextStatus}`
+    )
+
     return { updated: true, reason: "updated" as const, subscriber_id: subscriberId, log_id: log.id }
   }
 
@@ -992,6 +1026,7 @@ class EmailMarketingModuleService extends MedusaService({
     const decoded = this.decodeOpenTrackingToken(token)
 
     if (!decoded) {
+      console.warn("[email-marketing] open tracking token decode failed")
       return { updated: false, reason: "invalid_token" as const }
     }
 

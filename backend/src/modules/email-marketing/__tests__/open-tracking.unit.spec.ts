@@ -78,4 +78,63 @@ describe("EmailMarketingModuleService open tracking", () => {
     expect(service.applyCampaignDeliveryEvent).not.toHaveBeenCalled()
     expect(result).toEqual({ updated: false, reason: "invalid_token" })
   })
+  it("falls back to provider_message_id log lookup and promotes to opened", async () => {
+    const applyCampaignDeliveryEvent = EmailMarketingModuleService.prototype.applyCampaignDeliveryEvent
+
+    const service = {
+      listSubscribers: jest.fn().mockResolvedValue([]),
+      listEmailCampaignLogs: jest
+        .fn()
+        .mockResolvedValueOnce([
+          {
+            id: "log_123",
+            subscriber_id: "subscriber_123",
+            status: "sent",
+            provider_message_id: "msg_123",
+            metadata: null,
+            delivered_at: null,
+            opened_at: null,
+            clicked_at: null,
+          },
+        ]),
+      shouldPromoteStatus: EmailMarketingModuleService.prototype["shouldPromoteStatus"],
+      statusPriority: {
+        queued: 0,
+        failed: 1,
+        sent: 2,
+        delivered: 3,
+        opened: 4,
+        clicked: 5,
+      },
+      updateEmailCampaignLogs: jest.fn().mockResolvedValue({}),
+      baseRepository_: { getFreshManager: () => ({}) },
+    }
+
+    const result = await applyCampaignDeliveryEvent.call(
+      service,
+      {
+        campaign_id: "campaign_123",
+        provider_message_id: "msg_123",
+        status: "opened",
+      },
+      undefined
+    )
+
+    expect(service.listEmailCampaignLogs).toHaveBeenNthCalledWith(
+      1,
+      { campaign_id: "campaign_123", provider_message_id: "msg_123" },
+      { take: 1 },
+      expect.anything()
+    )
+    expect(service.updateEmailCampaignLogs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "log_123",
+        status: "opened",
+        provider_message_id: "msg_123",
+      }),
+      expect.anything()
+    )
+    expect(result).toEqual(expect.objectContaining({ updated: true, subscriber_id: "subscriber_123", log_id: "log_123" }))
+  })
+
 })
