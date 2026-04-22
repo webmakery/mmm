@@ -19,6 +19,15 @@ type QueueCampaignSendOptions = {
   allow_already_sent?: boolean
   skip_processing_status_update?: boolean
 }
+type CampaignDeliveryStatus = "queued" | "sent" | "delivered" | "opened" | "clicked" | "failed"
+type CampaignLiveAggregate = {
+  total_recipients: number
+  sent_count: number
+  delivered_count: number
+  failed_count: number
+  opened_count: number
+  clicked_count: number
+}
 
 type ListConfig = { limit: number; offset: number }
 
@@ -28,6 +37,15 @@ class EmailMarketingModuleService extends MedusaService({
   EmailCampaign,
   EmailCampaignLog,
 }) {
+  private readonly statusPriority: Record<CampaignDeliveryStatus, number> = {
+    queued: 0,
+    failed: 1,
+    sent: 2,
+    delivered: 3,
+    opened: 4,
+    clicked: 5,
+  }
+
   private normalizeAudienceFilter(audienceFilter: CampaignAudienceFilter | null | undefined): CampaignAudienceFilter {
     const normalizeTags = (tags: string[] | undefined) =>
       Array.from(
@@ -107,6 +125,44 @@ class EmailMarketingModuleService extends MedusaService({
     }
 
     return tagSet
+  }
+
+  private normalizeAggregate(row: Record<string, number | string | null | undefined> | null | undefined): CampaignLiveAggregate {
+    return {
+      total_recipients: Number(row?.total_recipients || 0),
+      sent_count: Number(row?.sent_count || 0),
+      delivered_count: Number(row?.delivered_count || 0),
+      failed_count: Number(row?.failed_count || 0),
+      opened_count: Number(row?.opened_count || 0),
+      clicked_count: Number(row?.clicked_count || 0),
+    }
+  }
+
+  private mergeAggregates(base: CampaignLiveAggregate, extra: CampaignLiveAggregate): CampaignLiveAggregate {
+    return {
+      total_recipients: base.total_recipients + extra.total_recipients,
+      sent_count: base.sent_count + extra.sent_count,
+      delivered_count: base.delivered_count + extra.delivered_count,
+      failed_count: base.failed_count + extra.failed_count,
+      opened_count: base.opened_count + extra.opened_count,
+      clicked_count: base.clicked_count + extra.clicked_count,
+    }
+  }
+
+  private shouldPromoteStatus(currentStatus: CampaignDeliveryStatus, nextStatus: CampaignDeliveryStatus) {
+    if (currentStatus === nextStatus) {
+      return false
+    }
+
+    if (nextStatus === "failed") {
+      return currentStatus === "queued" || currentStatus === "sent"
+    }
+
+    if (currentStatus === "failed") {
+      return nextStatus !== "queued"
+    }
+
+    return this.statusPriority[nextStatus] > this.statusPriority[currentStatus]
   }
 
   private filterSubscribersByAudience(subscribers: any[], audienceFilter: CampaignAudienceFilter | null | undefined) {
@@ -702,7 +758,127 @@ class EmailMarketingModuleService extends MedusaService({
   }
 
   @InjectManager()
-  async getCampaignAnalytics(campaignId: string, @MedusaContext() sharedContext?: Context<EntityManager>) {
+  async listCampaignEmailAnalyticsLogs(campaignId: string, @MedusaContext() sharedContext?: Context<EntityManager>) {
+    const manager = sharedContext?.manager
+    const result = await manager?.execute(
+      `
+      select
+        log.id,
+        log.campaign_id,
+        log.subscriber_id,
+        s.email as subscriber_email,
+        s.first_name as subscriber_first_name,
+        s.last_name as subscriber_last_name,
+        log.status,
+        log.error_message,
+        log.provider_message_id,
+        log.created_at,
+        log.updated_at,
+        log.delivered_at,
+        log.opened_at,
+        log.clicked_at
+      from email_campaign_log as log
+      left join email_subscriber as s on s.id = log.subscriber_id and s.deleted_at is null
+      where log.deleted_at is null
+        and log.campaign_id = ?
+      order by log.created_at desc
+      `,
+      [campaignId]
+    )
+
+    return (result || []).map((row) => ({
+      id: String((row as Record<string, unknown>).id || ""),
+      campaign_id: String((row as Record<string, unknown>).campaign_id || ""),
+      subscriber_id: String((row as Record<string, unknown>).subscriber_id || ""),
+      subscriber_email: (row as Record<string, unknown>).subscriber_email || null,
+      subscriber_first_name: (row as Record<string, unknown>).subscriber_first_name || null,
+      subscriber_last_name: (row as Record<string, unknown>).subscriber_last_name || null,
+      status: String((row as Record<string, unknown>).status || "queued") as CampaignDeliveryStatus,
+      error_message: (row as Record<string, unknown>).error_message || null,
+      provider_message_id: (row as Record<string, unknown>).provider_message_id || null,
+      created_at: (row as Record<string, unknown>).created_at || null,
+      updated_at: (row as Record<string, unknown>).updated_at || null,
+      delivered_at: (row as Record<string, unknown>).delivered_at || null,
+      opened_at: (row as Record<string, unknown>).opened_at || null,
+      clicked_at: (row as Record<string, unknown>).clicked_at || null,
+    }))
+  }
+
+  @InjectManager()
+  async applyCampaignDeliveryEvent(
+    input: {
+      campaign_id: string
+      subscriber_id?: string
+      subscriber_email?: string
+      provider_message_id?: string | null
+      status: CampaignDeliveryStatus
+      event_at?: Date | string | null
+      error_message?: string | null
+      metadata?: Record<string, unknown> | null
+    },
+    @MedusaContext() sharedContext?: Context<EntityManager>
+  ) {
+    const normalizedEmail = input.subscriber_email?.trim().toLowerCase() || ""
+    let subscriberId = input.subscriber_id?.trim() || ""
+
+    if (!subscriberId && normalizedEmail) {
+      const matchedSubscribers = await this.listSubscribers({ email: normalizedEmail }, { take: 1 }, sharedContext)
+      subscriberId = matchedSubscribers[0]?.id || ""
+    }
+
+    if (!subscriberId) {
+      return { updated: false, reason: "subscriber_not_found" as const }
+    }
+
+    const matchedLogs = await this.listEmailCampaignLogs(
+      {
+        campaign_id: input.campaign_id,
+        subscriber_id: subscriberId,
+      },
+      {
+        take: 1,
+      },
+      sharedContext
+    )
+
+    if (!matchedLogs.length) {
+      return { updated: false, reason: "log_not_found" as const }
+    }
+
+    const log = matchedLogs[0]
+    const currentStatus = String(log.status || "queued") as CampaignDeliveryStatus
+    const nextStatus = input.status
+
+    if (!this.shouldPromoteStatus(currentStatus, nextStatus)) {
+      return { updated: false, reason: "status_not_promoted" as const }
+    }
+
+    const eventDate = input.event_at ? new Date(input.event_at) : new Date()
+
+    await this.updateEmailCampaignLogs(
+      {
+        id: log.id,
+        status: nextStatus,
+        provider_message_id: input.provider_message_id ?? log.provider_message_id ?? null,
+        error_message: input.error_message ?? (nextStatus === "failed" ? "Email delivery failed" : null),
+        delivered_at: ["delivered", "opened", "clicked"].includes(nextStatus) ? eventDate : log.delivered_at,
+        opened_at: ["opened", "clicked"].includes(nextStatus) ? eventDate : log.opened_at,
+        clicked_at: nextStatus === "clicked" ? eventDate : log.clicked_at,
+        metadata: {
+          ...((log.metadata as Record<string, unknown>) || {}),
+          ...(input.metadata || {}),
+          last_event_at: eventDate.toISOString(),
+          last_event_status: nextStatus,
+        },
+      },
+      sharedContext
+    )
+
+    return { updated: true, reason: "updated" as const, subscriber_id: subscriberId, log_id: log.id }
+  }
+
+  @InjectManager()
+  async getLiveCampaignAnalyticsAggregate(campaignId: string, @MedusaContext() sharedContext?: Context<EntityManager>) {
     const manager = sharedContext?.manager
     const result = await manager?.execute(
       `
@@ -719,18 +895,68 @@ class EmailMarketingModuleService extends MedusaService({
       [campaignId]
     )
 
-    const row = (result?.[0] || {}) as Record<string, number>
-    const total = Number(row.total_recipients || 0)
-    const opened = Number(row.opened_count || 0)
-    const clicked = Number(row.clicked_count || 0)
+    return this.normalizeAggregate((result?.[0] || {}) as Record<string, number>)
+  }
+
+  @InjectManager()
+  async clearCampaignAnalyticsLogs(campaignId: string, @MedusaContext() sharedContext?: Context<EntityManager>) {
+    const campaign = await this.retrieveEmailCampaign(campaignId, {}, sharedContext)
+
+    if (campaign.status === "processing" || campaign.status === "automated") {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Analytics logs can only be cleared for campaigns that are not processing or automated"
+      )
+    }
+
+    const manager = sharedContext?.manager
+    const liveAggregate = await this.getLiveCampaignAnalyticsAggregate(campaignId, sharedContext)
+    const metadata = (campaign.metadata as Record<string, unknown>) || {}
+    const archivedMetrics = this.normalizeAggregate((metadata.analytics_archive as Record<string, number>) || {})
+    const nextArchivedMetrics = this.mergeAggregates(archivedMetrics, liveAggregate)
+
+    await manager?.execute(
+      `
+      update email_campaign_log
+      set deleted_at = now(),
+          updated_at = now()
+      where campaign_id = ?
+        and deleted_at is null
+      `,
+      [campaignId]
+    )
+
+    await this.updateEmailCampaigns(
+      {
+        id: campaignId,
+        metadata: {
+          ...metadata,
+          analytics_archive: nextArchivedMetrics,
+          analytics_logs_last_cleared_at: new Date().toISOString(),
+        },
+      },
+      sharedContext
+    )
+
+    return { cleared_count: liveAggregate.total_recipients, archived_analytics: nextArchivedMetrics }
+  }
+
+  @InjectManager()
+  async getCampaignAnalytics(campaignId: string, @MedusaContext() sharedContext?: Context<EntityManager>) {
+    const campaign = await this.retrieveEmailCampaign(campaignId, {}, sharedContext)
+    const liveAggregate = await this.getLiveCampaignAnalyticsAggregate(campaignId, sharedContext)
+    const metadata = (campaign.metadata as Record<string, unknown>) || {}
+    const archivedAggregate = this.normalizeAggregate((metadata.analytics_archive as Record<string, number>) || {})
+    const aggregate = this.mergeAggregates(archivedAggregate, liveAggregate)
+    const total = aggregate.total_recipients
 
     return {
       total_recipients: total,
-      sent_count: Number(row.sent_count || 0),
-      delivered_count: Number(row.delivered_count || 0),
-      failed_count: Number(row.failed_count || 0),
-      open_rate: total > 0 ? opened / total : 0,
-      click_rate: total > 0 ? clicked / total : 0,
+      sent_count: aggregate.sent_count,
+      delivered_count: aggregate.delivered_count,
+      failed_count: aggregate.failed_count,
+      open_rate: total > 0 ? aggregate.opened_count / total : 0,
+      click_rate: total > 0 ? aggregate.clicked_count / total : 0,
     }
   }
 

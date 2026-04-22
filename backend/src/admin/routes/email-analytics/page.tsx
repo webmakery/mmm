@@ -1,7 +1,7 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { User } from "@medusajs/icons"
-import { Badge, Button, Container, Heading, Select, Table, Text } from "@medusajs/ui"
-import { useQuery } from "@tanstack/react-query"
+import { Badge, Button, Container, Heading, Select, Table, Text, toast } from "@medusajs/ui"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { useMemo, useState } from "react"
 import { sdk } from "../../lib/sdk"
 
@@ -15,9 +15,16 @@ type Campaign = {
 type CampaignLog = {
   id: string
   subscriber_id: string
-  status: string
-  error?: string | null
+  subscriber_email?: string | null
+  subscriber_first_name?: string | null
+  subscriber_last_name?: string | null
+  status: "queued" | "sent" | "delivered" | "opened" | "clicked" | "failed"
+  error_message?: string | null
+  delivered_at?: string | null
+  opened_at?: string | null
+  clicked_at?: string | null
   created_at?: string | null
+  updated_at?: string | null
 }
 
 type CampaignAnalytics = {
@@ -30,6 +37,14 @@ type CampaignAnalytics = {
 }
 
 const percent = (value: number) => `${Math.round(value * 1000) / 10}%`
+const statusBadgeColors: Record<CampaignLog["status"], "grey" | "orange" | "green" | "blue" | "red"> = {
+  queued: "grey",
+  sent: "orange",
+  delivered: "green",
+  opened: "blue",
+  clicked: "blue",
+  failed: "red",
+}
 
 const EmailAnalyticsPage = () => {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("")
@@ -54,6 +69,17 @@ const EmailAnalyticsPage = () => {
     enabled: !!effectiveCampaignId,
   })
 
+  const clearLogsMutation = useMutation({
+    mutationFn: async () => sdk.client.fetch(`/admin/email-marketing/campaigns/${effectiveCampaignId}/analytics/logs`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("Analytics logs cleared")
+      analyticsQuery.refetch()
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to clear analytics logs")
+    },
+  })
+
   return (
     <Container>
       <div className="flex items-center justify-between gap-3">
@@ -75,6 +101,25 @@ const EmailAnalyticsPage = () => {
             disabled={!effectiveCampaignId}
           >
             Refresh analytics
+          </Button>
+          <Button
+            size="small"
+            variant="secondary"
+            onClick={() => {
+              const shouldClear = window.confirm(
+                "Clear analytics logs for this campaign? Summary stats are preserved, but per-email rows will be removed."
+              )
+
+              if (!shouldClear || !effectiveCampaignId) {
+                return
+              }
+
+              clearLogsMutation.mutate()
+            }}
+            isLoading={clearLogsMutation.isPending}
+            disabled={!effectiveCampaignId}
+          >
+            Clear logs
           </Button>
         </div>
       </div>
@@ -132,20 +177,41 @@ const EmailAnalyticsPage = () => {
         <Table className="mt-4">
           <Table.Header>
             <Table.Row>
-              <Table.HeaderCell>Subscriber</Table.HeaderCell>
+              <Table.HeaderCell>Recipient</Table.HeaderCell>
               <Table.HeaderCell>Status</Table.HeaderCell>
               <Table.HeaderCell>Error</Table.HeaderCell>
+              <Table.HeaderCell>Last event</Table.HeaderCell>
               <Table.HeaderCell>Created</Table.HeaderCell>
             </Table.Row>
           </Table.Header>
           <Table.Body>
             {(analyticsQuery.data?.logs || []).map((log) => (
               <Table.Row key={log.id}>
-                <Table.Cell>{log.subscriber_id}</Table.Cell>
                 <Table.Cell>
-                  <Badge color={log.status === "failed" ? "red" : "green"}>{log.status}</Badge>
+                  <div className="flex flex-col">
+                    <Text size="small">{log.subscriber_email || log.subscriber_id}</Text>
+                    {(log.subscriber_first_name || log.subscriber_last_name) ? (
+                      <Text size="xsmall" className="text-ui-fg-subtle">
+                        {[log.subscriber_first_name, log.subscriber_last_name].filter(Boolean).join(" ")}
+                      </Text>
+                    ) : null}
+                  </div>
                 </Table.Cell>
-                <Table.Cell>{log.error || "-"}</Table.Cell>
+                <Table.Cell>
+                  <Badge color={statusBadgeColors[log.status] || "grey"}>{log.status}</Badge>
+                </Table.Cell>
+                <Table.Cell>{log.error_message || "-"}</Table.Cell>
+                <Table.Cell>
+                  {log.clicked_at
+                    ? new Date(log.clicked_at).toLocaleString()
+                    : log.opened_at
+                      ? new Date(log.opened_at).toLocaleString()
+                      : log.delivered_at
+                        ? new Date(log.delivered_at).toLocaleString()
+                        : log.updated_at
+                          ? new Date(log.updated_at).toLocaleString()
+                          : "-"}
+                </Table.Cell>
                 <Table.Cell>{log.created_at ? new Date(log.created_at).toLocaleString() : "-"}</Table.Cell>
               </Table.Row>
             ))}
