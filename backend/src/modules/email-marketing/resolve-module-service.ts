@@ -2,12 +2,14 @@ import type { LoaderOptions, MedusaContainer } from "@medusajs/framework/types"
 import type EmailMarketingModuleService from "./service"
 import { EMAIL_MARKETING_MODULE, LEGACY_EMAIL_MARKETING_MODULE } from "./constants"
 
-export const EMAIL_MARKETING_SERVICE_CANDIDATES = [
+const RAW_EMAIL_MARKETING_SERVICE_CANDIDATES = [
   EMAIL_MARKETING_MODULE,
   LEGACY_EMAIL_MARKETING_MODULE,
   `${LEGACY_EMAIL_MARKETING_MODULE}ModuleService`,
   `${LEGACY_EMAIL_MARKETING_MODULE}Service`,
 ] as const
+
+export const EMAIL_MARKETING_SERVICE_CANDIDATES = Array.from(new Set(RAW_EMAIL_MARKETING_SERVICE_CANDIDATES))
 
 type ContainerWithResolve = LoaderOptions["container"] | MedusaContainer
 

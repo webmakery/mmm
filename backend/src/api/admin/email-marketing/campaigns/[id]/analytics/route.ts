@@ -10,8 +10,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   logger.info(`[email-marketing] GET analytics start campaign_id=${campaignId}`)
 
   const analytics = await service.getCampaignAnalytics(campaignId)
-
-  const logs = await service.listEmailCampaignLogs({ campaign_id: campaignId }, { take: 250, order: { created_at: "DESC" } })
+  const logs = await service.listCampaignEmailAnalyticsLogs(campaignId)
 
   logger.info(
     `[email-marketing] GET analytics success campaign_id=${campaignId} recipients=${analytics.total_recipients} sent=${analytics.sent_count} delivered=${analytics.delivered_count} failed=${analytics.failed_count} logs=${logs.length}`
