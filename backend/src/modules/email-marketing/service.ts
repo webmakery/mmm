@@ -193,6 +193,49 @@ class EmailMarketingModuleService extends MedusaService({
     return Buffer.from(EmailMarketingModuleService.trackingPixelTransparentGifBase64, "base64")
   }
 
+  private normalizeTrackingUserAgent(userAgent: unknown) {
+    return typeof userAgent === "string" ? userAgent.trim().toLowerCase() : ""
+  }
+
+  private detectMachineOpenReason(metadata: Record<string, unknown> | null | undefined) {
+    const normalizedUserAgent = this.normalizeTrackingUserAgent(metadata?.user_agent)
+    const machineOpenRules = [
+      {
+        reason: "brevo_image_proxy",
+        matches: (userAgent: string) =>
+          userAgent.includes("brevo/") || userAgent.includes("redirection-images"),
+      },
+      {
+        reason: "proofpoint_prefetch",
+        matches: (userAgent: string) => userAgent.includes("proofpoint"),
+      },
+      {
+        reason: "mimecast_prefetch",
+        matches: (userAgent: string) => userAgent.includes("mimecast"),
+      },
+      {
+        reason: "barracuda_prefetch",
+        matches: (userAgent: string) => userAgent.includes("barracuda"),
+      },
+      {
+        reason: "symantec_prefetch",
+        matches: (userAgent: string) => userAgent.includes("symantec"),
+      },
+      {
+        reason: "trendmicro_prefetch",
+        matches: (userAgent: string) => userAgent.includes("trendmicro"),
+      },
+    ] as const
+
+    for (const rule of machineOpenRules) {
+      if (rule.matches(normalizedUserAgent)) {
+        return rule.reason
+      }
+    }
+
+    return null
+  }
+
   private getSubscriberTagSet(tags: Record<string, unknown> | null | undefined) {
     if (!tags || typeof tags !== "object") {
       return new Set<string>()
@@ -1030,6 +1073,21 @@ class EmailMarketingModuleService extends MedusaService({
       return { updated: false, reason: "invalid_token" as const }
     }
 
+    const machineOpenReason = this.detectMachineOpenReason(metadata)
+
+    if (machineOpenReason) {
+      console.info(
+        `[email-marketing] open tracking suppressed campaign_id=${decoded.campaign_id} subscriber_id=${decoded.subscriber_id} reason=${machineOpenReason}`
+      )
+
+      return {
+        updated: false,
+        reason: "machine_open_detected" as const,
+        subscriber_id: decoded.subscriber_id,
+        machine_open_reason: machineOpenReason,
+      }
+    }
+
     return this.applyCampaignDeliveryEvent(
       {
         campaign_id: decoded.campaign_id,
@@ -1039,6 +1097,7 @@ class EmailMarketingModuleService extends MedusaService({
         metadata: {
           ...(metadata || {}),
           tracking_source: "pixel",
+          tracking_classification: "human",
         },
       },
       sharedContext
