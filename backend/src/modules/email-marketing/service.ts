@@ -695,7 +695,7 @@ class EmailMarketingModuleService extends MedusaService({
       try {
         const openTrackingToken = this.buildOpenTrackingToken(campaign.id, subscriber.id)
         const trackingBaseUrl = this.getTrackingBaseUrl()
-        const openTrackingUrl = `${trackingBaseUrl}/store/email-marketing/campaigns/open?t=${encodeURIComponent(openTrackingToken)}`
+        const openTrackingUrl = `${trackingBaseUrl}/email-marketing/campaigns/open?t=${encodeURIComponent(openTrackingToken)}`
         const trackedHtml = this.appendTrackingPixel(template.html_content, openTrackingUrl)
 
         console.info(

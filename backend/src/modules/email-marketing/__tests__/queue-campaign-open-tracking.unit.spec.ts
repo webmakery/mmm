@@ -64,7 +64,7 @@ describe("EmailMarketingModuleService queue campaign open tracking", () => {
 
     expect(createNotifications).toHaveBeenCalledTimes(1)
     const payload = createNotifications.mock.calls[0][0]
-    expect(payload.data.open_tracking_url).toContain("https://backend.example.com/store/email-marketing/campaigns/open?t=")
+    expect(payload.data.open_tracking_url).toContain("https://backend.example.com/email-marketing/campaigns/open?t=")
     expect(payload.content.html).toContain(payload.data.open_tracking_url)
   })
 })
