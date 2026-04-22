@@ -71,6 +71,7 @@ import { GetAdminEmailCampaignsSchema, PostAdminEmailCampaignSchema } from "./ad
 import { PostAdminEmailCampaignUpdateSchema } from "./admin/email-marketing/campaigns/[id]/route"
 import { PostAdminCampaignAnalyticsEventsSchema } from "./admin/email-marketing/campaigns/[id]/analytics/events/route"
 import { PostStoreEmailUnsubscribeSchema } from "./store/email-marketing/unsubscribe/route"
+import { GetEmailCampaignOpenSchema } from "./email-marketing/campaigns/open/route"
 import { GetStoreEmailCampaignOpenSchema } from "./store/email-marketing/campaigns/open/route"
 import { PostAdminCustomerTagsSchema } from "./admin/customers/[id]/tags/route"
 
@@ -318,6 +319,11 @@ export default defineMiddlewares({
       matcher: "/admin/email-marketing/campaigns/:id/analytics/logs",
       methods: ["DELETE"],
       middlewares: [authenticate("user", ["bearer", "session"])],
+    },
+    {
+      matcher: "/email-marketing/campaigns/open",
+      methods: ["GET"],
+      middlewares: [validateAndTransformQuery(GetEmailCampaignOpenSchema, {})],
     },
     {
       matcher: "/store/email-marketing/campaigns/open",
