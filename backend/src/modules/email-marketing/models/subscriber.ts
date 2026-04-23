@@ -8,7 +8,7 @@ const Subscriber = model.define("email_subscriber", {
   email: model.text().unique(),
   first_name: model.text().nullable(),
   last_name: model.text().nullable(),
-  status: model.enum(SubscriberStatuses).default("active"),
+  status: model.enum([...SubscriberStatuses]).default("active"),
   tags: model.json().nullable(),
   source: model.text().nullable(),
   unsubscribe_token: model.text().index("IDX_EMAIL_SUBSCRIBER_UNSUB_TOKEN").nullable(),

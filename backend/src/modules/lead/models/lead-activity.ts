@@ -12,7 +12,7 @@ export const LeadActivityTypes = [
 
 const LeadActivity = model.define("lead_activity", {
   id: model.id().primaryKey(),
-  type: model.enum(LeadActivityTypes).index("IDX_LEAD_ACTIVITY_TYPE"),
+  type: model.enum([...LeadActivityTypes]).index("IDX_LEAD_ACTIVITY_TYPE"),
   content: model.text(),
   created_by: model.text().nullable(),
   due_at: model.dateTime().index("IDX_LEAD_ACTIVITY_DUE_AT").nullable(),

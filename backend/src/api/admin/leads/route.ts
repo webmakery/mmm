@@ -38,27 +38,28 @@ export const PostAdminCreateLeadSchema = z.object({
 export async function GET(req: MedusaRequest<z.infer<typeof GetAdminLeadsSchema>>, res: MedusaResponse) {
   const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER)
   const leadService: LeadModuleService = req.scope.resolve(LEAD_MODULE)
+  const query = req.validatedQuery as z.infer<typeof GetAdminLeadsSchema>
 
   const sanitizedFilters = {
-    q: req.validatedQuery.q?.trim() || undefined,
-    stage_id: req.validatedQuery.stage_id?.trim() || undefined,
-    status: req.validatedQuery.status,
-    owner_user_id: req.validatedQuery.owner_user_id?.trim() || undefined,
-    source: req.validatedQuery.source?.trim() || undefined,
-    follow_up: req.validatedQuery.follow_up,
+    q: query.q?.trim() || undefined,
+    stage_id: query.stage_id?.trim() || undefined,
+    status: query.status,
+    owner_user_id: query.owner_user_id?.trim() || undefined,
+    source: query.source?.trim() || undefined,
+    follow_up: query.follow_up,
   }
 
   logger.info(
     `[CRM] GET /admin/leads query=${JSON.stringify({
       ...sanitizedFilters,
-      limit: req.validatedQuery.limit,
-      offset: req.validatedQuery.offset,
+      limit: query.limit,
+      offset: query.offset,
     })}`
   )
 
   const { leads, count } = await leadService.listLeadsWithFilters(sanitizedFilters, {
-    limit: req.validatedQuery.limit,
-    offset: req.validatedQuery.offset,
+    limit: query.limit,
+    offset: query.offset,
   })
 
   logger.info(`[CRM] GET /admin/leads returned=${leads.length} count=${count}`)
@@ -66,8 +67,8 @@ export async function GET(req: MedusaRequest<z.infer<typeof GetAdminLeadsSchema>
   res.json({
     leads,
     count,
-    limit: req.validatedQuery.limit,
-    offset: req.validatedQuery.offset,
+    limit: query.limit,
+    offset: query.offset,
   })
 }
 

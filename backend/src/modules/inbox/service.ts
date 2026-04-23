@@ -338,7 +338,7 @@ class InboxModuleService extends MedusaService({
           return bTime - aTime
         })[0]
 
-      sessionId = mostRecentConversation?.customer_identifier || null
+      sessionId = mostRecentConversation?.customer_identifier || undefined
     }
 
     if (!sessionId) {

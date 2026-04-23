@@ -105,7 +105,7 @@ const provisionHetznerServerStep = createStep(
         `[infra] Provisioned Hetzner server ${result.id} for order ${infrastructure.order_id} and subscription ${infrastructure.stripe_subscription_id}`
       )
 
-      return new StepResponse({ infrastructure_id: infrastructure.id, server_id: String(result.id) })
+      return new StepResponse({ skipped: false, infrastructure_id: infrastructure.id, server_id: String(result.id) })
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown provisioning error"
 

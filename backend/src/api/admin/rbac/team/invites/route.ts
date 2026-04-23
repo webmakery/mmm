@@ -3,6 +3,7 @@ import { z } from "@medusajs/framework/zod"
 import { createInvitesWorkflow } from "@medusajs/medusa/core-flows"
 import { MedusaError } from "@medusajs/framework/utils"
 import { RBAC_MODULE } from "../../../../../modules/team-rbac"
+// Team RBAC service resolved from module interface
 import TeamRbacModuleService from "../../../../../modules/team-rbac/service"
 import { canAssignRole, requirePermission } from "../../utils/permissions"
 import { PostInviteWithRolesSchema } from "../../utils/schemas"
@@ -12,7 +13,7 @@ export async function POST(
   res: MedusaResponse
 ) {
   const actor = await requirePermission(req, "team.manage")
-  const rbacService: TeamRbacModuleService = req.scope.resolve(RBAC_MODULE)
+  const rbacService = req.scope.resolve<TeamRbacModuleService>(RBAC_MODULE)
 
   const roles = await rbacService.getRolesByIds(req.validatedBody.role_ids)
 

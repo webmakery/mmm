@@ -12,7 +12,7 @@ const EmailCampaign = model.define("email_campaign", {
   sender_email: model.text(),
   scheduled_at: model.dateTime().nullable(),
   sent_at: model.dateTime().nullable(),
-  status: model.enum(CampaignStatuses).default("draft"),
+  status: model.enum([...CampaignStatuses]).default("draft"),
   audience_filter: model.json().nullable(),
   template: model.belongsTo(() => EmailTemplate, {
     mappedBy: "campaigns",

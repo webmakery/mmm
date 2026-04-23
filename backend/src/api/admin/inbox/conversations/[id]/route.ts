@@ -50,7 +50,9 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
     })
   }
 
-  const messages = [...(conversation.messages || [])].sort((a, b) => {
+  const messages = [...(conversation.messages || [])]
+    .filter((message): message is NonNullable<typeof message> => Boolean(message))
+    .sort((a, b) => {
     const aTime = new Date(a.received_at || a.sent_at || a.created_at).getTime()
     const bTime = new Date(b.received_at || b.sent_at || b.created_at).getTime()
     return aTime - bTime

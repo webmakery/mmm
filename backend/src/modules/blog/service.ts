@@ -107,8 +107,8 @@ class BlogModuleService extends MedusaService({
         canonical_url: input.canonical_url,
         publish_date: input.publish_date ? new Date(input.publish_date) : null,
         status: input.status || "draft",
-        tags: input.tags || [],
-      },
+        tags: input.tags ? { values: input.tags } : null,
+      } as any,
       sharedContext
     )
 
@@ -161,9 +161,9 @@ class BlogModuleService extends MedusaService({
         ...(input.seo_description !== undefined ? { seo_description: input.seo_description } : {}),
         ...(input.canonical_url !== undefined ? { canonical_url: input.canonical_url } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
-        ...(input.tags !== undefined ? { tags: input.tags } : {}),
+        ...(input.tags !== undefined ? { tags: input.tags ? { values: input.tags } : null } : {}),
         publish_date: publishDate,
-      },
+      } as any,
       sharedContext
     )
 

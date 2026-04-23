@@ -73,7 +73,7 @@ const getPdfPrinterConstructor = (resolved: any) => {
 }
 
 const resolvePdfPrinter = async () => {
-  const localRequire = createRequire(import.meta.url)
+  const localRequire = createRequire(__filename)
   const resolutionErrors: string[] = []
 
   const candidates: Array<{ label: string; resolve: () => Promise<any> | any }> = [

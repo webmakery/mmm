@@ -147,7 +147,7 @@ class EmailMarketingModuleService extends MedusaService({
     return `${payloadBase64}.${signature}`
   }
 
-  private decodeOpenTrackingToken(token: string) {
+  private decodeOpenTrackingToken(token: string): { campaign_id: string; subscriber_id: string } | null {
     const [payloadBase64, signature] = token.split(".")
 
     if (!payloadBase64 || !signature) {
@@ -173,7 +173,7 @@ class EmailMarketingModuleService extends MedusaService({
         return null
       }
 
-      return payload
+      return { campaign_id: payload.campaign_id, subscriber_id: payload.subscriber_id }
     } catch {
       return null
     }
@@ -734,7 +734,7 @@ class EmailMarketingModuleService extends MedusaService({
         status: "queued",
       }))
     const createdLogs =
-      logsToCreate.length > 0 ? await this.createEmailCampaignLogs(logsToCreate, sharedContext) : []
+      logsToCreate.length > 0 ? await this.createEmailCampaignLogs(logsToCreate as any, sharedContext) : []
 
     const logs = Array.isArray(createdLogs) ? createdLogs : createdLogs ? [createdLogs] : []
     const logBySubscriberId = new Map(
