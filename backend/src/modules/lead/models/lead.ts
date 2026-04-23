@@ -24,7 +24,7 @@ const Lead = model.define("lead", {
   source: model.text().index("IDX_LEAD_SOURCE").nullable(),
   source_detail: model.text().nullable(),
   category: model.text().nullable(),
-  status: model.enum(LeadStatuses).default("new").index("IDX_LEAD_STATUS"),
+  status: model.enum([...LeadStatuses]).default("new").index("IDX_LEAD_STATUS"),
   lead_score: model.number().index("IDX_LEAD_SCORE").nullable(),
   lead_score_notes: model.text().nullable(),
   pain_points: model.json().nullable(),
@@ -33,7 +33,7 @@ const Lead = model.define("lead", {
   notes_summary: model.text().nullable(),
   next_follow_up_at: model.dateTime().index("IDX_LEAD_NEXT_FOLLOW_UP").nullable(),
   follow_up_status: model
-    .enum(LeadFollowUpStatuses)
+    .enum([...LeadFollowUpStatuses])
     .default("not_scheduled")
     .index("IDX_LEAD_FOLLOW_UP_STATUS"),
   follow_up_event_id: model.text().nullable(),

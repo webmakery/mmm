@@ -6,7 +6,7 @@ export const ParticipantRole = ["customer", "agent", "system"] as const
 
 const Participant = model.define("participant", {
   id: model.id().primaryKey(),
-  role: model.enum(ParticipantRole).default("customer"),
+  role: model.enum([...ParticipantRole]).default("customer"),
   display_name: model.text().nullable(),
   external_id: model.text(),
   metadata: model.json().nullable(),

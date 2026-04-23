@@ -10,19 +10,20 @@ export const GetStoreEmailCampaignOpenSchema = z.object({
 export async function GET(req: MedusaRequest<z.infer<typeof GetStoreEmailCampaignOpenSchema>>, res: MedusaResponse) {
   const logger = req.scope.resolve("logger")
   const service: EmailMarketingModuleService = req.scope.resolve(EMAIL_MARKETING_MODULE)
+  const query = req.validatedQuery as z.infer<typeof GetStoreEmailCampaignOpenSchema>
 
   logger.info(
-    `[email-marketing] open tracking route hit token_length=${req.validatedQuery.t.length} ip=${req.ip || "n/a"} ua=${String(req.headers["user-agent"] || "").slice(0, 120)}`
+    `[email-marketing] open tracking route hit token_length=${query.t.length} ip=${req.ip || "n/a"} ua=${String(req.headers["user-agent"] || "").slice(0, 120)}`
   )
 
-  const result = await service.applyOpenTrackingToken(req.validatedQuery.t, {
+  const result = await service.applyOpenTrackingToken(query.t, {
     user_agent: req.headers["user-agent"] || null,
     ip: req.ip || null,
   })
 
   if (result.updated) {
     logger.info(
-      `[email-marketing] open tracking event applied subscriber_id=${result.subscriber_id || "n/a"} log_id=${result.log_id || "n/a"}`
+      `[email-marketing] open tracking event applied subscriber_id=${result.subscriber_id || "n/a"} log_id=${("log_id" in result ? result.log_id : undefined) || "n/a"}`
     )
   } else {
     logger.warn(`[email-marketing] open tracking event skipped reason=${result.reason}`)

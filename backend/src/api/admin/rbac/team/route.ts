@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { Modules } from "@medusajs/framework/utils"
 import { InviteDTO, IUserModuleService } from "@medusajs/framework/types"
 import { RBAC_MODULE } from "../../../../modules/team-rbac"
+// Team RBAC service resolved from module interface
 import TeamRbacModuleService from "../../../../modules/team-rbac/service"
 import { requirePermission } from "../utils/permissions"
 
@@ -36,7 +37,7 @@ const isPendingInvite = (invite: any): boolean => {
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   await requirePermission(req, "team.read")
 
-  const rbacService: TeamRbacModuleService = req.scope.resolve(RBAC_MODULE)
+  const rbacService = req.scope.resolve<TeamRbacModuleService>(RBAC_MODULE)
 
   let invites: InviteDTO[] = []
 

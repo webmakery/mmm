@@ -40,7 +40,7 @@ const deleteHetznerServerStep = createStep(
         `[infra] Marked infrastructure ${infrastructure.id} as deleted because server id is empty`
       )
 
-      return new StepResponse({ infrastructure_id: infrastructure.id, already_deleted: true })
+      return new StepResponse({ skipped: false, infrastructure_id: infrastructure.id, already_deleted: true })
     }
 
     const hetzner = new HetznerCloudService()
@@ -63,6 +63,7 @@ const deleteHetznerServerStep = createStep(
       )
 
       return new StepResponse({
+        skipped: false,
         infrastructure_id: infrastructure.id,
         server_id: infrastructure.hetzner_server_id,
         already_deleted: result.alreadyDeleted,

@@ -1,6 +1,7 @@
 import { MedusaRequest } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
 import { RBAC_MODULE } from "../../../../modules/team-rbac"
+// Team RBAC service resolved from module interface
 import TeamRbacModuleService from "../../../../modules/team-rbac/service"
 
 export type PermissionCheckResult = {
@@ -26,7 +27,7 @@ export const requirePermission = async (
     throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Authentication is required")
   }
 
-  const rbacService: TeamRbacModuleService = req.scope.resolve(RBAC_MODULE)
+  const rbacService = req.scope.resolve<TeamRbacModuleService>(RBAC_MODULE)
   const actor = await rbacService.getActorPermissions(actorId)
 
   if (actor.isSuperAdmin || actor.permissions.includes("*") || actor.permissions.includes(requiredPermission)) {

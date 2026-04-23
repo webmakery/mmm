@@ -959,6 +959,6 @@ export default async function seedDemoData({ container }: ExecArgs) {
       tags: ["conversion", "checkout", "ecommerce"],
     });
 
-    logger.info(`Seeded blog post ${post.id}`);
+    logger.info(`Seeded blog post ${String((post as { id?: string }).id || "unknown")}`);
   }
 }

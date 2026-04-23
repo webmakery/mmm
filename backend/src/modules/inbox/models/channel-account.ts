@@ -6,7 +6,7 @@ import { InboxProvider } from "./inbox-provider"
 
 const ChannelAccount = model.define("channel_account", {
   id: model.id().primaryKey(),
-  provider: model.enum(InboxProvider).default("whatsapp"),
+  provider: model.enum([...InboxProvider]).default("whatsapp"),
   external_account_id: model.text().unique(),
   display_name: model.text().nullable(),
   metadata: model.json().nullable(),

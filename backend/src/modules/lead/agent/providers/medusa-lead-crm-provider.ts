@@ -22,7 +22,7 @@ export class MedusaLeadCrmProvider implements LeadCrmProvider {
       name: "New",
       slug: "new",
       sort_order: 0,
-    })
+    } as any)
 
     if (!createdStage?.id) {
       const error = new Error(
@@ -67,7 +67,7 @@ export class MedusaLeadCrmProvider implements LeadCrmProvider {
       notes_summary: input.notes_summary,
       lead_score: input.lead_score,
       lead_score_notes: input.lead_score_notes,
-      pain_points: input.pain_points,
+      pain_points: { values: input.pain_points },
       outreach_message_draft: input.outreach_message_draft,
       status: "qualified",
       stage_id: stageId,
@@ -87,7 +87,7 @@ export class MedusaLeadCrmProvider implements LeadCrmProvider {
   async updateLeadStatus(
     leadId: string,
     input: {
-      follow_up_status?: string
+      follow_up_status?: "not_scheduled" | "scheduled" | "pending_approval" | "approved" | "sent" | "failed"
       next_follow_up_at?: Date | null
       owner_user_id?: string | null
       outreach_approved_at?: Date | null

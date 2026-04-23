@@ -50,16 +50,17 @@ export async function POST(req: MedusaRequest<z.infer<typeof PostAdminCreateBlog
 
 export async function GET(req: MedusaRequest<z.infer<typeof GetAdminBlogPostsSchema>>, res: MedusaResponse) {
   const blogService: BlogModuleService = req.scope.resolve(BLOG_MODULE)
+  const query = req.validatedQuery as z.infer<typeof GetAdminBlogPostsSchema>
 
   const result = await blogService.listAdminPosts(
     {
-      q: req.validatedQuery.q,
-      status: req.validatedQuery.status,
-      category_id: req.validatedQuery.category_id,
+      q: query.q,
+      status: query.status,
+      category_id: query.category_id,
     },
     {
-      limit: req.validatedQuery.limit,
-      offset: req.validatedQuery.offset,
+      limit: query.limit,
+      offset: query.offset,
     }
   )
 
@@ -70,7 +71,7 @@ export async function GET(req: MedusaRequest<z.infer<typeof GetAdminBlogPostsSch
       meta_description: (post as Record<string, unknown>).seo_description || null,
     })),
     count: result.count,
-    limit: req.validatedQuery.limit,
-    offset: req.validatedQuery.offset,
+    limit: query.limit,
+    offset: query.offset,
   })
 }

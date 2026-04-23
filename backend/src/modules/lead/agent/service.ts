@@ -348,11 +348,13 @@ export class LeadAgentService {
       outreach_approved_at: new Date(),
     })
 
+    const outreachMessage = lead.outreach_message_draft
+
     const sendResult = await withRetry(
       () =>
         this.outreachProvider.sendOutreach({
           lead_id: leadId,
-          message: lead.outreach_message_draft,
+          message: outreachMessage,
           company: lead.company || lead.first_name,
         }),
       1,

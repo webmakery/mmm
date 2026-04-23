@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
 import { MedusaError } from "@medusajs/framework/utils"
 import { RBAC_MODULE } from "../../../../modules/team-rbac"
+// Team RBAC service resolved from module interface
 import TeamRbacModuleService from "../../../../modules/team-rbac/service"
 import { requirePermission } from "../utils/permissions"
 import { PostCreateRoleSchema } from "../utils/schemas"
@@ -9,7 +10,7 @@ import { PostCreateRoleSchema } from "../utils/schemas"
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   await requirePermission(req, "roles.read")
 
-  const rbacService: TeamRbacModuleService = req.scope.resolve(RBAC_MODULE)
+  const rbacService = req.scope.resolve<TeamRbacModuleService>(RBAC_MODULE)
   const roles = await rbacService.listRoles({}, { order: { created_at: "ASC" as const } })
 
   res.json({ roles })
@@ -24,7 +25,7 @@ export async function POST(req: MedusaRequest<z.infer<typeof PostCreateRoleSchem
   }
 
   const payload = parsedBody.data
-  const rbacService: TeamRbacModuleService = req.scope.resolve(RBAC_MODULE)
+  const rbacService = req.scope.resolve<TeamRbacModuleService>(RBAC_MODULE)
   const existing = await rbacService.getRoleByKey(payload.key)
 
   if (existing) {

@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
 import { MedusaError } from "@medusajs/framework/utils"
 import { RBAC_MODULE } from "../../../../../../modules/team-rbac"
+// Team RBAC service resolved from module interface
 import TeamRbacModuleService from "../../../../../../modules/team-rbac/service"
 import { canAssignRole, requirePermission } from "../../../utils/permissions"
 import { PostAssignRolesSchema } from "../../../utils/schemas"
@@ -9,7 +10,7 @@ import { PostAssignRolesSchema } from "../../../utils/schemas"
 export async function POST(req: MedusaRequest<z.infer<typeof PostAssignRolesSchema>>, res: MedusaResponse) {
   const actor = await requirePermission(req, "team.manage")
 
-  const rbacService: TeamRbacModuleService = req.scope.resolve(RBAC_MODULE)
+  const rbacService = req.scope.resolve<TeamRbacModuleService>(RBAC_MODULE)
   const roles = await rbacService.getRolesByIds(req.validatedBody.role_ids)
 
   if (roles.length !== req.validatedBody.role_ids.length) {

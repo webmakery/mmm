@@ -37,13 +37,25 @@ const getStripeCustomerId = (
 }
 
 const getStripeSubscriptionIdFromInvoice = (invoice: Stripe.Invoice): string | undefined => {
-  const subscriptionId =
-    typeof invoice.subscription === "string"
-      ? invoice.subscription
-      : invoice.subscription?.id
+  const subscription = getInvoiceSubscriptionRef(invoice)
+  const subscriptionId = typeof subscription === "string" ? subscription : subscription?.id
 
   return subscriptionId || undefined
 }
+
+const getInvoiceSubscriptionRef = (invoice: Stripe.Invoice): string | { id?: string } | undefined => {
+  const candidate = (invoice as Stripe.Invoice & { subscription?: string | { id?: string } }).subscription
+  if (typeof candidate === "string") {
+    return candidate
+  }
+
+  if (candidate && typeof candidate === "object") {
+    return candidate
+  }
+
+  return undefined
+}
+
 
 const getCheckoutSubscriptionHint = (stripeCustomerId: string, nowMs: number) => {
   const hint = checkoutSubscriptionByCustomer.get(stripeCustomerId)
@@ -304,7 +316,7 @@ const handleInvoicePaid = async (
   invoice: Stripe.Invoice,
   logger: Logger
 ) => {
-  const rawSubscriptionValue = invoice.subscription
+  const rawSubscriptionValue = getInvoiceSubscriptionRef(invoice)
   const extractedSubscriptionId = getStripeSubscriptionIdFromInvoice(invoice)
   const invoiceCustomerId = getStripeCustomerId(invoice.customer)
   const fallbackSubscriptionId =

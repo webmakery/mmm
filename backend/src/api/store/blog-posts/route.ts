@@ -12,15 +12,16 @@ export const GetStoreBlogPostsSchema = z.object({
 
 export async function GET(req: MedusaRequest<z.infer<typeof GetStoreBlogPostsSchema>>, res: MedusaResponse) {
   const blogService: BlogModuleService = req.scope.resolve(BLOG_MODULE)
+  const query = req.validatedQuery as z.infer<typeof GetStoreBlogPostsSchema>
 
   const result = await blogService.listStorePublishedPosts(
     {
-      q: req.validatedQuery.q,
-      category: req.validatedQuery.category,
+      q: query.q,
+      category: query.category,
     },
     {
-      limit: req.validatedQuery.limit,
-      offset: req.validatedQuery.offset,
+      limit: query.limit,
+      offset: query.offset,
     }
   )
 
@@ -31,7 +32,7 @@ export async function GET(req: MedusaRequest<z.infer<typeof GetStoreBlogPostsSch
       meta_description: (post as Record<string, unknown>).seo_description || null,
     })),
     count: result.count,
-    limit: req.validatedQuery.limit,
-    offset: req.validatedQuery.offset,
+    limit: query.limit,
+    offset: query.offset,
   })
 }

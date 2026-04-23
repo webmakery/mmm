@@ -23,12 +23,13 @@ const renderMissingViewHtml = () => `<!doctype html>
 export async function GET(req: MedusaRequest<z.infer<typeof GetEmailCampaignViewSchema>>, res: MedusaResponse) {
   const logger = req.scope.resolve("logger")
   const service: EmailMarketingModuleService = req.scope.resolve(EMAIL_MARKETING_MODULE)
+  const query = req.validatedQuery as z.infer<typeof GetEmailCampaignViewSchema>
 
   logger.info(
-    `[email-marketing] browser view route hit token_length=${req.validatedQuery.t.length} ip=${req.ip || "n/a"} ua=${String(req.headers["user-agent"] || "").slice(0, 120)}`
+    `[email-marketing] browser view route hit token_length=${query.t.length} ip=${req.ip || "n/a"} ua=${String(req.headers["user-agent"] || "").slice(0, 120)}`
   )
 
-  const browserView = await service.getCampaignBrowserViewHtmlByToken(req.validatedQuery.t)
+  const browserView = await service.getCampaignBrowserViewHtmlByToken(query.t)
 
   if (!browserView) {
     logger.warn("[email-marketing] browser view route skipped reason=invalid_token")
