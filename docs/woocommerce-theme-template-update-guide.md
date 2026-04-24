@@ -42,6 +42,27 @@ When many files are outdated, update these first:
 
 These templates are most affected by WooCommerce release changes.
 
+## Professional update runbook
+
+Use this sequence in a disposable branch and test with `WP_DEBUG` enabled.
+
+```bash
+# 1) Work in a feature branch
+git checkout -b chore/woocommerce-template-compat
+
+# 2) Audit override versions
+node scripts/check-woocommerce-template-versions.mjs \
+  --theme wp-content/themes/<your-theme>/woocommerce \
+  --plugin wp-content/plugins/woocommerce/templates
+
+# 3) Update one outdated template at a time (example)
+code wp-content/themes/<your-theme>/woocommerce/cart/cart.php
+code wp-content/plugins/woocommerce/templates/cart/cart.php
+
+# 4) Validate syntax before browser testing
+php -l wp-content/themes/<your-theme>/woocommerce/cart/cart.php
+```
+
 ## Regression checklist (must pass)
 
 - Cart add/remove/update works.
@@ -52,8 +73,18 @@ These templates are most affected by WooCommerce release changes.
 - Mini-cart and cross-sells render correctly.
 - No PHP warnings/notices/fatal errors with `WP_DEBUG` on.
 
-## Optional CI guard
+## CI guard (recommended)
 
-Add a CI script to fail when theme overrides are older than the plugin template version.
-That prevents future drift and repeated emergency updates.
+Add this to CI so outdated template overrides fail the pipeline:
 
+```bash
+node scripts/check-woocommerce-template-versions.mjs \
+  --theme wp-content/themes/<your-theme>/woocommerce \
+  --plugin wp-content/plugins/woocommerce/templates
+```
+
+Exit codes:
+
+- `0`: all overrides are version-compatible
+- `1`: outdated/missing template compatibility issues found
+- `2`: invalid paths or usage
